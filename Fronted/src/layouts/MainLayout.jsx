@@ -1,17 +1,11 @@
 function MainLayout({ children }) {
   return (
-    <div>
-      <header
-        style={{
-          background: "#1e293b",
-          color: "white",
-          padding: "1rem",
-        }}
-      >
-        <h2>SIGAE</h2>
+    <div className="min-h-screen bg-gray-100">
+      <header className="bg-slate-800 text-white p-4 shadow-md">
+        <h1 className="text-2xl font-bold">SIGAE</h1>
       </header>
 
-      <main style={{ padding: "2rem" }}>
+      <main className="p-8">
         {children}
       </main>
     </div>
