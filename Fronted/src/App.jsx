@@ -4,9 +4,9 @@ import {
   Route,
 } from "react-router-dom";
 
-import Login from "./pages/Login";
+import Login from "./pages/auth/Login";
 import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./pages/Dashboard/Dashboard";
 
 import MainLayout from "./layouts/MainLayout";
 
