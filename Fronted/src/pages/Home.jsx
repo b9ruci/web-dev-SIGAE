@@ -1,9 +1,11 @@
+import MainLayout from "../layouts/MainLayout";
+
 function Home() {
   return (
-    <div>
+    <MainLayout>
       <h1>Bienvenido a SIGAE </h1>
-      <p>Frontend funcionando correctamente</p>
-    </div>
+      <p>Sistema funcionando correctamente</p>
+    </MainLayout>
   );
 }
 
