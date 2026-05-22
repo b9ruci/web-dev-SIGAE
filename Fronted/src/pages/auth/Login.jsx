@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 function Login() {
   const [correo, setCorreo] = useState("");
@@ -23,7 +23,10 @@ function Login() {
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
         <h1>SIGAE</h1>
-        <p>Sistema de Gestión Académica Escolar</p>
+
+        <p>
+          Sistema de Gestión Académica Escolar
+        </p>
 
         <input
           type="email"
@@ -44,6 +47,20 @@ function Login() {
         <button type="submit">
           Iniciar Sesión
         </button>
+
+        {/* LINKS */}
+
+        <div className="login-links">
+
+          <Link to="/forgot-password">
+            ¿Olvidaste tu contraseña?
+          </Link>
+
+          <Link to="/register">
+            Registrar cuenta
+          </Link>
+
+        </div>
       </form>
     </div>
   );

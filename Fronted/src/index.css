@@ -1,79 +1,89 @@
-/* LAYOUT */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Segoe UI", sans-serif;
+}
 
-.layout {
-  display: flex;
+body {
+  background: #f3f4f6;
+}
+
+/* LOGIN */
+
+.login-container {
   min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-/* SIDEBAR */
-
-.sidebar {
-  width: 260px;
-  background: #0f172a;
-  color: white;
-  padding: 2rem 1rem;
+.login-form {
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  padding: 40px;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 16px;
 }
 
-.sidebar-header h2 {
-  font-size: 2rem;
+.login-form h1 {
+  text-align: center;
+  color: #111827;
 }
 
-.sidebar-header p {
-  color: #cbd5e1;
-  margin-top: 5px;
+.login-form p {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 10px;
 }
 
-.sidebar-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  margin-top: 2rem;
-}
-
-.sidebar-menu a {
-  color: white;
-  text-decoration: none;
-  padding: 12px;
+.login-form input {
+  padding: 14px;
+  border: 1px solid #d1d5db;
   border-radius: 10px;
+  outline: none;
+  font-size: 15px;
+}
+
+.login-form input:focus {
+  border-color: #2563eb;
+}
+
+.login-form button {
+  background: #111827;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
   transition: 0.3s;
 }
 
-.sidebar-menu a:hover {
-  background: #1e293b;
+.login-form button:hover {
+  background: #1f2937;
 }
 
-.logout-btn {
-  border: none;
-  background: #ef4444;
-  color: white;
-  padding: 12px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-/* MAIN */
-
-.main-content {
-  flex: 1;
-  padding: 2rem;
-}
-
-/* DASHBOARD */
-
-.cards-container {
+.login-links {
   display: flex;
-  gap: 20px;
-  margin-top: 2rem;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  margin-top: 10px;
 }
 
-.dashboard-card {
-  background: white;
-  padding: 2rem;
-  border-radius: 15px;
-  width: 250px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.08);
+.login-links a {
+  text-decoration: none;
+  color: #2563eb;
+  font-size: 14px;
+}
+
+.login-links a:hover {
+  text-decoration: underline;
 }
