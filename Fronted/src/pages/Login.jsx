@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 function Login() {
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
+
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -11,6 +14,9 @@ function Login() {
       correo,
       password,
     });
+
+    // Redirige al dashboard
+    navigate("/dashboard");
   };
 
   return (
@@ -35,7 +41,9 @@ function Login() {
           required
         />
 
-        <button type="submit">Iniciar Sesión</button>
+        <button type="submit">
+          Iniciar Sesión
+        </button>
       </form>
     </div>
   );

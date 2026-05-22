@@ -1,24 +1,39 @@
-import Sidebar from "../components/Sidebar";
+import { Link, Outlet } from "react-router-dom";
 
-function MainLayout({ children }) {
+function MainLayout() {
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      
-      <Sidebar />
+    <div className="layout">
+      <aside className="sidebar">
+        <h2>SIGAE</h2>
 
-      <div className="flex-1">
-        
-        <header className="bg-white shadow-md p-4">
-          <h1 className="text-2xl font-bold text-slate-700">
-            Sistema SIGAE
-          </h1>
-        </header>
+        <nav>
+          <Link to="/dashboard">Inicio</Link>
 
-        <main className="p-8">
-          {children}
-        </main>
+          <Link to="/usuarios">
+            Usuarios
+          </Link>
 
-      </div>
+          <Link to="/estudiantes">
+            Estudiantes
+          </Link>
+
+          <Link to="/horarios">
+            Horarios
+          </Link>
+
+          <Link to="/citaciones">
+            Citaciones
+          </Link>
+
+          <Link to="/">
+            Cerrar sesión
+          </Link>
+        </nav>
+      </aside>
+
+      <main className="main-content">
+        <Outlet />
+      </main>
     </div>
   );
 }
