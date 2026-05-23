@@ -3,95 +3,79 @@ import { Link } from "react-router-dom";
 
 function Register() {
 
-  const [tipoUsuario, setTipoUsuario] =
-    useState("apoderado");
+  const [rol, setRol] =
+    useState("Administrador");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    alert("Usuario registrado");
+  };
 
   return (
     <div className="login-container">
 
-      <form className="login-form">
+      <form
+        className="login-form"
+        onSubmit={handleSubmit}
+      >
 
-        <h1>Registro de Usuario</h1>
-
-        <p>
-          Complete el formulario para registrarse
-        </p>
-
-        {/* SELECT TIPO */}
+        <h1>Registrar Cuenta</h1>
 
         <select
-          value={tipoUsuario}
+          value={rol}
           onChange={(e) =>
-            setTipoUsuario(e.target.value)
+            setRol(e.target.value)
           }
         >
-          <option value="apoderado">
-            Apoderado
-          </option>
-
-          <option value="docente">
-            Docente
-          </option>
-
-          <option value="administrador">
+          <option>
             Administrador
           </option>
 
-          <option value="estudiante">
+          <option>
+            Docente
+          </option>
+
+          <option>
+            Apoderado
+          </option>
+
+          <option>
             Estudiante
           </option>
         </select>
 
-        {/* CAMPOS GENERALES */}
-
         <input
           type="text"
-          placeholder="Nombre Completo"
+          placeholder="Nombre completo"
+          required
         />
 
         <input
           type="text"
           placeholder="RUT"
+          required
         />
 
-        <div className="double-input">
+        <input
+          type="email"
+          placeholder="Correo"
+          required
+        />
 
-          <input
-            type="email"
-            placeholder="Correo Electrónico"
-          />
+        <input
+          type="text"
+          placeholder="Teléfono"
+          required
+        />
 
-          <input
-            type="text"
-            placeholder="Teléfono"
-          />
+        <input
+          type="password"
+          placeholder="Contraseña"
+          required
+        />
 
-        </div>
-
-        {/* APODERADO */}
-
-        {tipoUsuario === "apoderado" && (
-          <>
-            <select>
-              <option>
-                Relación con el estudiante
-              </option>
-
-              <option>Madre</option>
-              <option>Padre</option>
-              <option>Tutor Legal</option>
-            </select>
-
-            <input
-              type="text"
-              placeholder="Nombre del estudiante"
-            />
-          </>
-        )}
-
-        {/* DOCENTE */}
-
-        {tipoUsuario === "docente" && (
+        {rol === "Docente" && (
           <>
             <input
               type="text"
@@ -100,52 +84,40 @@ function Register() {
 
             <input
               type="number"
-              placeholder="Carga Horaria Máxima"
+              placeholder="Carga horaria"
             />
           </>
         )}
 
-        {/* ESTUDIANTE */}
+        {rol === "Apoderado" && (
+          <input
+            type="text"
+            placeholder="Dirección"
+          />
+        )}
 
-        {tipoUsuario === "estudiante" && (
+        {rol === "Estudiante" && (
           <>
             <input
               type="text"
               placeholder="Curso"
             />
 
-            <select>
-              <option>
-                Estado Académico
-              </option>
-
-              <option>Activo</option>
-              <option>Retirado</option>
-              <option>Suspendido</option>
-            </select>
+            <input
+              type="text"
+              placeholder="Estado académico"
+            />
           </>
         )}
 
-        {/* PASSWORD */}
-
-        <input
-          type="password"
-          placeholder="Contraseña"
-        />
-
-        <input
-          type="password"
-          placeholder="Confirmar Contraseña"
-        />
-
         <button type="submit">
-          Registrar Usuario
+          Registrar
         </button>
 
         <div className="login-links">
 
           <Link to="/">
-            ¿Ya tiene una cuenta? Iniciar sesión
+            Volver al login
           </Link>
 
         </div>

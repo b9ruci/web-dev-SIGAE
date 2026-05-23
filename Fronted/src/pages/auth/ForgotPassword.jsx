@@ -1,10 +1,30 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import {
+  useNavigate,
+  Link,
+} from "react-router-dom";
 
 function ForgotPassword() {
+
+  const [correo, setCorreo] = useState("");
+
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    console.log("Correo enviado:", correo);
+
+    navigate("/reset-password");
+  };
+
   return (
     <div className="login-container">
 
-      <form className="login-form">
+      <form
+        className="login-form"
+        onSubmit={handleSubmit}
+      >
 
         <h1>Recuperar Contraseña</h1>
 
@@ -14,7 +34,12 @@ function ForgotPassword() {
 
         <input
           type="email"
-          placeholder="Correo electrónico"
+          placeholder="Correo institucional"
+          value={correo}
+          onChange={(e) =>
+            setCorreo(e.target.value)
+          }
+          required
         />
 
         <button type="submit">

@@ -152,3 +152,29 @@ body {
   color: #6b7280;
   line-height: 1.5;
 }
+select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.login-links {
+  margin-top: 15px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-links a {
+  text-decoration: none;
+  color: #1d4ed8;
+  font-size: 14px;
+}
+
+.login-links a:hover {
+  text-decoration: underline;
+}

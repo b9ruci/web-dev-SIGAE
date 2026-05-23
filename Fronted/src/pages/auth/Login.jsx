@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import {
+  useNavigate,
+  Link,
+} from "react-router-dom";
 
 function Login() {
-
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
 
@@ -16,8 +18,7 @@ function Login() {
       password,
     });
 
-    // Redirige al dashboard
-    navigate("/dashboard");
+    navigate("/Dashboard");
   };
 
   return (
@@ -71,7 +72,6 @@ function Login() {
         </div>
 
       </form>
-
     </div>
   );
 }
