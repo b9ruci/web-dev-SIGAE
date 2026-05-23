@@ -18,7 +18,7 @@ function Login() {
       password,
     });
 
-    navigate("/Dashboard");
+    navigate("/dashboard");
   };
 
   return (
