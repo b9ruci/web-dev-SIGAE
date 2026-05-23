@@ -1,49 +1,40 @@
-import { useState } from "react";
+import { Link } from "react-router-dom";
 
 function ResetPassword() {
-  const [password, setPassword] = useState("");
-  const [confirmar, setConfirmar] = useState("");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (password !== confirmar) {
-      alert("Las contraseñas no coinciden");
-      return;
-    }
-
-    alert("Contraseña actualizada");
-  };
-
   return (
-    <div className="auth-container">
-      <div className="auth-card">
+    <div className="login-container">
+
+      <form className="login-form">
+
         <h1>Nueva Contraseña</h1>
 
         <p>
-          La nueva contraseña debe ser distinta a la anterior.
+          Debe ingresar una nueva contraseña
         </p>
 
-        <form onSubmit={handleSubmit}>
-          <input
-            type="password"
-            placeholder="Nueva contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+        <input
+          type="password"
+          placeholder="Nueva contraseña"
+        />
 
-          <input
-            type="password"
-            placeholder="Confirmar contraseña"
-            value={confirmar}
-            onChange={(e) => setConfirmar(e.target.value)}
-          />
+        <input
+          type="password"
+          placeholder="Confirmar contraseña"
+        />
 
-          <button type="submit">
-            Actualizar contraseña
-          </button>
-        </form>
-      </div>
+        <button type="submit">
+          Actualizar contraseña
+        </button>
+
+        <div className="login-links">
+
+          <Link to="/">
+            Volver al login
+          </Link>
+
+        </div>
+
+      </form>
     </div>
   );
 }

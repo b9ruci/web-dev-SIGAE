@@ -1,28 +1,55 @@
 function Dashboard() {
+
   return (
-    <div>
+    <div className="dashboard-container">
 
-      <h1>Dashboard SIGAE</h1>
+      <div className="dashboard-header">
 
-      <p>
-        Bienvenido al sistema de gestión académica escolar.
-      </p>
+        <h1>Panel Principal</h1>
 
-      <div className="cards-container">
+        <p>
+          Bienvenido al Sistema de Gestión
+          Académica Escolar
+        </p>
+
+      </div>
+
+      <div className="dashboard-grid">
 
         <div className="dashboard-card">
-          <h3>Usuarios</h3>
-          <p>Gestión de cuentas institucionales</p>
+          <h2>Usuarios</h2>
+
+          <p>
+            Gestión de administradores,
+            docentes y apoderados
+          </p>
         </div>
 
         <div className="dashboard-card">
-          <h3>Horarios</h3>
-          <p>Administración académica</p>
+          <h2>Estudiantes</h2>
+
+          <p>
+            Registro y visualización
+            de estudiantes
+          </p>
         </div>
 
         <div className="dashboard-card">
-          <h3>Citaciones</h3>
-          <p>Comunicación docente-apoderado</p>
+          <h2>Horarios</h2>
+
+          <p>
+            Gestión de bloques horarios
+            y planificación académica
+          </p>
+        </div>
+
+        <div className="dashboard-card">
+          <h2>Citaciones</h2>
+
+          <p>
+            Comunicación entre docentes
+            y apoderados
+          </p>
         </div>
 
       </div>

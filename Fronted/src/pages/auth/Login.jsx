@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
 function Login() {
+
   const [correo, setCorreo] = useState("");
   const [password, setPassword] = useState("");
 
@@ -21,7 +22,12 @@ function Login() {
 
   return (
     <div className="login-container">
-      <form className="login-form" onSubmit={handleSubmit}>
+
+      <form
+        className="login-form"
+        onSubmit={handleSubmit}
+      >
+
         <h1>SIGAE</h1>
 
         <p>
@@ -32,7 +38,9 @@ function Login() {
           type="email"
           placeholder="Correo institucional"
           value={correo}
-          onChange={(e) => setCorreo(e.target.value)}
+          onChange={(e) =>
+            setCorreo(e.target.value)
+          }
           required
         />
 
@@ -40,7 +48,9 @@ function Login() {
           type="password"
           placeholder="Contraseña"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) =>
+            setPassword(e.target.value)
+          }
           required
         />
 
@@ -48,12 +58,10 @@ function Login() {
           Iniciar Sesión
         </button>
 
-        {/* LINKS */}
-
         <div className="login-links">
 
           <Link to="/forgot-password">
-            ¿Olvidaste tu contraseña?
+            ¿Olvidó su contraseña?
           </Link>
 
           <Link to="/register">
@@ -61,7 +69,9 @@ function Login() {
           </Link>
 
         </div>
+
       </form>
+
     </div>
   );
 }

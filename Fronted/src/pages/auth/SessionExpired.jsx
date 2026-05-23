@@ -2,19 +2,22 @@ import { Link } from "react-router-dom";
 
 function SessionExpired() {
   return (
-    <div className="auth-container">
-      <div className="auth-card">
+    <div className="login-container">
+
+      <div className="login-form">
+
         <h1>Sesión Expirada</h1>
 
         <p>
-          Tu sesión expiró por inactividad.
+          Su sesión expiró por inactividad
         </p>
 
         <Link to="/">
           <button>
-            Volver al Login
+            Volver a iniciar sesión
           </button>
         </Link>
+
       </div>
     </div>
   );
