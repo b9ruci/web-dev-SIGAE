@@ -1,77 +1,49 @@
 import { useState } from "react";
-import {
-  useNavigate,
-  Link,
-} from "react-router-dom";
 
 function ResetPassword() {
-
-  const [passwordActual, setPasswordActual] =
+  const [newPassword, setNewPassword] =
     useState("");
 
-  const [passwordNueva, setPasswordNueva] =
+  const [confirmPassword, setConfirmPassword] =
     useState("");
-
-  const [confirmarPassword, setConfirmarPassword] =
-    useState("");
-
-  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (passwordNueva !== confirmarPassword) {
-      alert("Las contraseñas no coinciden");
-      return;
-    }
-
-    if (passwordNueva === passwordActual) {
+    if (
+      newPassword !== confirmPassword
+    ) {
       alert(
-        "La nueva contraseña debe ser diferente"
+        "Las contraseñas no coinciden"
       );
       return;
     }
 
-    console.log({
-      passwordActual,
-      passwordNueva,
-    });
-
-    alert("Contraseña actualizada");
-
-    navigate("/");
+    alert(
+      "Contraseña actualizada correctamente"
+    );
   };
 
   return (
     <div className="login-container">
-
       <form
         className="login-form"
         onSubmit={handleSubmit}
       >
-
-        <h1>Cambiar Contraseña</h1>
+        <h1>Nueva Contraseña</h1>
 
         <p>
-          Debe ingresar una nueva contraseña
+          Ingrese su nueva contraseña
         </p>
 
         <input
           type="password"
-          placeholder="Contraseña actual"
-          value={passwordActual}
-          onChange={(e) =>
-            setPasswordActual(e.target.value)
-          }
-          required
-        />
-
-        <input
-          type="password"
           placeholder="Nueva contraseña"
-          value={passwordNueva}
+          value={newPassword}
           onChange={(e) =>
-            setPasswordNueva(e.target.value)
+            setNewPassword(
+              e.target.value
+            )
           }
           required
         />
@@ -79,25 +51,18 @@ function ResetPassword() {
         <input
           type="password"
           placeholder="Confirmar contraseña"
-          value={confirmarPassword}
+          value={confirmPassword}
           onChange={(e) =>
-            setConfirmarPassword(e.target.value)
+            setConfirmPassword(
+              e.target.value
+            )
           }
           required
         />
 
         <button type="submit">
-          Actualizar contraseña
+          Cambiar contraseña
         </button>
-
-        <div className="login-links">
-
-          <Link to="/">
-            Volver al login
-          </Link>
-
-        </div>
-
       </form>
     </div>
   );
