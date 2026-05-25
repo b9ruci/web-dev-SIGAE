@@ -1,15 +1,15 @@
-function Usuarios() {
+function Citaciones() {
 
   return (
 
     <div className="page-container">
 
       <h1>
-        Usuarios
+        Citaciones
       </h1>
 
     </div>
   );
 }
 
-export default Usuarios;
+export default Citaciones;

@@ -1,15 +1,15 @@
-function Usuarios() {
+function Cursos() {
 
   return (
 
     <div className="page-container">
 
       <h1>
-        Usuarios
+        Cursos
       </h1>
 
     </div>
   );
 }
 
-export default Usuarios;
+export default Cursos;

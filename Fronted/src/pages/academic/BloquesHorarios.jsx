@@ -1,15 +1,15 @@
-function Usuarios() {
+function BloquesHorarios() {
 
   return (
 
     <div className="page-container">
 
       <h1>
-        Usuarios
+        Bloques Horarios
       </h1>
 
     </div>
   );
 }
 
-export default Usuarios;
+export default BloquesHorarios;
