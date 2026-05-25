@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 
 function SessionExpired() {
-
   return (
     <div className="login-container">
 
@@ -15,11 +14,12 @@ function SessionExpired() {
 
         <Link to="/">
           <button>
-            Volver al inicio
+            Volver al Login
           </button>
         </Link>
 
       </div>
+
     </div>
   );
 }

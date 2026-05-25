@@ -1,8 +1,5 @@
 import { useState } from "react";
-import {
-  useNavigate,
-  Link,
-} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 function Login() {
   const [correo, setCorreo] = useState("");
@@ -65,13 +62,10 @@ function Login() {
             ¿Olvidó su contraseña?
           </Link>
 
-          <Link to="/register">
-            Registrar cuenta
-          </Link>
-
         </div>
 
       </form>
+
     </div>
   );
 }

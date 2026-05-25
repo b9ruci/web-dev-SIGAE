@@ -13,10 +13,12 @@ function ForgotPassword() {
 
   return (
     <div className="login-container">
+
       <form
         className="login-form"
         onSubmit={handleSubmit}
       >
+
         <h1>Recuperar Contraseña</h1>
 
         <p>
@@ -25,7 +27,7 @@ function ForgotPassword() {
 
         <input
           type="email"
-          placeholder="Correo electrónico"
+          placeholder="Correo institucional"
           value={correo}
           onChange={(e) =>
             setCorreo(e.target.value)
@@ -36,7 +38,9 @@ function ForgotPassword() {
         <button type="submit">
           Enviar enlace
         </button>
+
       </form>
+
     </div>
   );
 }

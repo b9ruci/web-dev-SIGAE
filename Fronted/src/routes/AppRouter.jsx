@@ -4,31 +4,58 @@ import {
   Route,
 } from "react-router-dom";
 
+/* AUTH */
+
 import Login from "../pages/auth/Login";
-import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 import SessionExpired from "../pages/auth/SessionExpired";
 
+/* DASHBOARD */
+
 import Dashboard from "../pages/dashboard/Dashboard";
 
+/* USERS */
+
 import Usuarios from "../pages/users/Usuarios";
+import RegisterAdmin from "../pages/users/RegisterAdmin";
+import RegisterTeacher from "../pages/users/RegisterTeacher";
+import RegisterGuardian from "../pages/users/RegisterGuardian";
+import RegisterStudent from "../pages/users/RegisterStudent";
+import Perfil from "../pages/users/Perfil";
+
+/* ACADEMIC */
+
+import Cursos from "../pages/academic/Cursos";
+import Horarios from "../pages/academic/Horarios";
+import BloquesHorarios from "../pages/academic/BloquesHorarios";
+
+/* COMMUNICATION */
+
+import Mensajes from "../pages/communications/Mensajes";
+import Citaciones from "../pages/communications/Citaciones";
+
+/* REPORTS */
+
 import Reportes from "../pages/reports/Reportes";
+
+/* LAYOUT */
 
 import MainLayout from "../layouts/MainLayout";
 
 function AppRouter() {
+
   return (
+
     <BrowserRouter>
+
       <Routes>
 
         {/* AUTH */}
 
-        <Route path="/" element={<Login />} />
-
         <Route
-          path="/register"
-          element={<Register />}
+          path="/"
+          element={<Login />}
         />
 
         <Route
@@ -46,14 +73,18 @@ function AppRouter() {
           element={<SessionExpired />}
         />
 
-        {/* DASHBOARD */}
+        {/* PRIVATE ROUTES */}
 
         <Route element={<MainLayout />}>
+
+          {/* DASHBOARD */}
 
           <Route
             path="/dashboard"
             element={<Dashboard />}
           />
+
+          {/* USERS */}
 
           <Route
             path="/usuarios"
@@ -61,12 +92,70 @@ function AppRouter() {
           />
 
           <Route
+            path="/registrar-admin"
+            element={<RegisterAdmin />}
+          />
+
+          <Route
+            path="/registrar-docente"
+            element={<RegisterTeacher />}
+          />
+
+          <Route
+            path="/registrar-apoderado"
+            element={<RegisterGuardian />}
+          />
+
+          <Route
+            path="/registrar-estudiante"
+            element={<RegisterStudent />}
+          />
+
+          <Route
+            path="/perfil"
+            element={<Perfil />}
+          />
+
+          {/* ACADEMIC */}
+
+          <Route
+            path="/cursos"
+            element={<Cursos />}
+          />
+
+          <Route
+            path="/horarios"
+            element={<Horarios />}
+          />
+
+          <Route
+            path="/bloques"
+            element={<BloquesHorarios />}
+          />
+
+          {/* COMMUNICATION */}
+
+          <Route
+            path="/mensajes"
+            element={<Mensajes />}
+          />
+
+          <Route
+            path="/citaciones"
+            element={<Citaciones />}
+          />
+
+          {/* REPORTES */}
+
+          <Route
             path="/reportes"
             element={<Reportes />}
           />
 
         </Route>
+
       </Routes>
+
     </BrowserRouter>
   );
 }

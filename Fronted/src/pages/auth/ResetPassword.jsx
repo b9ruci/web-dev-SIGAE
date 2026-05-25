@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 function ResetPassword() {
+
   const [newPassword, setNewPassword] =
     useState("");
 
@@ -10,26 +11,22 @@ function ResetPassword() {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (
-      newPassword !== confirmPassword
-    ) {
-      alert(
-        "Las contraseñas no coinciden"
-      );
+    if (newPassword !== confirmPassword) {
+      alert("Las contraseñas no coinciden");
       return;
     }
 
-    alert(
-      "Contraseña actualizada correctamente"
-    );
+    alert("Contraseña actualizada correctamente");
   };
 
   return (
     <div className="login-container">
+
       <form
         className="login-form"
         onSubmit={handleSubmit}
       >
+
         <h1>Nueva Contraseña</h1>
 
         <p>
@@ -41,9 +38,7 @@ function ResetPassword() {
           placeholder="Nueva contraseña"
           value={newPassword}
           onChange={(e) =>
-            setNewPassword(
-              e.target.value
-            )
+            setNewPassword(e.target.value)
           }
           required
         />
@@ -53,9 +48,7 @@ function ResetPassword() {
           placeholder="Confirmar contraseña"
           value={confirmPassword}
           onChange={(e) =>
-            setConfirmPassword(
-              e.target.value
-            )
+            setConfirmPassword(e.target.value)
           }
           required
         />
@@ -63,7 +56,9 @@ function ResetPassword() {
         <button type="submit">
           Cambiar contraseña
         </button>
+
       </form>
+
     </div>
   );
 }
