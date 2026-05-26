@@ -6,7 +6,7 @@ function MainLayout() {
 
   const cerrarSesion = () => {
 
-    // Aquí después se elimina token/sessionStorage
+    localStorage.removeItem("usuario");
 
     navigate("/");
   };
@@ -19,77 +19,69 @@ function MainLayout() {
 
       <aside className="sidebar">
 
-        <h2>SIGAE</h2>
+        <div>
 
-        <nav>
+          <h2 className="logo">
+            SIGAE
+          </h2>
 
-          {/* DASHBOARD */}
+          <nav className="menu">
 
-          <Link to="/dashboard">
-            Dashboard
-          </Link>
+            <Link to="/dashboard">
+              Dashboard
+            </Link>
 
-          {/* USUARIOS */}
+            <Link to="/usuarios">
+              Usuarios
+            </Link>
 
-          <Link to="/usuarios">
-            Usuarios
-          </Link>
+            <Link to="/registrar-admin">
+              Registrar Administrador
+            </Link>
 
-          <Link to="/registrar-admin">
-            Registrar Administrador
-          </Link>
+            <Link to="/registrar-docente">
+              Registrar Docente
+            </Link>
 
-          <Link to="/registrar-docente">
-            Registrar Docente
-          </Link>
+            <Link to="/registrar-apoderado">
+              Registrar Apoderado
+            </Link>
 
-          <Link to="/registrar-apoderado">
-            Registrar Apoderado
-          </Link>
+            <Link to="/registrar-estudiante">
+              Registrar Estudiante
+            </Link>
 
-          <Link to="/registrar-estudiante">
-            Registrar Estudiante
-          </Link>
+            <Link to="/cursos">
+              Cursos
+            </Link>
 
-          {/* ACADÉMICO */}
+            <Link to="/horarios">
+              Horarios
+            </Link>
 
-          <Link to="/cursos">
-            Cursos
-          </Link>
+            <Link to="/bloques">
+              Bloques Horarios
+            </Link>
 
-          <Link to="/horarios">
-            Horarios
-          </Link>
+            <Link to="/mensajes">
+              Mensajes
+            </Link>
 
-          <Link to="/bloques">
-            Bloques Horarios
-          </Link>
+            <Link to="/citaciones">
+              Citaciones
+            </Link>
 
-          {/* COMUNICACIÓN */}
+            <Link to="/reportes">
+              Reportes
+            </Link>
 
-          <Link to="/mensajes">
-            Mensajes
-          </Link>
+            <Link to="/perfil">
+              Mi Perfil
+            </Link>
 
-          <Link to="/citaciones">
-            Citaciones
-          </Link>
+          </nav>
 
-          {/* REPORTES */}
-
-          <Link to="/reportes">
-            Reportes
-          </Link>
-
-          {/* PERFIL */}
-
-          <Link to="/perfil">
-            Mi Perfil
-          </Link>
-
-        </nav>
-
-        {/* CERRAR SESIÓN */}
+        </div>
 
         <button
           className="logout-button"
@@ -103,7 +95,9 @@ function MainLayout() {
       {/* CONTENIDO */}
 
       <main className="main-content">
+
         <Outlet />
+
       </main>
 
     </div>
