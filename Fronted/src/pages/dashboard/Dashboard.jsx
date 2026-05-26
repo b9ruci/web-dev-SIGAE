@@ -1,55 +1,89 @@
 function Dashboard() {
 
+  // DATOS TEMPORALES
+  // Después vendrán desde backend
+
+  const totalUsuarios = 4;
+  const totalDocentes = 1;
+  const totalApoderados = 1;
+  const totalEstudiantes = 1;
+  const totalCursos = 1;
+  const totalCitaciones = 1;
+
   return (
+
     <div className="dashboard-container">
 
-      <div className="dashboard-header">
+      <h1>
+        Dashboard SIGAE
+      </h1>
 
-        <h1>Panel Principal</h1>
+      <p>
+        Bienvenido al Sistema de Gestión Académica Escolar
+      </p>
 
-        <p>
-          Bienvenido al Sistema de Gestión
-          Académica Escolar
-        </p>
+      {/* TARJETAS */}
+
+      <div className="dashboard-cards">
+
+        <div className="card">
+          <h3>Usuarios</h3>
+          <p>{totalUsuarios}</p>
+        </div>
+
+        <div className="card">
+          <h3>Docentes</h3>
+          <p>{totalDocentes}</p>
+        </div>
+
+        <div className="card">
+          <h3>Apoderados</h3>
+          <p>{totalApoderados}</p>
+        </div>
+
+        <div className="card">
+          <h3>Estudiantes</h3>
+          <p>{totalEstudiantes}</p>
+        </div>
+
+        <div className="card">
+          <h3>Cursos</h3>
+          <p>{totalCursos}</p>
+        </div>
+
+        <div className="card">
+          <h3>Citaciones</h3>
+          <p>{totalCitaciones}</p>
+        </div>
 
       </div>
 
-      <div className="dashboard-grid">
+      {/* ACCESOS RÁPIDOS */}
 
-        <div className="dashboard-card">
-          <h2>Usuarios</h2>
+      <div className="quick-actions">
 
-          <p>
-            Gestión de administradores,
-            docentes y apoderados
-          </p>
-        </div>
+        <h2>
+          Accesos Rápidos
+        </h2>
 
-        <div className="dashboard-card">
-          <h2>Estudiantes</h2>
+        <div className="actions-grid">
 
-          <p>
-            Registro y visualización
-            de estudiantes
-          </p>
-        </div>
+          <a href="/registrar-docente">
+            Registrar Docente
+          </a>
 
-        <div className="dashboard-card">
-          <h2>Horarios</h2>
+          <a href="/registrar-apoderado">
+            Registrar Apoderado
+          </a>
 
-          <p>
-            Gestión de bloques horarios
-            y planificación académica
-          </p>
-        </div>
+          <a href="/registrar-estudiante">
+            Registrar Estudiante
+          </a>
 
-        <div className="dashboard-card">
-          <h2>Citaciones</h2>
+          <a href="/citaciones">
+            Ver Citaciones
+          </a>
 
-          <p>
-            Comunicación entre docentes
-            y apoderados
-          </p>
         </div>
 
       </div>
