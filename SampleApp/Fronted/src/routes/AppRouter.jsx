@@ -161,7 +161,7 @@ function AppRouter() {
             element={<Citaciones />}
           />
 
-          {/* REPORTES */}
+          {/* REPORTS */}
 
           <Route
             path="/reportes"

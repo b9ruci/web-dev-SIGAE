@@ -1,8 +1,7 @@
 import { useState } from "react";
-import {
-  useNavigate,
-  Link,
-} from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+
+import { useAuth } from "../context/AuthContext";
 
 function Login() {
 
@@ -11,100 +10,31 @@ function Login() {
 
   const navigate = useNavigate();
 
+  const { login } = useAuth();
+
   const handleSubmit = (e) => {
 
     e.preventDefault();
 
-    /*
-      SIMULACIÓN DE LOGIN
-      Después lo conectamos con backend
-    */
+    // SIMULACIÓN DE LOGIN
 
-    // SUPER ADMIN
-    if (
-      correo === "es.gonzales@jacquescousteau.edu" &&
-      password === "1234"
-    ) {
+    const fakeUser = {
+      nombre: "Administrador SIGAE",
+      correo,
+      roles: ["Administrador", "Docente"],
+    };
 
-      const usuario = {
-        nombre: "Esperanza Gonzales",
-        roles: ["superadmin"],
-      };
+    login(fakeUser);
 
-      localStorage.setItem(
-        "usuario",
-        JSON.stringify(usuario)
-      );
+    // SI TIENE MÁS DE UN ROL
+    if (fakeUser.roles.length > 1) {
+
+      navigate("/select-role");
+
+    } else {
 
       navigate("/dashboard");
-
-      return;
     }
-
-    // ADMIN NORMAL
-    if (
-      correo === "ca.gonzales@jacquescousteau.edu" &&
-      password === "ilovemilf"
-    ) {
-
-      const usuario = {
-        nombre: "Carlos Gonzales",
-        roles: ["admin"],
-      };
-
-      localStorage.setItem(
-        "usuario",
-        JSON.stringify(usuario)
-      );
-
-      navigate("/dashboard");
-
-      return;
-    }
-
-    // DOCENTE
-    if (
-      correo === "ma.morales@jacquescousteau.edu" &&
-      password === "hash123"
-    ) {
-
-      const usuario = {
-        nombre: "María Morales",
-        roles: ["docente"],
-      };
-
-      localStorage.setItem(
-        "usuario",
-        JSON.stringify(usuario)
-      );
-
-      navigate("/dashboard");
-
-      return;
-    }
-
-    // USUARIO MULTIROL
-    if (
-      correo === "multirol@jacquescousteau.edu" &&
-      password === "1234"
-    ) {
-
-      const usuario = {
-        nombre: "Usuario Multirol",
-        roles: ["docente", "apoderado"],
-      };
-
-      localStorage.setItem(
-        "usuario",
-        JSON.stringify(usuario)
-      );
-
-      navigate("/seleccionar-rol");
-
-      return;
-    }
-
-    alert("Credenciales incorrectas");
   };
 
   return (

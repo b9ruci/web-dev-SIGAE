@@ -1,36 +1,56 @@
-import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-const SelectRole = () => {
-  const { usuario, seleccionarRol } = useAuth();
+function SelectRole() {
+
   const navigate = useNavigate();
 
-  const handleSelectRole = (rol) => {
-    seleccionarRol(rol);
-    navigate("/");
+  const {
+    user,
+    setSelectedRole,
+  } = useAuth();
+
+  const handleSelectRole = (role) => {
+
+    setSelectedRole(role);
+
+    navigate("/dashboard");
   };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h1 className="text-3xl font-bold text-center mb-6">
-          Selecciona un Rol
-        </h1>
+  if (!user) {
 
-        <div className="space-y-4">
-          {usuario?.roles?.map((rol) => (
-            <button
-              key={rol}
-              onClick={() => handleSelectRole(rol)}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold transition"
-            >
-              {rol}
-            </button>
-          ))}
-        </div>
+    return <h2>No hay usuario activo</h2>;
+  }
+
+  return (
+
+    <div className="login-container">
+
+      <div className="login-form">
+
+        <h1>Seleccionar Rol</h1>
+
+        <p>
+          Elige con qué rol deseas ingresar
+        </p>
+
+        {user.roles.map((role) => (
+
+          <button
+            key={role}
+            onClick={() =>
+              handleSelectRole(role)
+            }
+          >
+            {role}
+          </button>
+
+        ))}
+
       </div>
+
     </div>
   );
-};
+}
 
 export default SelectRole;
