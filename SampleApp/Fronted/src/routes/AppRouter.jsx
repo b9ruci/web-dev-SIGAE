@@ -10,6 +10,11 @@ import Login from "../pages/auth/Login";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 import SessionExpired from "../pages/auth/SessionExpired";
+import SelectRole from "../pages/auth/SelectRole";
+
+/* PROTECTED ROUTE */
+
+import ProtectedRoute from "./ProtectedRoute";
 
 /* DASHBOARD */
 
@@ -59,6 +64,11 @@ function AppRouter() {
         />
 
         <Route
+          path="/seleccionar-rol"
+          element={<SelectRole />}
+        />
+
+        <Route
           path="/forgot-password"
           element={<ForgotPassword />}
         />
@@ -75,7 +85,13 @@ function AppRouter() {
 
         {/* PRIVATE ROUTES */}
 
-        <Route element={<MainLayout />}>
+        <Route
+          element={
+            <ProtectedRoute>
+              <MainLayout />
+            </ProtectedRoute>
+          }
+        >
 
           {/* DASHBOARD */}
 
