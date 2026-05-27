@@ -1,51 +1,56 @@
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
 function SelectRole() {
 
   const navigate = useNavigate();
 
-  const {
-    user,
-    setSelectedRole,
-  } = useAuth();
+  const roles = [
+    "Administrador",
+    "Docente",
+    "Apoderado",
+  ];
 
   const handleSelectRole = (role) => {
 
-    setSelectedRole(role);
+    localStorage.setItem(
+      "activeRole",
+      role
+    );
 
     navigate("/dashboard");
   };
 
-  if (!user) {
-
-    return <h2>No hay usuario activo</h2>;
-  }
-
   return (
 
-    <div className="login-container">
+    <div className="select-role-container">
 
-      <div className="login-form">
+      <div className="select-role-card">
 
-        <h1>Seleccionar Rol</h1>
+        <h1>
+          Seleccionar Rol
+        </h1>
 
         <p>
-          Elige con qué rol deseas ingresar
+          Elige el rol con el que deseas ingresar
         </p>
 
-        {user.roles.map((role) => (
+        <div className="roles-container">
 
-          <button
-            key={role}
-            onClick={() =>
-              handleSelectRole(role)
-            }
-          >
-            {role}
-          </button>
+          {roles.map((role) => (
 
-        ))}
+            <button
+              key={role}
+              className="role-button"
+              onClick={() =>
+                handleSelectRole(role)
+              }
+            >
+              {role}
+            </button>
+
+          ))}
+
+        </div>
 
       </div>
 

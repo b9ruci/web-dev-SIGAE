@@ -372,3 +372,40 @@ select {
 .logout-button:hover {
   background: #1d4ed8;
 }
+.select-role-container{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#f4f7fb;
+}
+
+.select-role-card{
+  background:white;
+  padding:40px;
+  border-radius:16px;
+  width:400px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.1);
+  text-align:center;
+}
+
+.roles-container{
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  margin-top:24px;
+}
+
+.role-button{
+  padding:14px;
+  border:none;
+  border-radius:10px;
+  background:#2563eb;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.role-button:hover{
+  opacity:0.9;
+}
