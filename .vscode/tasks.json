@@ -2,60 +2,24 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build frontend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/SampleApp/FrontEnd/FrontEnd.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "publish frontend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "publish",
-                "${workspaceFolder}/SampleApp/FrontEnd/FrontEnd.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "watch frontend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "${workspaceFolder}/SampleApp/FrontEnd/FrontEnd.csproj"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
             "label": "build backend",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/SampleApp/BackEnd/BackEnd.csproj",
+                "${workspaceFolder}/webSIGAE/BackEnd/BackEnd.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "publish backend",
+            "label": "build frontend",
             "command": "dotnet",
             "type": "process",
             "args": [
-                "publish",
-                "${workspaceFolder}/SampleApp/BackEnd/BackEnd.csproj",
+                "build",
+                "${workspaceFolder}/webSIGAE/FrontEnd/FrontEnd.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
@@ -69,7 +33,19 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/SampleApp/BackEnd/BackEnd.csproj"
+                "${workspaceFolder}/webSIGAE/BackEnd/BackEnd.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "watch frontend",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "watch",
+                "run",
+                "--project",
+                "${workspaceFolder}/webSIGAE/FrontEnd/FrontEnd.csproj"
             ],
             "problemMatcher": "$msCompile"
         }
