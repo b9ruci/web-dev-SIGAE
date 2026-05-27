@@ -12,30 +12,23 @@ function Login() {
 
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
-
-    e.preventDefault();
-
-    // SIMULACIÓN DE LOGIN
-
-    const fakeUser = {
-      nombre: "Administrador SIGAE",
-      correo,
-      roles: ["Administrador", "Docente"],
-    };
-
-    login(fakeUser);
-
-    // SI TIENE MÁS DE UN ROL
-    if (fakeUser.roles.length > 1) {
-
-      navigate("/select-role");
-
-    } else {
-
-      navigate("/dashboard");
-    }
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: correo, password })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const { user, token } = await res.json();
+    login(user, token);  // guarda token y user en contexto/localStorage
+    if (user.roles.length > 1) navigate('/select-role');
+    else navigate('/dashboard');
+  } catch (err) {
+    alert(err.message);
+  }
+};
 
   return (
 
