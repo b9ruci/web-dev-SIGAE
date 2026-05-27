@@ -1,11 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
-// CORS (ajustar origen para desarrollo/producción)
+// Configuración de CORS (solo una vez)
 const corsOptions = {
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
@@ -14,8 +13,12 @@ app.use(cors(corsOptions));
 
 app.use(express.json());
 
-// Ruta de autenticación
+// === RUTAS (TODAS antes de app.listen) ===
+const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
+
+const usuarioRoutes = require('./routes/usuarioRoutes');
+app.use('/api/usuarios', usuarioRoutes);
 
 // Manejo de rutas no encontradas
 app.use((req, res) => {
