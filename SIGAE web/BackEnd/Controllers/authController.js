@@ -1,16 +1,17 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const db = require('../config/db');
+const pool = require('../config/db');
 
-exports.login = async (req, res) => {
+const login = async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Faltan credenciales' });
-  }
 
   try {
-    // 1. Buscar usuario
-    const [rows] = await db.execute(
+    // Obtener IP real (considerando proxy)
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress;
+    const dispositivo = (req.headers['user-agent'] || 'desconocido').substring(0, 100);
+
+    // 1. Buscar usuario por correo
+    const [rows] = await pool.execute(
       `SELECT Usuario_Id, Usuario_Correo, Usuario_Contraseña,
               Usuario_Nombre_Completo, Usuario_Estado_Cuenta,
               Es_Administrador, Es_Docente, Es_Apoderado
@@ -24,9 +25,9 @@ exports.login = async (req, res) => {
 
     const user = rows[0];
 
-    // 2. Cuenta activa?
+    // 2. Verificar cuenta activa
     if (!user.Usuario_Estado_Cuenta) {
-      return res.status(401).json({ error: 'Cuenta deshabilitada' });
+      return res.status(401).json({ error: 'Cuenta deshabilitada, contacte al administrador' });
     }
 
     // 3. Verificar contraseña
@@ -41,28 +42,25 @@ exports.login = async (req, res) => {
     if (user.Es_Docente) roles.push('Docente');
     if (user.Es_Apoderado) roles.push('Apoderado');
 
-    // 5. Generar JWT
+    // 5. Generar JWT (expira 2 horas)
     const payload = {
       userId: user.Usuario_Id,
       email: user.Usuario_Correo,
       roles
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
+    const expiracion = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-    // 6. Registrar sesión (IP y user-agent)
-    const ip = req.ip || req.connection.remoteAddress;
-    const dispositivo = req.headers['user-agent'] || 'desconocido';
-    const expiracion = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2h
-
-    await db.execute(
-      `INSERT INTO sesion
+    // 6. Registrar sesión en tabla 'sesion'
+    await pool.execute(
+      `INSERT INTO sesion 
        (Sesion_Token_Acceso, Sesion_Fecha_Inicio, Sesion_Fecha_Expiracion,
         Sesion_Direccion_IP, Sesion_Dispositivo, Sesion_Token_Expiracion, Usuario_Id)
        VALUES (?, NOW(), ?, ?, ?, ?, ?)`,
       [token, expiracion, ip, dispositivo, expiracion, user.Usuario_Id]
     );
 
-    // 7. Responder
+    // 7. Respuesta exitosa
     res.json({
       user: {
         id: user.Usuario_Id,
@@ -73,7 +71,9 @@ exports.login = async (req, res) => {
       token
     });
   } catch (error) {
-    console.error(error);
+    console.error('Error en login:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+module.exports = { login };
