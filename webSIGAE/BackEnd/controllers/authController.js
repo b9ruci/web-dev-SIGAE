@@ -47,9 +47,9 @@ const login = async (req, res) => {
 
     await pool.execute(
       `INSERT INTO sesion 
-       (Sesion_Token_Acceso, Sesion_Fecha_Inicio, Sesion_Fecha_Expiracion,
-        Sesion_Direccion_IP, Sesion_Dispositivo, Sesion_Token_Expiracion, Usuario_Id)
-       VALUES (?, NOW(), ?, ?, ?, ?, ?)`,
+      (Sesion_Token_Acceso, Sesion_Fecha_Inicio, Sesion_Fecha_Expiracion,
+      Sesion_Direccion_IP, Sesion_Dispositivo, Sesion_Token_Expiracion, Sesion_Estado, Usuario_Id)
+      VALUES (?, NOW(), ?, ?, ?, ?, 1, ?)`,
       [token, expiracion, ip, dispositivo, expiracion, user.Usuario_Id]
     );
 
