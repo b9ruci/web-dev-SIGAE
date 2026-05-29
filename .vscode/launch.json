@@ -3,60 +3,36 @@
     "compounds": [
         {
             "name": "Run All",
+            "configurations": ["BackEnd", "FrontEnd"],
+            "stopAll": true,
             "presentation": {
                 "group": "maingroup",
                 "order": 1
-            },
-            "configurations": ["BackEnd", "FrontEnd"]
+            }
         }
     ],
     "configurations": [
         {
             "name": "BackEnd",
-            "type": "coreclr",
+            "type": "node",
             "request": "launch",
-            "preLaunchTask": "build backend",
-            "program": "${workspaceFolder}/webSIGAE/BackEnd/bin/Debug/net8.0/BackEnd.dll",
-            "args": [],
+            "runtimeExecutable": "/root/.nvm/versions/node/v24.16.0/bin/node",
+            "program": "${workspaceFolder}/webSIGAE/BackEnd/server.js",
             "cwd": "${workspaceFolder}/webSIGAE/BackEnd",
-            "stopAtEntry": false,
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
-                "uriFormat": "%s/"
-            },
-            "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
-            },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
+            "console": "integratedTerminal",
+            "restart": true,
+            "skipFiles": ["<node_internals>/**"],
+            "envFile": "${workspaceFolder}/webSIGAE/BackEnd/.env"
         },
         {
             "name": "FrontEnd",
-            "type": "coreclr",
+            "type": "node",
             "request": "launch",
-            "preLaunchTask": "build frontend",
-            "program": "${workspaceFolder}/webSIGAE/FrontEnd/bin/Debug/net8.0/FrontEnd.dll",
-            "args": [],
+            "runtimeExecutable": "/root/.nvm/versions/node/v24.16.0/bin/npm",
+            "runtimeArgs": ["run", "dev"],
             "cwd": "${workspaceFolder}/webSIGAE/FrontEnd",
-            "stopAtEntry": false,
-            "serverReadyAction": {
-                "action": "openExternally",
-                "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
-                "uriFormat": "%s/"
-            },
-            "env": {
-                "ASPNETCORE_ENVIRONMENT": "Development"
-            },
-            "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
-            }
-        },
-        {
-            "name": ".NET Core Attach",
-            "type": "coreclr",
-            "request": "attach"
+            "console": "integratedTerminal",
+            "skipFiles": ["<node_internals>/**"]
         }
     ]
 }

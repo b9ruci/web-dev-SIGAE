@@ -2,55 +2,48 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build backend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "/webSIGAE/BackEnd/BackEnd.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-        {
-            "label": "watch backend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "/webSIGAE/BackEnd/BackEnd.csproj"
-            ],
-            "problemMatcher": "$msCompile",
-            "isBackground": true
-        },
-        {
-            "label": "dev frontend",
-            "type": "npm",
-            "script": "dev",
-            "path": "/webSIGAE/FrontEnd",
-            "problemMatcher": [],
+            "label": "start backend",
+            "type": "shell",
+            "command": "node server.js",
+            "options": {
+                "cwd": "${workspaceFolder}/webSIGAE/BackEnd"
+            },
             "isBackground": true,
+            "problemMatcher": {
+                "pattern": { "regexp": "." },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".",
+                    "endsPattern": "listening|running|started|port"
+                }
+            },
             "presentation": {
                 "reveal": "always",
-                "panel": "new"
+                "panel": "new",
+                "label": "BackEnd"
             }
         },
-    {
-        "label": "build frontend",
-        "type": "shell",
-        "command": "npm run build",
-        "options": {
-        "cwd": "${workspaceFolder}/webSIGAE/FrontEnd"
-    },
-    "problemMatcher": [],
-    "group": "build"
-    }
+        {
+            "label": "start frontend",
+            "type": "shell",
+            "command": "npm run dev",
+            "options": {
+                "cwd": "${workspaceFolder}/webSIGAE/FrontEnd"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": { "regexp": "." },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".",
+                    "endsPattern": "Local:"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new",
+                "label": "FrontEnd"
+            }
+        }
     ]
 }
