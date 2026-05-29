@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using MySql.Data.MySqlClient;
 using Dapper;
+using BCrypt.Net;
 
 namespace BackEnd;
 
@@ -43,8 +44,6 @@ public class Program
         });
 
         builder.Services.AddAuthorization();
-
-        // Rate limiting
         builder.Services.AddRateLimiter(options =>
         {
             options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(
@@ -59,9 +58,22 @@ public class Program
                     }));
         });
 
+        // CORS para React
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowReact", policy =>
+            {
+                policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            });
+        });
+
         var app = builder.Build();
 
         app.UseRateLimiter();
+        app.UseCors("AllowReact");
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseHttpsRedirection();
@@ -73,7 +85,7 @@ public class Program
             return new MySqlConnection(connectionString);
         }
 
-        // ------------------- ENDPOINTS -------------------
+        // Endpoint login
         app.MapPost("/api/auth/login", async (HttpContext httpContext, [FromBody] LoginRequest request, IConfiguration config) =>
         {
             if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
@@ -89,7 +101,6 @@ public class Program
             if (user == null || !user.Usuario_Estado_Cuenta)
                 return Results.Json(new { error = "Credenciales incorrectas o cuenta inhabilitada" }, statusCode: 401);
 
-            // Verificar contraseña con BCrypt
             bool valid = BCrypt.Net.BCrypt.Verify(request.Password, user.Usuario_Contraseña);
             if (!valid)
                 return Results.Json(new { error = "Credenciales incorrectas" }, statusCode: 401);
@@ -101,6 +112,7 @@ public class Program
 
             var token = GenerateJwtToken(user.Usuario_Id.ToString(), user.Usuario_Correo!, roles, config);
 
+            // Registrar sesión
             var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
             var userAgent = httpContext.Request.Headers.UserAgent.ToString();
             var expiresAt = DateTime.UtcNow.AddHours(2);
@@ -132,6 +144,7 @@ public class Program
             });
         }).WithName("Login").AllowAnonymous();
 
+        // Endpoint forgot-password
         app.MapPost("/api/auth/forgot-password", async ([FromBody] ForgotRequest request, IConfiguration config) =>
         {
             if (string.IsNullOrEmpty(request.Email)) return Results.BadRequest();
@@ -154,6 +167,7 @@ public class Program
             return Results.Ok(new { message = "Si el correo existe, recibirá un enlace" });
         }).WithName("ForgotPassword").AllowAnonymous();
 
+        // Endpoint reset-password
         app.MapPost("/api/auth/reset-password", async ([FromBody] ResetRequest request, IConfiguration config) =>
         {
             if (string.IsNullOrEmpty(request.Token) || string.IsNullOrEmpty(request.NewPassword))
@@ -180,6 +194,7 @@ public class Program
             return Results.Ok(new { message = "Contraseña actualizada correctamente" });
         }).WithName("ResetPassword").AllowAnonymous();
 
+        // Endpoint select-role (requiere autenticación)
         app.MapPost("/api/auth/select-role", async (HttpContext httpContext, [FromBody] SelectRoleRequest request, IConfiguration config) =>
         {
             var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -207,7 +222,7 @@ public class Program
 
         app.Run();
 
-        // ------------------- FUNCIÓN LOCAL -------------------
+        // Función local para generar JWT
         static string GenerateJwtToken(string userId, string email, List<string> roles, IConfiguration config)
         {
             var jwtKey = config["Jwt:Key"] ?? "clave_super_segura_minimo_32_caracteres_12345";
@@ -237,7 +252,7 @@ public class Program
     }
 }
 
-// ------------------- RECORDS Y CLASES -------------------
+// Definiciones de records y clase
 public record LoginRequest(string Email, string Password);
 public record ForgotRequest(string Email);
 public record ResetRequest(string Token, string NewPassword);
