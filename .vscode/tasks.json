@@ -7,23 +7,15 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/webSIGAE/BackEnd/BackEnd.csproj",
+                "/webSIGAE/BackEnd/BackEnd.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "build frontend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/webSIGAE/FrontEnd/FrontEnd.csproj",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
         },
         {
             "label": "watch backend",
@@ -33,21 +25,32 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/webSIGAE/BackEnd/BackEnd.csproj"
+                "/webSIGAE/BackEnd/BackEnd.csproj"
             ],
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "isBackground": true
         },
         {
-            "label": "watch frontend",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "watch",
-                "run",
-                "--project",
-                "${workspaceFolder}/webSIGAE/FrontEnd/FrontEnd.csproj"
-            ],
-            "problemMatcher": "$msCompile"
-        }
+            "label": "dev frontend",
+            "type": "npm",
+            "script": "dev",
+            "path": "/webSIGAE/FrontEnd",
+            "problemMatcher": [],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+    {
+        "label": "build frontend",
+        "type": "shell",
+        "command": "npm run build",
+        "options": {
+        "cwd": "${workspaceFolder}/webSIGAE/FrontEnd"
+    },
+    "problemMatcher": [],
+    "group": "build"
+    }
     ]
 }
