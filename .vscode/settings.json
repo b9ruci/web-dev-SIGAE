@@ -1,3 +1,5 @@
 {
-    "dotnet.defaultSolution": "SampleApp/SampleApp.sln"
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "debug.node.autoAttach": "disabled",
+    "nodejs.executable": "/usr/local/bin/node"
 }
