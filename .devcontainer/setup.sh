@@ -3,13 +3,13 @@ set -e
 
 echo "=== Instalando MySQL ==="
 sudo apt-get update -q
-sudo apt-get install -y -q mysql-server
+sudo apt-get install -y -q mariadb-server
 
 echo "=== Iniciando MySQL ==="
-sudo service mysql start
+sudo service mariadb start
 
 echo "=== Configurando usuario BD ==="
-sudo mysql -u root -e "
+sudo mariadb -u root -e "
   CREATE DATABASE IF NOT EXISTS sigae;
   CREATE USER IF NOT EXISTS 'sigae'@'127.0.0.1' IDENTIFIED BY 'sigae123';
   GRANT ALL PRIVILEGES ON sigae.* TO 'sigae'@'127.0.0.1';
@@ -17,7 +17,7 @@ sudo mysql -u root -e "
 "
 
 echo "=== Importando base de datos ==="
-sudo mysql -u root sigae < /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql
+sudo mariadb -u root sigae < /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql
 
 echo "=== Instalando dependencias Backend ==="
 cd /workspaces/web-dev-SIGAE/webSIGAE/BackEnd
