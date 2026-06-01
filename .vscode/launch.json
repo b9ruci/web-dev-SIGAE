@@ -12,18 +12,18 @@
         }
     ],
     "configurations": [
-        {
-            "name": "BackEnd",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "node",
-            "program": "${workspaceFolder}/webSIGAE/BackEnd/server.js",
-            "cwd": "${workspaceFolder}/webSIGAE/BackEnd",
-            "console": "integratedTerminal",
-            "restart": true,
-            "skipFiles": ["<node_internals>/**"],
-            "envFile": "${workspaceFolder}/webSIGAE/BackEnd/.env"
-        },
+{
+    "name": "BackEnd",
+    "type": "node",
+    "request": "launch",
+    "runtimeExecutable": "node",
+    "program": "${workspaceFolder}/webSIGAE/BackEnd/server.js",
+    "cwd": "${workspaceFolder}/webSIGAE/BackEnd",
+    "console": "integratedTerminal",
+    "restart": true,
+    "skipFiles": ["<node_internals>/**"],
+    "envFile": "${workspaceFolder}/webSIGAE/BackEnd/.env"
+    },
         {
             "name": "FrontEnd",
             "type": "node",

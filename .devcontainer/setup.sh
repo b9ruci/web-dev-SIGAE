@@ -1,4 +1,4 @@
-#!/bin/bash
+bash#!/bin/bash
 set -e
 
 echo "=== Instalando MySQL ==="
@@ -17,7 +17,12 @@ sudo mariadb -u root -e "
 "
 
 echo "=== Importando base de datos ==="
-sudo mariadb -u root sigae < /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql
+if [ -f /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql ]; then
+  sudo mariadb -u root sigae < /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql
+  echo "✅ SQL importado"
+else
+  echo "⚠️  SIGAE.sql no encontrado, saltando importación"
+fi
 
 echo "=== Instalando dependencias Backend ==="
 cd /workspaces/web-dev-SIGAE/webSIGAE/BackEnd
@@ -61,4 +66,4 @@ const mysql = require('mysql2/promise');
 "
 
 echo ""
-echo "✅ Setup completado. Presiona F5 para levantar el proyecto."
+echo "✅ Setup completado. Ya puedes presionar F5."
