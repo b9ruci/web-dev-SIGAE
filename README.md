@@ -19,21 +19,17 @@ SIGAE es una plataforma web para la gestión académica y escolar, con módulos 
 
 ## 🚀 Primeros pasos (GitHub Codespaces)
 
-### 1. Esperar el setup automático
+### 1. Setup automático
 
 Al abrir el codespace por primera vez, se ejecutará automáticamente `.devcontainer/setup.sh`. Este script instala MariaDB, las dependencias del backend y del frontend, crea el archivo `.env` y prepara la base de datos.
 
-Verás una terminal con mensajes como:
+> **El proceso tarda entre 2 y 5 minutos.** Si presionas F5 antes de que termine, el proyecto no arrancará correctamente.
 
-```
-=== Instalando MySQL ===
-=== Instalando dependencias Backend ===
-=== Instalando dependencias Frontend ===
-...
-✅ Setup completado. Ya puedes presionar F5.
-```
+Si no esperaste el tiempo suficiente o hubo un error, puedes correr el setup manualmente:
 
-> **No presiones F5 hasta ver ese mensaje.** El proceso tarda entre 2 y 5 minutos.
+```bash
+bash .devcontainer/setup.sh
+```
 
 ### 2. Verificar que todo esté listo (opcional)
 
@@ -62,6 +58,12 @@ Presiona **F5** o ve a *Run › Start Debugging* (`Run All`). Esto levanta el ba
 | ca.gonzales@jacquescousteau.edu | `ilovemilf` | Administrador |
 | ma.morales@jacquescousteau.edu | `hash123` | Docente |
 | pedrofernandez453@gmail.com | `4532` | Apoderado |
+| an.torres@jacquescousteau.edu | `hash456` | Docente |
+| ro.silva@jacquescousteau.edu | `hash789` | Docente |
+| ca.diaz@jacquescousteau.edu | `hash012` | Docente |
+| luisramos@gmail.com | `hash345` | Apoderado |
+| sandravera@gmail.com | `hash678` | Apoderado |
+| jo.campos@jacquescousteau.edu | `hash901` | Docente y Apoderado |
 
 ---
 
@@ -98,7 +100,7 @@ FRONTEND_URL=http://localhost:5173
 La base de datos se importa automáticamente desde `Database/SIGAE.sql` durante el setup. Si necesitas reimportarla manualmente:
 
 ```bash
-sudo service mariadb start
+sudo mariadb -u root -e "DROP DATABASE IF EXISTS sigae; CREATE DATABASE sigae;"
 sudo mariadb -u root sigae < webSIGAE/Database/SIGAE.sql
 ```
 
