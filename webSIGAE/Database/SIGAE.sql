@@ -1,3 +1,5 @@
+CREATE DATABASE  IF NOT EXISTS `sigae` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+USE `sigae`;
 -- MySQL dump 10.13  Distrib 8.0.46, for Win64 (x86_64)
 --
 -- Host: localhost    Database: sigae
@@ -32,7 +34,7 @@ CREATE TABLE `afecta` (
   KEY `fk_Afecta_Evento_Institucional_idx` (`Evento_Institucional_Id`),
   CONSTRAINT `fk_Afecta_Bloque_Horario` FOREIGN KEY (`Bloque_Horario_Id`) REFERENCES `bloque_horario` (`Bloque_Horario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Afecta_Evento_Institucional` FOREIGN KEY (`Evento_Institucional_Id`) REFERENCES `evento_institucional` (`Evento_Institucional_Id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=111111112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=111111115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -41,7 +43,7 @@ CREATE TABLE `afecta` (
 
 LOCK TABLES `afecta` WRITE;
 /*!40000 ALTER TABLE `afecta` DISABLE KEYS */;
-INSERT INTO `afecta` VALUES (111111111,'Suspendido',11111111,1111111);
+INSERT INTO `afecta` VALUES (111111111,'Suspendido',11111111,1111111),(111111112,'Suspendido',11111112,1111112),(111111113,'Suspendido',11111113,1111112),(111111114,'Suspendido',11111114,1111113);
 /*!40000 ALTER TABLE `afecta` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -58,7 +60,7 @@ CREATE TABLE `asignatura` (
   `Asignatura_Prioridad_Academica` varchar(50) NOT NULL,
   PRIMARY KEY (`Asignatura_Id`),
   UNIQUE KEY `Asignatura_Nombre_UNIQUE` (`Asignatura_Nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=2223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -67,7 +69,7 @@ CREATE TABLE `asignatura` (
 
 LOCK TABLES `asignatura` WRITE;
 /*!40000 ALTER TABLE `asignatura` DISABLE KEYS */;
-INSERT INTO `asignatura` VALUES (2222,'Matemáticas','Alta');
+INSERT INTO `asignatura` VALUES (2222,'Matemáticas','Alta'),(2223,'Lenguaje y Comunicación','Alta'),(2224,'Historia','Media'),(2225,'Ciencias Naturales','Media'),(2226,'Inglés','Media');
 /*!40000 ALTER TABLE `asignatura` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -88,7 +90,7 @@ CREATE TABLE `bloque_horario` (
   PRIMARY KEY (`Bloque_Horario_Id`),
   KEY `fk_Bloque_Horario_Parametro_Institucional_idx` (`Parametro_Institucional_Id`),
   CONSTRAINT `fk_Bloque_Horario_Parametro_Institucional` FOREIGN KEY (`Parametro_Institucional_Id`) REFERENCES `parametro_institucional` (`Parametro_Institucional_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11111112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11111115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -97,7 +99,7 @@ CREATE TABLE `bloque_horario` (
 
 LOCK TABLES `bloque_horario` WRITE;
 /*!40000 ALTER TABLE `bloque_horario` DISABLE KEYS */;
-INSERT INTO `bloque_horario` VALUES (11111111,'09:15:00','Clase','10:00:00','Mañana',111111);
+INSERT INTO `bloque_horario` VALUES (11111111,'09:15:00','Clase','10:00:00','Mañana',111111),(11111112,'10:00:00','Clase','10:45:00','Mañana',111111),(11111113,'11:00:00','Clase','11:45:00','Mañana',111111),(11111114,'14:00:00','Clase','14:45:00','Tarde',111111);
 /*!40000 ALTER TABLE `bloque_horario` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -128,7 +130,7 @@ CREATE TABLE `citacion` (
   CONSTRAINT `fk_Citacion_Apoderado_Usuario` FOREIGN KEY (`Apoderado_Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Citacion_Docente_Usuario` FOREIGN KEY (`Docente_Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Citacion_Estudiante` FOREIGN KEY (`Estudiante_Id`) REFERENCES `estudiante` (`Estudiante_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=37 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -137,7 +139,7 @@ CREATE TABLE `citacion` (
 
 LOCK TABLES `citacion` WRITE;
 /*!40000 ALTER TABLE `citacion` DISABLE KEYS */;
-INSERT INTO `citacion` VALUES (33,'17:00 - 17:30','2026-06-20','Bullying',NULL,NULL,'Pendiente de confirmación',NULL,'Presencial',222222222,4,3);
+INSERT INTO `citacion` VALUES (33,'17:00 - 17:30','2026-06-20','Bullying',NULL,NULL,'Pendiente de confirmación',NULL,'Presencial',222222222,4,3),(34,'15:00 - 15:30','2026-06-25','Rendimiento académico',NULL,NULL,'Pendiente de confirmación',NULL,'Presencial',222222223,4,3),(35,'16:00 - 16:30','2026-06-27','Inasistencias reiteradas','2026-06-20',NULL,'Confirmada',NULL,'Online',222222224,8,5),(36,'14:00 - 14:30','2026-05-15','Problemas de conducta',NULL,NULL,'Cancelada','El apoderado no pudo asistir por motivos laborales','Presencial',222222225,9,6);
 /*!40000 ALTER TABLE `citacion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -159,7 +161,7 @@ CREATE TABLE `conversacion` (
   KEY `fk Conversacion_Apoderado_idx` (`Apoderado_Usuario_Id`),
   CONSTRAINT `fk_Conversacion_Apoderado` FOREIGN KEY (`Apoderado_Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Conversacion_Docente` FOREIGN KEY (`Docente_Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=1112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1115 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -168,7 +170,7 @@ CREATE TABLE `conversacion` (
 
 LOCK TABLES `conversacion` WRITE;
 /*!40000 ALTER TABLE `conversacion` DISABLE KEYS */;
-INSERT INTO `conversacion` VALUES (1111,'2026-04-11',0,3,4);
+INSERT INTO `conversacion` VALUES (1111,'2026-04-11',0,3,4),(1112,'2026-04-15',1,5,4),(1113,'2026-05-01',1,3,8);
 /*!40000 ALTER TABLE `conversacion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -188,7 +190,7 @@ CREATE TABLE `curso` (
   UNIQUE KEY `Curso_Nombre_UNIQUE` (`Curso_Nombre`),
   KEY `fk_Curso_Nivel_Educativo_idx` (`Nivel_Educativo_Id`),
   CONSTRAINT `fk_Curso_Nivel_Educativo` FOREIGN KEY (`Nivel_Educativo_Id`) REFERENCES `nivel_educativo` (`Nivel_Educativo_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -197,7 +199,7 @@ CREATE TABLE `curso` (
 
 LOCK TABLES `curso` WRITE;
 /*!40000 ALTER TABLE `curso` DISABLE KEYS */;
-INSERT INTO `curso` VALUES (222,'A','1ero Básico A',22);
+INSERT INTO `curso` VALUES (222,'A','1ero Básico A',22),(223,'B','1ero Básico B',22),(224,'A','2do Básico A',23),(225,'A','1ero Medio A',24),(226,'A','2do Medio A',25);
 /*!40000 ALTER TABLE `curso` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -214,14 +216,14 @@ CREATE TABLE `estudiante` (
   `Estudiante_RUT` varchar(20) NOT NULL,
   `Estudiante_Estado_Academico` varchar(50) NOT NULL,
   `Curso_Id` int unsigned NOT NULL,
-  `Apoderado_Usuario_Id` int unsigned NOT NULL,
+  `Apoderado_Usuario_Id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`Estudiante_Id`),
   UNIQUE KEY `Estudiante_RUT_UNIQUE` (`Estudiante_RUT`),
   KEY `fk_Estudiante_Curso_idx` (`Curso_Id`),
   KEY `fk_Estudiante_Apoderado_idx` (`Apoderado_Usuario_Id`),
   CONSTRAINT `fk_Estudiante_Apoderado` FOREIGN KEY (`Apoderado_Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Estudiante_Curso` FOREIGN KEY (`Curso_Id`) REFERENCES `curso` (`Curso_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=222222223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=222222228 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -230,7 +232,7 @@ CREATE TABLE `estudiante` (
 
 LOCK TABLES `estudiante` WRITE;
 /*!40000 ALTER TABLE `estudiante` DISABLE KEYS */;
-INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4);
+INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10);
 /*!40000 ALTER TABLE `estudiante` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -248,7 +250,7 @@ CREATE TABLE `evento_institucional` (
   `Evento_Institucional_Nombre` varchar(100) NOT NULL,
   `Evento_Institucional_Descripcion` text NOT NULL,
   PRIMARY KEY (`Evento_Institucional_Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=1111112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1111114 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -257,7 +259,7 @@ CREATE TABLE `evento_institucional` (
 
 LOCK TABLES `evento_institucional` WRITE;
 /*!40000 ALTER TABLE `evento_institucional` DISABLE KEYS */;
-INSERT INTO `evento_institucional` VALUES (1111111,'Salida anticipada','2026-12-10','Licenciatura 4tos Medios','Ceremonia de graduación de estudiantes de 4to año medio');
+INSERT INTO `evento_institucional` VALUES (1111111,'Salida anticipada','2026-12-10','Licenciatura 4tos Medios','Ceremonia de graduación de estudiantes de 4to año medio'),(1111112,'Suspensión total','2026-07-15','Consejo de Profesores','Reunión semestral de evaluación docente'),(1111113,'Salida anticipada','2026-08-20','Acto Patrio','Celebración fiestas patrias');
 /*!40000 ALTER TABLE `evento_institucional` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -292,7 +294,7 @@ CREATE TABLE `historial` (
   CONSTRAINT `fk_Historial_Horario_Asignatura` FOREIGN KEY (`Horario_Asignatura_Id`) REFERENCES `horario_asignatura` (`Horario_Asignatura_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Historial_Usuario` FOREIGN KEY (`Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Historial_Usuario_Responsable` FOREIGN KEY (`Usuario_Responsable_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=334 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=337 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -301,7 +303,7 @@ CREATE TABLE `historial` (
 
 LOCK TABLES `historial` WRITE;
 /*!40000 ALTER TABLE `historial` DISABLE KEYS */;
-INSERT INTO `historial` VALUES (333,'979746782','16:00:00','Cambio de número de teléfono','Usuario_Telefono','923465924','2026-06-16',2,NULL,NULL,NULL,1);
+INSERT INTO `historial` VALUES (333,'979746782','16:00:00','Cambio de número de teléfono','Usuario_Telefono','923465924','2026-06-16',2,NULL,NULL,NULL,1),(334,'Regular','10:00:00','Cambio de estado académico','Estudiante_Estado_Academico','Irregular','2026-05-20',NULL,222222227,NULL,NULL,1),(335,'Pendiente de confirmación','11:00:00','Confirmación de citación','Citacion_Estado','Confirmada','2026-06-20',NULL,NULL,35,NULL,2),(336,'Activo','12:00:00','Suspensión de bloque horario','Horario_Asignatura_Estado','Suspendido','2026-07-14',NULL,NULL,NULL,222227,1);
 /*!40000 ALTER TABLE `historial` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -317,7 +319,7 @@ CREATE TABLE `horario_asignatura` (
   `Horario_Asignatura_Dia_Semana` varchar(20) NOT NULL,
   `Horario_Asignatura_Estado` varchar(50) NOT NULL,
   `Curso_Id` int unsigned NOT NULL,
-  `Usuario_Id` int unsigned NOT NULL,
+  `Usuario_Id` int unsigned DEFAULT NULL,
   `Bloque_Horario_Id` int unsigned NOT NULL,
   `Asignatura_Id` int unsigned NOT NULL,
   PRIMARY KEY (`Horario_Asignatura_Id`),
@@ -329,7 +331,7 @@ CREATE TABLE `horario_asignatura` (
   CONSTRAINT `fk_Horario_Asignatura_Bloque_Horario` FOREIGN KEY (`Bloque_Horario_Id`) REFERENCES `bloque_horario` (`Bloque_Horario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Horario_Asignatura_Curso` FOREIGN KEY (`Curso_Id`) REFERENCES `curso` (`Curso_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_Horario_Asignatura_Usuario` FOREIGN KEY (`Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=222223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=222228 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -338,7 +340,7 @@ CREATE TABLE `horario_asignatura` (
 
 LOCK TABLES `horario_asignatura` WRITE;
 /*!40000 ALTER TABLE `horario_asignatura` DISABLE KEYS */;
-INSERT INTO `horario_asignatura` VALUES (222222,'Lunes','Activo',222,3,11111111,2222);
+INSERT INTO `horario_asignatura` VALUES (222222,'Lunes','Activo',222,3,11111111,2222),(222223,'Martes','Activo',222,5,11111112,2223),(222224,'Miércoles','Activo',223,3,11111111,2222),(222225,'Jueves','Activo',223,5,11111113,2223),(222226,'Viernes','Activo',224,6,11111114,2222),(222227,'Lunes','Suspendido',225,10,11111112,2224);
 /*!40000 ALTER TABLE `horario_asignatura` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -360,7 +362,7 @@ CREATE TABLE `incluyeasig` (
   KEY `fk_IncluyeAsig_Plan_Educativo_idx` (`Plan_Educativo_Id`),
   CONSTRAINT `fk_IncluyeAsig_Asignatura` FOREIGN KEY (`Asignatura_Id`) REFERENCES `asignatura` (`Asignatura_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_IncluyeAsig_Plan_Educativo` FOREIGN KEY (`Plan_Educativo_Id`) REFERENCES `plan_educativo` (`Plan_Educativo_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=22222223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22222229 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -369,7 +371,7 @@ CREATE TABLE `incluyeasig` (
 
 LOCK TABLES `incluyeasig` WRITE;
 /*!40000 ALTER TABLE `incluyeasig` DISABLE KEYS */;
-INSERT INTO `incluyeasig` VALUES (22222222,6,'Obligatorio',2222,2222222);
+INSERT INTO `incluyeasig` VALUES (22222222,6,'Obligatorio',2222,2222222),(22222223,6,'Obligatorio',2223,2222222),(22222224,4,'Obligatorio',2224,2222222),(22222225,6,'Obligatorio',2222,2222223),(22222226,4,'Obligatorio',2223,2222223),(22222227,6,'Obligatorio',2222,2222224),(22222228,4,'Obligatorio',2225,2222224);
 /*!40000 ALTER TABLE `incluyeasig` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -391,7 +393,7 @@ CREATE TABLE `mensaje` (
   PRIMARY KEY (`Mensaje_Id`),
   KEY `fk_Mensaje_Conversacion_idx` (`Conversacion_Id`),
   CONSTRAINT `fk_Mensaje_Conversacion` FOREIGN KEY (`Conversacion_Id`) REFERENCES `conversacion` (`Conversacion_Id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=11112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11116 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -400,7 +402,7 @@ CREATE TABLE `mensaje` (
 
 LOCK TABLES `mensaje` WRITE;
 /*!40000 ALTER TABLE `mensaje` DISABLE KEYS */;
-INSERT INTO `mensaje` VALUES (11111,'Muchas gracias profesor por la información','2026-04-11','09:30:05','Leído','Apoderado',1111);
+INSERT INTO `mensaje` VALUES (11111,'Muchas gracias profesor por la información','2026-04-11','09:30:05','Leído','Apoderado',1111),(11112,'Buenos días, quería consultar sobre las notas de Valentina','2026-04-15','09:00:00','Leído','Apoderado',1112),(11113,'Claro, Valentina tiene un rendimiento muy bueno este semestre','2026-04-15','09:15:00','Leído','Docente',1112),(11114,'Necesito hablar sobre el comportamiento de Matías','2026-05-01','10:00:00','Leído','Docente',1113),(11115,'De acuerdo, ¿cuándo podríamos reunirnos?','2026-05-01','10:30:00','No leído','Apoderado',1113);
 /*!40000 ALTER TABLE `mensaje` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -416,7 +418,7 @@ CREATE TABLE `nivel_educativo` (
   `Nivel_Educativo_Nombre` varchar(100) NOT NULL,
   PRIMARY KEY (`Nivel_Educativo_Id`),
   UNIQUE KEY `Nivel_Educativo_Nombre_UNIQUE` (`Nivel_Educativo_Nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -425,7 +427,7 @@ CREATE TABLE `nivel_educativo` (
 
 LOCK TABLES `nivel_educativo` WRITE;
 /*!40000 ALTER TABLE `nivel_educativo` DISABLE KEYS */;
-INSERT INTO `nivel_educativo` VALUES (22,'1ero Básico');
+INSERT INTO `nivel_educativo` VALUES (22,'1ero Básico'),(24,'1ero Medio'),(23,'2do Básico'),(25,'2do Medio');
 /*!40000 ALTER TABLE `nivel_educativo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -444,7 +446,7 @@ CREATE TABLE `parametro_institucional` (
   `Parametro_Institucional_Bloques_Maximos_Diarios` int NOT NULL,
   `Parametro_Institucional_Duracion_Recreo` int NOT NULL,
   PRIMARY KEY (`Parametro_Institucional_Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=111112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=111114 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -471,7 +473,7 @@ CREATE TABLE `plan_educativo` (
   PRIMARY KEY (`Plan_Educativo_Id`),
   KEY `fk_Plan_Educativo_Nivel_Educativo_idx` (`Nivel_Educativo_Id`),
   CONSTRAINT `fk_Plan_Educativo_Nivel_Educativo` FOREIGN KEY (`Nivel_Educativo_Id`) REFERENCES `nivel_educativo` (`Nivel_Educativo_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2222223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2222226 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -480,7 +482,7 @@ CREATE TABLE `plan_educativo` (
 
 LOCK TABLES `plan_educativo` WRITE;
 /*!40000 ALTER TABLE `plan_educativo` DISABLE KEYS */;
-INSERT INTO `plan_educativo` VALUES (2222222,'2026',22);
+INSERT INTO `plan_educativo` VALUES (2222222,'2026',22),(2222223,'2026',23),(2222224,'2026',24),(2222225,'2026',25);
 /*!40000 ALTER TABLE `plan_educativo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -505,7 +507,7 @@ CREATE TABLE `sesion` (
   UNIQUE KEY `Sesion_Token_Acceso_UNIQUE` (`Sesion_Token_Acceso`),
   KEY `fk_Sesion_Usuario_idx` (`Usuario_Id`),
   CONSTRAINT `fk_Sesion_Usuario` FOREIGN KEY (`Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -514,7 +516,7 @@ CREATE TABLE `sesion` (
 
 LOCK TABLES `sesion` WRITE;
 /*!40000 ALTER TABLE `sesion` DISABLE KEYS */;
-INSERT INTO `sesion` VALUES (11,'Token001','2026-05-24 08:00:00','2026-05-24 10:00:00','192.168.1.10',0,'Computador','2026-05-24 10:00:00',1);
+INSERT INTO `sesion` VALUES (11,'Token001','2026-05-24 08:00:00','2026-05-24 10:00:00','192.168.1.10',0,'Computador','2026-05-24 10:00:00',1),(12,'Token002','2026-05-25 08:00:00','2026-05-25 10:00:00','192.168.1.11',1,'Celular','2026-05-25 10:00:00',3),(13,'Token003','2026-05-25 09:00:00','2026-05-25 11:00:00','192.168.1.12',0,'Computador','2026-05-25 11:00:00',4),(14,'Token004','2026-05-26 08:30:00',NULL,'192.168.1.13',1,'Tablet','2026-05-26 10:30:00',5);
 /*!40000 ALTER TABLE `sesion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -536,7 +538,7 @@ CREATE TABLE `solicitud_recuperacion` (
   UNIQUE KEY `Solicitud_Recuperacion_Token_UNIQUE` (`Solicitud_Recuperacion_Token`),
   KEY `fk_Solicitud_Recuperacion_Usuario_idx` (`Usuario_Id`),
   CONSTRAINT `fk_Solicitud_Recuperacion_Usuario` FOREIGN KEY (`Usuario_Id`) REFERENCES `usuario` (`Usuario_Id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=112 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=114 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -545,7 +547,7 @@ CREATE TABLE `solicitud_recuperacion` (
 
 LOCK TABLES `solicitud_recuperacion` WRITE;
 /*!40000 ALTER TABLE `solicitud_recuperacion` DISABLE KEYS */;
-INSERT INTO `solicitud_recuperacion` VALUES (111,'2026-05-24 20:00:00','RecuP001','2026-05-24 19:30:00','En Proceso',2);
+INSERT INTO `solicitud_recuperacion` VALUES (111,'2026-05-24 20:00:00','RecuP001','2026-05-24 19:30:00','En Proceso',2),(112,'2026-05-25 20:00:00','RecuP002','2026-05-25 19:30:00','Utilizado',3),(113,'2026-05-26 10:00:00','RecuP003','2026-05-26 09:30:00','Expirado',5);
 /*!40000 ALTER TABLE `solicitud_recuperacion` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -566,7 +568,7 @@ CREATE TABLE `tieneasig` (
   KEY `fk_TieneAsig_Asignatura_idx` (`Asignatura_Id`),
   CONSTRAINT `fk_TieneAsig_Asignatura` FOREIGN KEY (`Asignatura_Id`) REFERENCES `asignatura` (`Asignatura_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `fk_TieneAsig_Curso` FOREIGN KEY (`Curso_Id`) REFERENCES `curso` (`Curso_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=22223 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22228 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -575,7 +577,7 @@ CREATE TABLE `tieneasig` (
 
 LOCK TABLES `tieneasig` WRITE;
 /*!40000 ALTER TABLE `tieneasig` DISABLE KEYS */;
-INSERT INTO `tieneasig` VALUES (22222,'Activa',222,2222);
+INSERT INTO `tieneasig` VALUES (22222,'Activa',222,2222),(22223,'Activa',222,2223),(22224,'Activa',223,2222),(22225,'Activa',223,2223),(22226,'Activa',224,2222),(22227,'Activa',225,2224);
 /*!40000 ALTER TABLE `tieneasig` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -605,7 +607,7 @@ CREATE TABLE `usuario` (
   PRIMARY KEY (`Usuario_Id`),
   UNIQUE KEY `Usuario_RUT_UNIQUE` (`Usuario_RUT`),
   UNIQUE KEY `Usuario_Correo_UNIQUE` (`Usuario_Correo`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -614,7 +616,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'12345678-9','961900000','Esperanza Penelope Gonzales Farias','es.gonzales@jacquescousteau.edu',1,'1234',NULL,0,NULL,NULL,1,'Super Admin',0,NULL),(2,'21717363-3','979746782','Carlos Vicente Gonzales Muñoz','ca.gonzales@jacquescousteau.edu',1,'ilovemilf',NULL,0,NULL,NULL,1,'Administrador Normal',0,NULL),(3,'19111111-1','946789765','María Claudia Morales Rojas','ma.morales@jacquescousteau.edu',1,'hash123',NULL,1,38,'Matemáticas',0,NULL,0,NULL),(4,'159395855','944706559','Pedro Humberto Fernandez Soto','pedrofernandez453@gmail.com',1,'4532',NULL,0,NULL,NULL,0,NULL,1,'Avenida Concha y Toro 134, Puente Alto');
+INSERT INTO `usuario` VALUES (1,'12345678-9','961900000','Esperanza Penelope Gonzales Farias','es.gonzales@jacquescousteau.edu',1,'1234',NULL,0,NULL,NULL,1,'Super Admin',0,NULL),(2,'21717363-3','979746782','Carlos Vicente Gonzales Muñoz','ca.gonzales@jacquescousteau.edu',1,'ilovemilf',NULL,0,NULL,NULL,1,'Administrador Normal',0,NULL),(3,'19111111-1','946789765','María Claudia Morales Rojas','ma.morales@jacquescousteau.edu',1,'hash123',NULL,1,38,'Matemáticas',0,NULL,0,NULL),(4,'159395855','944706559','Pedro Humberto Fernandez Soto','pedrofernandez453@gmail.com',1,'4532',NULL,0,NULL,NULL,0,NULL,1,'Avenida Concha y Toro 134, Puente Alto'),(5,'14444444-4','912345678','Ana Lucía Torres Vega','an.torres@jacquescousteau.edu',1,'hash456',NULL,1,32,'Lenguaje',0,NULL,0,NULL),(6,'15555555-5','923456789','Roberto Andrés Silva Pinto','ro.silva@jacquescousteau.edu',1,'hash789',NULL,1,40,'Historia',0,NULL,0,NULL),(7,'16666666-6','934567890','Carmen Gloria Díaz Muñoz','ca.diaz@jacquescousteau.edu',1,'hash012',NULL,1,36,'Ciencias',0,NULL,0,NULL),(8,'17777777-7','945678901','Luis Eduardo Ramos Fuentes','luisramos@gmail.com',1,'hash345',NULL,0,NULL,NULL,0,NULL,1,'Calle Los Pinos 456, Santiago'),(9,'18888888-8','956789012','Sandra Patricia Vera Molina','sandravera@gmail.com',1,'hash678',NULL,0,NULL,NULL,0,NULL,1,'Pasaje Las Rosas 789, Maipú'),(10,'19999999-9','967890123','Jorge Ignacio Campos Reyes','jo.campos@jacquescousteau.edu',1,'hash901',NULL,1,38,'Inglés',0,NULL,1,'Avenida Principal 321, Las Condes');
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -627,4 +629,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-05-24 21:55:58
+-- Dump completed on 2026-06-02  0:34:02
