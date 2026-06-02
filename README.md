@@ -33,16 +33,9 @@ Verás una terminal con mensajes como:
 ✅ Setup completado. Ya puedes presionar F5.
 ```
 
-> **No presiones F5 hasta ver ese mensaje.** El proceso tarda entre 2 y 5 minutos.
+> **No presiones F5 que pasen aproximadamente de 2 a 5 minutos, el comando de setup completado no se puede habilitar en consola por ahora.**
 
-Si esto no sucede en el tiempo especificado (todavía está en fase de pruebas), ejecutando en la terminal Bash:
-
-```bash
-cat /workspaces/.codespaces/shared/creation-log.txt
-```
-
-se puede comprobar la integridad de la instalación. Si al final de ese archivo ves el mensaje ✅ Setup completado. Ya puedes presionar F5., significa que todo corrió bien.
-Si este mensaje no aparece, ejecutar el siguiente comando instala todo, de forma automática, accionado de manera manual.
+Si da error al ejecutar el debugger (F5), ejecutar el siguiente comando instala todo, de forma automática, accionado de manera manual.
 
 ```bash
 bash .devcontainer/setup.sh
