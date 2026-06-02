@@ -35,6 +35,19 @@ Verás una terminal con mensajes como:
 
 > **No presiones F5 hasta ver ese mensaje.** El proceso tarda entre 2 y 5 minutos.
 
+Si esto no sucede en el tiempo especificado (todavía está en fase de pruebas), ejecutando en la terminal Bash:
+
+```bash
+cat /workspaces/.codespaces/shared/creation-log.txt
+```
+
+se puede comprobar la integridad de la instalación. Si al final de ese archivo ves el mensaje ✅ Setup completado. Ya puedes presionar F5., significa que todo corrió bien.
+Si este mensaje no aparece, ejecutar el siguiente comando instala todo, de forma automática, accionado de manera manual.
+
+```bash
+bash .devcontainer/setup.sh
+```
+
 ### 2. Verificar que todo esté listo (opcional)
 
 ```bash
@@ -45,7 +58,7 @@ sudo service mariadb status               # debe mostrar "Uptime"
 
 ### 3. Iniciar el proyecto
 
-Presiona **F5** o ve a *Run › Start Debugging* (`Run All`). Esto levanta el backend y el frontend al mismo tiempo.
+Presiona **F5** o ve al bicho triángulo *Run › Start Debugging* (`Run All`). Esto levanta el backend y el frontend al mismo tiempo.
 
 | Servicio | URL |
 |----------|-----|
