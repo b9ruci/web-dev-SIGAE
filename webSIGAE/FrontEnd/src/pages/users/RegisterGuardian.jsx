@@ -1,138 +1,47 @@
-import { useState } from "react";
+const handleSubmit = async (e) => {
 
-function RegisterGuardian() {
+  e.preventDefault();
 
-  const [formData, setFormData] = useState({
-    nombre: "",
-    rut: "",
-    correo: "",
-    telefono: "",
-    direccion: "",
-    password: "",
-    rutEstudiante: "",
-    estado: "Activo",
-  });
+  try {
 
-  const handleChange = (e) => {
+    const res = await fetch(
+      "http://localhost:3000/api/usuarios",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          Usuario_RUT: formData.rut,
+          Usuario_Telefono: formData.telefono,
+          Usuario_Nombre_Completo: formData.nombre,
+          Usuario_Correo: formData.correo,
+          Usuario_Contraseña: formData.password,
+          Usuario_Estado_Cuenta:
+            formData.estado === "Activo",
 
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
+          Es_Apoderado: true,
+          Apoderado_Direccion:
+            formData.direccion,
 
-  const handleSubmit = (e) => {
+          Es_Docente: false,
+          Es_Administrador: false,
+        }),
+      }
+    );
 
-    e.preventDefault();
+    const data = await res.json();
 
-    console.log(formData);
+    if (!res.ok) {
+      throw new Error(data.mensaje);
+    }
 
     alert(
       "Apoderado registrado correctamente"
     );
-  };
 
-  return (
+  } catch (error) {
 
-    <div className="page-container">
-
-      <div className="form-card">
-
-        <h1>
-          Registrar Apoderado
-        </h1>
-
-        <form onSubmit={handleSubmit}>
-
-          <input
-            type="text"
-            name="nombre"
-            placeholder="Nombre completo"
-            value={formData.nombre}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            type="text"
-            name="rut"
-            placeholder="RUT"
-            value={formData.rut}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            type="email"
-            name="correo"
-            placeholder="Correo electrónico"
-            value={formData.correo}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            type="text"
-            name="telefono"
-            placeholder="Número telefónico"
-            value={formData.telefono}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            type="text"
-            name="direccion"
-            placeholder="Dirección particular"
-            value={formData.direccion}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
-
-          <input
-            type="text"
-            name="rutEstudiante"
-            placeholder="RUT del estudiante asociado"
-            value={formData.rutEstudiante}
-            onChange={handleChange}
-            required
-          />
-
-          <select
-            name="estado"
-            value={formData.estado}
-            onChange={handleChange}
-          >
-
-            <option value="Activo">
-              Activo
-            </option>
-
-            <option value="Inactivo">
-              Inactivo
-            </option>
-
-          </select>
-
-          <button type="submit">
-            Registrar Apoderado
-          </button>
-
-        </form>
-
-      </div>
-
-    </div>
-  );
-}
-
-export default RegisterGuardian;
+    alert(error.message);
+  }
+};
