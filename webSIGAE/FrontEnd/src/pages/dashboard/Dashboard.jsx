@@ -1,14 +1,56 @@
+import { useEffect, useState } from "react";
+
 function Dashboard() {
 
-  // DATOS TEMPORALES
-  // Después vendrán desde backend
+  const [stats, setStats] = useState({
+    usuarios: 0,
+    docentes: 0,
+    apoderados: 0,
+    estudiantes: 0,
+    cursos: 0,
+    citaciones: 0
+  });
 
-  const totalUsuarios = 4;
-  const totalDocentes = 1;
-  const totalApoderados = 1;
-  const totalEstudiantes = 1;
-  const totalCursos = 1;
-  const totalCitaciones = 1;
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+
+    const cargarDashboard = async () => {
+
+      try {
+
+        const response = await fetch(
+          "/api/dashboard/stats"
+        );
+
+        const data = await response.json();
+
+        setStats(data);
+
+      } catch (error) {
+
+        console.error(
+          "Error cargando dashboard:",
+          error
+        );
+
+      } finally {
+
+        setLoading(false);
+
+      }
+
+    };
+
+    cargarDashboard();
+
+  }, []);
+
+  if (loading) {
+
+    return <h2>Cargando dashboard...</h2>;
+
+  }
 
   return (
 
@@ -22,43 +64,39 @@ function Dashboard() {
         Bienvenido al Sistema de Gestión Académica Escolar
       </p>
 
-      {/* TARJETAS */}
-
       <div className="dashboard-cards">
 
         <div className="card">
           <h3>Usuarios</h3>
-          <p>{totalUsuarios}</p>
+          <p>{stats.usuarios}</p>
         </div>
 
         <div className="card">
           <h3>Docentes</h3>
-          <p>{totalDocentes}</p>
+          <p>{stats.docentes}</p>
         </div>
 
         <div className="card">
           <h3>Apoderados</h3>
-          <p>{totalApoderados}</p>
+          <p>{stats.apoderados}</p>
         </div>
 
         <div className="card">
           <h3>Estudiantes</h3>
-          <p>{totalEstudiantes}</p>
+          <p>{stats.estudiantes}</p>
         </div>
 
         <div className="card">
           <h3>Cursos</h3>
-          <p>{totalCursos}</p>
+          <p>{stats.cursos}</p>
         </div>
 
         <div className="card">
           <h3>Citaciones</h3>
-          <p>{totalCitaciones}</p>
+          <p>{stats.citaciones}</p>
         </div>
 
       </div>
-
-      {/* ACCESOS RÁPIDOS */}
 
       <div className="quick-actions">
 
@@ -89,6 +127,7 @@ function Dashboard() {
       </div>
 
     </div>
+
   );
 }
 
