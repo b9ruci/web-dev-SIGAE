@@ -31,6 +31,9 @@ app.use('/api/usuarios', usuarioRoutes);
 const dashboardRoutes = require('./routes/dashboardRoutes');
 app.use('/api/dashboard', dashboardRoutes);
 
+const cursoRoutes = require('./routes/cursoRoutes');
+app.use('/api/cursos', cursoRoutes);
+
 /* 404 */
 
 app.use((req, res) => {
