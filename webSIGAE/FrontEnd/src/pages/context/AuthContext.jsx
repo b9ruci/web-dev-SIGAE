@@ -1,21 +1,26 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [usuario, setUsuario] = useState(null);
-  const [token, setToken] = useState(null);
-  const [rolActivo, setRolActivo] = useState(null);
+// Inicialización lazy — lee localStorage una sola vez al montar, sin useEffect
+function getInitialState() {
+  try {
+    return {
+      usuario: JSON.parse(localStorage.getItem("usuario")) || null,
+      token: localStorage.getItem("token") || null,
+      rolActivo: localStorage.getItem("rolActivo") || null,
+    };
+  } catch {
+    return { usuario: null, token: null, rolActivo: null };
+  }
+}
 
-  useEffect(() => {
-    const usuarioGuardado = localStorage.getItem("usuario");
-    const tokenGuardado = localStorage.getItem("token");
-    const rolGuardado = localStorage.getItem("rolActivo");
+export function AuthProvider({ children }) {
+  const initial = getInitialState();
 
-    if (usuarioGuardado) setUsuario(JSON.parse(usuarioGuardado));
-    if (tokenGuardado) setToken(tokenGuardado);
-    if (rolGuardado) setRolActivo(rolGuardado);
-  }, []);
+  const [usuario, setUsuario] = useState(initial.usuario);
+  const [token, setToken] = useState(initial.token);
+  const [rolActivo, setRolActivo] = useState(initial.rolActivo);
 
   const login = (usuarioData, tokenData) => {
     setUsuario(usuarioData);
@@ -46,6 +51,8 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
