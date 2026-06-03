@@ -41,7 +41,7 @@ sudo service mariadb status               # debe mostrar "Uptime"
 
 ### 3. Iniciar el proyecto
 
-Presiona **F5** o ve a *Run › Start Debugging* (`Run All`). Esto levanta el backend y el frontend al mismo tiempo.
+Presiona **F5** o ve al bicho triángulo *Run › Start Debugging* (`Run All`). Esto levanta el backend y el frontend al mismo tiempo.
 
 | Servicio | URL |
 |----------|-----|
