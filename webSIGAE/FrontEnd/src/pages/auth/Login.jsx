@@ -23,7 +23,7 @@ const handleSubmit = async (e) => {
     if (!res.ok) throw new Error(await res.text());
     const { user, token } = await res.json();
     login(user, token);  // guarda token y user en contexto/localStorage
-    if (user.roles.length > 1) navigate('/select-role');
+    if (user.roles.length > 1) navigate('/seleccionar-rol');
     else navigate('/dashboard');
   } catch (err) {
     alert(err.message);
