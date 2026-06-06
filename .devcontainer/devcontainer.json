@@ -28,6 +28,7 @@
     }
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
+  "postStartCommand": "sudo service mariadb start",
   "remoteEnv": {
     "NODE_ENV": "development"
   }
