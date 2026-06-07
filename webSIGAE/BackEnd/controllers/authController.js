@@ -3,18 +3,20 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { rut, password } = req.body;
 
   try {
     const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip || req.socket.remoteAddress;
     const dispositivo = (req.headers['user-agent'] || 'desconocido').substring(0, 100);
 
     const [rows] = await pool.execute(
-      `SELECT Usuario_Id, Usuario_Correo, Usuario_Contraseña,
+      `SELECT Usuario_Id, Usuario_RUT, Usuario_Contraseña,
               Usuario_Nombre_Completo, Usuario_Estado_Cuenta,
-              Es_Administrador, Es_Docente, Es_Apoderado
-       FROM usuario WHERE Usuario_Correo = ?`,
-      [email]
+              Es_Administrador, Administrador_Tipo, Administrador_Correo_Institucional,
+              Es_Docente, Docente_Correo_Institucional,
+              Es_Apoderado, Apoderado_Correo_Natural
+       FROM usuario WHERE Usuario_RUT = ?`,
+      [rut]
     );
 
     if (rows.length === 0) {
@@ -37,16 +39,23 @@ const login = async (req, res) => {
     if (user.Es_Docente) roles.push('Docente');
     if (user.Es_Apoderado) roles.push('Apoderado');
 
+    // Correo según rol principal
+    const correo =
+      user.Administrador_Correo_Institucional ||
+      user.Docente_Correo_Institucional ||
+      user.Apoderado_Correo_Natural ||
+      null;
+
     const payload = {
       userId: user.Usuario_Id,
-      email: user.Usuario_Correo,
+      rut: user.Usuario_RUT,
       roles
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
     const expiracion = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
     await pool.execute(
-      `INSERT INTO sesion 
+      `INSERT INTO sesion
       (Sesion_Token_Acceso, Sesion_Fecha_Inicio, Sesion_Fecha_Expiracion,
       Sesion_Direccion_IP, Sesion_Dispositivo, Sesion_Token_Expiracion, Sesion_Estado, Usuario_Id)
       VALUES (?, NOW(), ?, ?, ?, ?, 1, ?)`,
@@ -57,8 +66,10 @@ const login = async (req, res) => {
       user: {
         id: user.Usuario_Id,
         nombre: user.Usuario_Nombre_Completo,
-        email: user.Usuario_Correo,
-        roles
+        rut: user.Usuario_RUT,
+        correo,
+        roles,
+        administradorTipo: user.Administrador_Tipo || null
       },
       token
     });
