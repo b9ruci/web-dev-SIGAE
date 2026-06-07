@@ -593,20 +593,24 @@ CREATE TABLE `usuario` (
   `Usuario_RUT` varchar(20) NOT NULL,
   `Usuario_Telefono` varchar(20) NOT NULL,
   `Usuario_Nombre_Completo` varchar(100) NOT NULL,
-  `Usuario_Correo` varchar(100) NOT NULL,
   `Usuario_Estado_Cuenta` tinyint(1) NOT NULL,
   `Usuario_Contraseña` varchar(200) NOT NULL,
   `Usuario_Foto_Perfil` varchar(255) DEFAULT NULL,
   `Es_Docente` tinyint(1) NOT NULL,
   `Docente_Carga_Horaria_Maxima` int DEFAULT NULL,
   `Docente_Especialidad` varchar(100) DEFAULT NULL,
+  `Docente_Correo_Institucional` varchar(100) DEFAULT NULL,
   `Es_Administrador` tinyint(1) NOT NULL,
   `Administrador_Tipo` varchar(20) DEFAULT NULL,
+  `Administrador_Correo_Institucional` varchar(100) DEFAULT NULL,
   `Es_Apoderado` tinyint(1) NOT NULL,
   `Apoderado_Direccion` varchar(200) DEFAULT NULL,
+  `Apoderado_Correo_Natural` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`Usuario_Id`),
   UNIQUE KEY `Usuario_RUT_UNIQUE` (`Usuario_RUT`),
-  UNIQUE KEY `Usuario_Correo_UNIQUE` (`Usuario_Correo`)
+  UNIQUE KEY `Apoderado_Correo_Natural_UNIQUE` (`Apoderado_Correo_Natural`),
+  UNIQUE KEY `Administrador_Correo_Institucional_UNIQUE` (`Administrador_Correo_Institucional`),
+  UNIQUE KEY `Docente_Correo_Institucional_UNIQUE` (`Docente_Correo_Institucional`)
 ) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -616,7 +620,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'12345678-9','961900000','Esperanza Penelope Gonzales Farias','es.gonzales@jacquescousteau.edu',1,'1234',NULL,0,NULL,NULL,1,'Super Admin',0,NULL),(2,'21717363-3','979746782','Carlos Vicente Gonzales Muñoz','ca.gonzales@jacquescousteau.edu',1,'ilovemilf',NULL,0,NULL,NULL,1,'Administrador Normal',0,NULL),(3,'19111111-1','946789765','María Claudia Morales Rojas','ma.morales@jacquescousteau.edu',1,'hash123',NULL,1,38,'Matemáticas',0,NULL,0,NULL),(4,'159395855','944706559','Pedro Humberto Fernandez Soto','pedrofernandez453@gmail.com',1,'4532',NULL,0,NULL,NULL,0,NULL,1,'Avenida Concha y Toro 134, Puente Alto'),(5,'14444444-4','912345678','Ana Lucía Torres Vega','an.torres@jacquescousteau.edu',1,'hash456',NULL,1,32,'Lenguaje',0,NULL,0,NULL),(6,'15555555-5','923456789','Roberto Andrés Silva Pinto','ro.silva@jacquescousteau.edu',1,'hash789',NULL,1,40,'Historia',0,NULL,0,NULL),(7,'16666666-6','934567890','Carmen Gloria Díaz Muñoz','ca.diaz@jacquescousteau.edu',1,'hash012',NULL,1,36,'Ciencias',0,NULL,0,NULL),(8,'17777777-7','945678901','Luis Eduardo Ramos Fuentes','luisramos@gmail.com',1,'hash345',NULL,0,NULL,NULL,0,NULL,1,'Calle Los Pinos 456, Santiago'),(9,'18888888-8','956789012','Sandra Patricia Vera Molina','sandravera@gmail.com',1,'hash678',NULL,0,NULL,NULL,0,NULL,1,'Pasaje Las Rosas 789, Maipú'),(10,'19999999-9','967890123','Jorge Ignacio Campos Reyes','jo.campos@jacquescousteau.edu',1,'hash901',NULL,1,38,'Inglés',0,NULL,1,'Avenida Principal 321, Las Condes');
+INSERT INTO `usuario` VALUES (1,'12345678-9','961900000','Esperanza Penelope Gonzales Farias',1,'1234',NULL,0,NULL,NULL,NULL,1,'Super Admin','es.gonzales@jacquescousteau.edu',0,NULL,NULL),(2,'21717363-3','979746782','Carlos Vicente Gonzales Muñoz',1,'ilovemilf',NULL,0,NULL,NULL,NULL,1,'Administrador Normal','ca.gonzales@jacquescousteau.edu',0,NULL,NULL),(3,'19111111-1','946789765','María Claudia Morales Rojas',1,'hash123',NULL,1,38,'Matemáticas','ma.morales@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(4,'159395855','944706559','Pedro Humberto Fernandez Soto',1,'4532',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Avenida Concha y Toro 134, Puente Alto','pedrofernandez453@gmail.com'),(5,'14444444-4','912345678','Ana Lucía Torres Vega',1,'hash456',NULL,1,32,'Lenguaje','an.torres@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(6,'15555555-5','923456789','Roberto Andrés Silva Pinto',1,'hash789',NULL,1,40,'Historia','ro.silva@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(7,'16666666-6','934567890','Carmen Gloria Díaz Muñoz',1,'hash012',NULL,1,36,'Ciencias','ca.diaz@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(8,'17777777-7','945678901','Luis Eduardo Ramos Fuentes',1,'hash345',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Calle Los Pinos 456, Santiago','luisramos@gmail.com'),(9,'18888888-8','956789012','Sandra Patricia Vera Molina',1,'hash678',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Pasaje Las Rosas 789, Maipú','sandravera@gmail.com'),(10,'19999999-9','967890123','Jorge Ignacio Campos Reyes',1,'hash901',NULL,1,38,'Inglés','jo.campos@jacquescousteau.edu',0,NULL,NULL,1,'Avenida Principal 321, Las Condes','jorge.campos@gmail.com');
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -629,4 +633,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-02  0:34:02
+-- Dump completed on 2026-06-07  5:41:43
