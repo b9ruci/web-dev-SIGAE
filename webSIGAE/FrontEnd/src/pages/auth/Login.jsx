@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-
 import { useAuth } from "../context/AuthContext";
 
 function validarRut(rutCompleto) {
@@ -22,9 +21,11 @@ function Login() {
   const [rut, setRut] = useState("");
   const [rutError, setRutError] = useState("");
   const [password, setPassword] = useState("");
+  const [rutError, setRutError] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-
   const { login } = useAuth();
 
 const handleRutChange = (e) => {
@@ -60,8 +61,8 @@ const handleSubmit = async (e) => {
 };
 
   return (
-
     <div className="login-container">
+      <form className="login-form" onSubmit={handleSubmit}>
 
       <form
         className="login-form"
@@ -96,16 +97,50 @@ const handleSubmit = async (e) => {
           Iniciar Sesión
         </button>
 
+        {error && (
+          <div className="msg-error login-msg">
+            {error}
+          </div>
+        )}
+
+        <div className="input-group">
+          <label htmlFor="rut">RUT</label>
+          <input
+            id="rut"
+            type="text"
+            placeholder="Ej: 12345678-9"
+            value={rut}
+            onChange={handleRutChange}
+            className={rutError ? "input-invalid" : ""}
+            required
+          />
+          {rutError && <span className="input-error-msg">{rutError}</span>}
+        </div>
+
+        <div className="input-group">
+          <label htmlFor="password">Contraseña</label>
+          <input
+            id="password"
+            type="password"
+            placeholder="Ingresa tu contraseña"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError("");
+            }}
+            required
+          />
+        </div>
+
+        <button type="submit" disabled={loading}>
+          {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+        </button>
+
         <div className="login-links">
-
-          <Link to="/forgot-password">
-            ¿Olvidó su contraseña?
-          </Link>
-
+          <Link to="/forgot-password">¿Olvidó su contraseña?</Link>
         </div>
 
       </form>
-
     </div>
   );
 }
