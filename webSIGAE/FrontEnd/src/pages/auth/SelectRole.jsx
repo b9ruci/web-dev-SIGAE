@@ -1,22 +1,13 @@
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function SelectRole() {
 
   const navigate = useNavigate();
-
-  const roles = [
-    "Administrador",
-    "Docente",
-    "Apoderado",
-  ];
+  const { usuario, seleccionarRol } = useAuth();
 
   const handleSelectRole = (role) => {
-
-    localStorage.setItem(
-      "activeRole",
-      role
-    );
-
+    seleccionarRol(role);
     navigate("/dashboard");
   };
 
@@ -36,7 +27,7 @@ function SelectRole() {
 
         <div className="roles-container">
 
-          {roles.map((role) => (
+          {usuario?.roles?.map((role) => (
 
             <button
               key={role}

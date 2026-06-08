@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 function Dashboard() {
+
+  const { rolActivo } = useAuth();
 
   const [stats, setStats] = useState({
     usuarios: 0,
@@ -63,6 +66,12 @@ function Dashboard() {
       <p>
         Bienvenido al Sistema de Gestión Académica Escolar
       </p>
+
+      {rolActivo && (
+        <p>
+          Rol actual: {rolActivo}
+        </p>
+      )}
 
       <div className="dashboard-cards">
 
