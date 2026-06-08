@@ -19,7 +19,6 @@ function validarRut(rutCompleto) {
 function Login() {
 
   const [rut, setRut] = useState("");
-  const [rutError, setRutError] = useState("");
   const [password, setPassword] = useState("");
   const [rutError, setRutError] = useState("");
   const [error, setError] = useState("");
@@ -28,74 +27,69 @@ function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-const handleRutChange = (e) => {
-  const valor = e.target.value;
-  setRut(valor);
-  if (valor && !validarRut(valor)) {
-    setRutError("RUT inválido");
-  } else {
-    setRutError("");
-  }
-};
+  const handleRutChange = (e) => {
+    const valor = e.target.value;
+    setRut(valor);
+    setError("");
+    if (valor && !validarRut(valor)) {
+      setRutError("RUT inválido");
+    } else {
+      setRutError("");
+    }
+  };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validarRut(rut)) {
-  setRutError("RUT inválido");
-  return;
-  }
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rut, password })
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const { user, token } = await res.json();
-    login(user, token);  // guarda token y user en contexto/localStorage
-    if (user.roles.length > 1) navigate('/seleccionar-rol');
-    else navigate('/dashboard');
-  } catch (err) {
-    alert(err.message);
-  }
-};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validarRut(rut)) {
+      setRutError("RUT inválido");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rut, password }),
+      });
+
+      if (res.status === 401) {
+        const data = await res.json();
+        const msg = data.error || "";
+        if (msg.toLowerCase().includes("deshabilitada")) {
+          setError("Tu cuenta está deshabilitada. Contacta al administrador.");
+        } else {
+          setError("RUT o contraseña incorrectos. Verifica tus datos.");
+        }
+        return;
+      }
+
+      if (!res.ok) {
+        setError("Ocurrió un error al iniciar sesión. Intenta nuevamente.");
+        return;
+      }
+
+      const { user, token } = await res.json();
+      login(user, token);
+      if (user.roles.length > 1) navigate("/seleccionar-rol");
+      else navigate("/dashboard");
+
+    } catch {
+      setError("No se pudo conectar con el servidor. Intenta más tarde.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
 
-      <form
-        className="login-form"
-        onSubmit={handleSubmit}
-      >
-
-        <h1>SIGAE</h1>
-
-        <p>
-          Sistema de Gestión Académica Escolar
-        </p>
-
-        <input
-          type="text"
-          placeholder="RUT (ej: 12345678-9)"
-          value={rut}
-          onChange={handleRutChange}
-          required
-        /> {rutError && <span className="input-error">{rutError}</span>}
-
-        <input
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
-          required
-        />
-
-        <button type="submit">
-          Iniciar Sesión
-        </button>
+        <div className="login-logo">
+          <span className="login-logo-icon">🎓</span>
+          <h1>SIGAE</h1>
+          <p>Sistema de Gestión Académica Escolar</p>
+        </div>
 
         {error && (
           <div className="msg-error login-msg">
