@@ -308,6 +308,28 @@ INSERT INTO `historial` VALUES (333,'979746782','16:00:00','Cambio de número de
 UNLOCK TABLES;
 
 --
+-- Table structure for table `curso_asignatura`
+--
+
+DROP TABLE IF EXISTS `curso_asignatura`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `curso_asignatura` (
+  `Curso_Asignatura_Id` int unsigned NOT NULL AUTO_INCREMENT,
+  `Curso_Asignatura_Estado` varchar(20) NOT NULL DEFAULT 'Vigente',
+  `Curso_Asignatura_Fecha_Creacion` date NOT NULL,
+  `Curso_Id` int unsigned NOT NULL,
+  `Asignatura_Id` int unsigned NOT NULL,
+  PRIMARY KEY (`Curso_Asignatura_Id`),
+  UNIQUE KEY `uq_curso_asignatura` (`Curso_Id`, `Asignatura_Id`),
+  KEY `fk_CursoAsig_Curso_idx` (`Curso_Id`),
+  KEY `fk_CursoAsig_Asignatura_idx` (`Asignatura_Id`),
+  CONSTRAINT `fk_CursoAsig_Curso` FOREIGN KEY (`Curso_Id`) REFERENCES `curso` (`Curso_Id`) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `fk_CursoAsig_Asignatura` FOREIGN KEY (`Asignatura_Id`) REFERENCES `asignatura` (`Asignatura_Id`) ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Table structure for table `horario_asignatura`
 --
 
