@@ -1,5 +1,6 @@
-bash#!/bin/bash
+#!/bin/bash
 set -e
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "=== Instalando MySQL ==="
 sudo apt-get update -q
@@ -17,23 +18,24 @@ sudo mariadb -u root -e "
 "
 
 echo "=== Importando base de datos ==="
-if [ -f /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql ]; then
-  sudo mariadb -u root sigae < /workspaces/web-dev-SIGAE/webSIGAE/Database/SIGAE.sql
+SQL_FILE="$ROOT/webSIGAE/Database/SIGAE.sql"
+if [ -f "$SQL_FILE" ]; then
+  sudo mariadb -u root sigae < "$SQL_FILE"
   echo "✅ SQL importado"
 else
   echo "⚠️  SIGAE.sql no encontrado, saltando importación"
 fi
 
 echo "=== Instalando dependencias Backend ==="
-cd /workspaces/web-dev-SIGAE/webSIGAE/BackEnd
+cd "$ROOT/webSIGAE/BackEnd"
 npm install
 
 echo "=== Instalando dependencias Frontend ==="
-cd /workspaces/web-dev-SIGAE/webSIGAE/FrontEnd
+cd "$ROOT/webSIGAE/FrontEnd"
 npm install
 
 echo "=== Creando .env ==="
-cat > /workspaces/web-dev-SIGAE/webSIGAE/BackEnd/.env << 'ENVEOF'
+cat > "$ROOT/webSIGAE/BackEnd/.env" << 'ENVEOF'
 JWT_SECRET=un_secreto_muy_largo_y_seguro
 PORT=3000
 DB_HOST=127.0.0.1
@@ -44,7 +46,7 @@ FRONTEND_URL=http://localhost:5173
 ENVEOF
 
 echo "=== Hasheando contraseñas ==="
-cd /workspaces/web-dev-SIGAE/webSIGAE/BackEnd
+cd "$ROOT/webSIGAE/BackEnd"
 node -e "
 const bcrypt = require('bcrypt');
 const mysql = require('mysql2/promise');
