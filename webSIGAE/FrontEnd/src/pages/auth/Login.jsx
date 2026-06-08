@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 
 function Login() {
 
-  const [correo, setCorreo] = useState("");
+  const [rut, setRut] = useState("");
   const [password, setPassword] = useState("");
 
   const navigate = useNavigate();
@@ -18,7 +18,7 @@ const handleSubmit = async (e) => {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: correo, password })
+      body: JSON.stringify({ rut, password })
     });
     if (!res.ok) throw new Error(await res.text());
     const { user, token } = await res.json();
@@ -46,11 +46,11 @@ const handleSubmit = async (e) => {
         </p>
 
         <input
-          type="email"
-          placeholder="Correo institucional"
-          value={correo}
+          type="text"
+          placeholder="RUT (ej: 12345678-9)"
+          value={rut}
           onChange={(e) =>
-            setCorreo(e.target.value)
+            setRut(e.target.value)
           }
           required
         />
