@@ -1,5 +1,5 @@
 const express = require('express');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { verifyToken: authMiddleware } = require('../middleware/authMiddleware');
 const {
   getHorarios,
   getCursos,
