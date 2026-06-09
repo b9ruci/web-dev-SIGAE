@@ -9,6 +9,7 @@ const corsOptions = {
   origin     : process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 };
+app.set('trust proxy', 1);
 app.use(cors(corsOptions));
 app.use(express.json());
 
@@ -17,13 +18,17 @@ const authRoutes        = require('./routes/authRoutes');
 const usuarioRoutes     = require('./routes/usuarioRoutes');
 const estudianteRoutes  = require('./routes/estudianteRoutes');
 const cursoRoutes       = require('./routes/cursoRoutes');
-const horarioRoutes = require('./routes/horarioRoutes');
+const horarioRoutes     = require('./routes/horarioRoutes');
+const bloquesRoutes     = require('./routes/bloquesRoutes');
+const dashboardRoutes   = require('./routes/dashboardRoutes');
 
 app.use('/api/auth',        authRoutes);
 app.use('/api/usuarios',    usuarioRoutes);
 app.use('/api/estudiantes', estudianteRoutes);
 app.use('/api/cursos',      cursoRoutes);
-app.use('/api/horarios', horarioRoutes);
+app.use('/api/horarios',    horarioRoutes);
+app.use('/api/bloques',     bloquesRoutes);
+app.use('/api/dashboard',   dashboardRoutes);
 
 // 404
 app.use((req, res) => {
