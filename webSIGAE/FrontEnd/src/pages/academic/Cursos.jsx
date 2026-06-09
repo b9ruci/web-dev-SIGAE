@@ -119,7 +119,7 @@ function ModalAsignarAsignaturas({ curso, token, onClose, onExito }) {
                         value={estadoSeleccion[a.Asignatura_Id] || "Vigente"}
                         onChange={(e) => handleEstado(a.Asignatura_Id, e.target.value)}
                       >
-                        <option value="Vigente">Vigente</option>
+                        <option value="Activa">Activa</option>
                         <option value="Inactiva">Inactiva</option>
                       </select>
                     </div>
@@ -203,7 +203,6 @@ function PanelAsignaturasCurso({ curso, token, esAdmin, onVolver }) {
               <th>Asignatura</th>
               <th>Prioridad</th>
               <th>Estado</th>
-              <th>Fecha de asignación</th>
             </tr>
           </thead>
           <tbody>
@@ -211,9 +210,9 @@ function PanelAsignaturasCurso({ curso, token, esAdmin, onVolver }) {
               <tr key={a.Curso_Asignatura_Id}>
                 <td>{a.Asignatura_Nombre}</td>
                 <td>{a.Asignatura_Prioridad_Academica}</td>
-                <td>
-                  <span className={`badge-estado ${a.Curso_Asignatura_Estado === "Vigente" ? "badge-vigente" : "badge-inactiva"}`}>
-                    {a.Curso_Asignatura_Estado}
+                  <td>
+                    <span className={`badge-estado ${a.Estado_Asignacion === "Activa" ? "badge-vigente" : "badge-inactiva"}`}>
+                    {a.Estado_Asignacion}
                   </span>
                 </td>
                 <td>{new Date(a.Curso_Asignatura_Fecha_Creacion).toLocaleDateString("es-CL")}</td>
