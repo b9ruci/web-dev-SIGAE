@@ -47,10 +47,11 @@ const login = async (req, res) => {
       null;
 
     const payload = {
-      userId: user.Usuario_Id,
-      rut: user.Usuario_RUT,
-      roles
-    };
+  userId: user.Usuario_Id,
+  rut: user.Usuario_RUT,
+  roles,
+  administradorTipo: user.Administrador_Tipo || null
+};
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
     const expiracion = new Date(Date.now() + 2 * 60 * 60 * 1000);
 

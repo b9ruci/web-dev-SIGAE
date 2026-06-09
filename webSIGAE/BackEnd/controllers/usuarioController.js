@@ -186,4 +186,73 @@ const deleteUsuario = async (req, res) => {
   }
 };
 
-module.exports = { getUsuarios, getUsuarioById, createUsuario, updateUsuario, deleteUsuario };
+module.exports = {
+  getUsuarios,
+  getUsuarioById,
+  createUsuario,
+  updateUsuario,
+  deleteUsuario,
+  updateRoles
+};
+const updateRoles = async (req, res) => {
+
+    const { id } = req.params;
+
+    const {
+        Es_Administrador,
+        Es_Docente,
+        Es_Apoderado,
+        Administrador_Tipo
+    } = req.body;
+
+    try {
+
+        const [usuario] = await db.query(
+            `SELECT Usuario_Id
+             FROM usuario
+             WHERE Usuario_Id = ?`,
+            [id]
+        );
+
+        if (usuario.length === 0) {
+
+            return res.status(404).json({
+                mensaje: 'Usuario no encontrado'
+            });
+
+        }
+
+        await db.query(
+            `UPDATE usuario
+             SET
+             Es_Administrador = ?,
+             Es_Docente = ?,
+             Es_Apoderado = ?,
+             Administrador_Tipo = ?
+             WHERE Usuario_Id = ?`,
+            [
+                Es_Administrador,
+                Es_Docente,
+                Es_Apoderado,
+                Administrador_Tipo || null,
+                id
+            ]
+        );
+
+        res.json({
+            mensaje:
+                'Roles actualizados correctamente'
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            mensaje:
+                'Error al actualizar roles'
+        });
+
+    }
+
+};
