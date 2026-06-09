@@ -82,11 +82,11 @@ const getAsignaturasDeCurso = async (req, res) => {
   const { id } = req.params;
   try {
     const [rows] = await pool.execute(`
-      SELECT ca.Curso_Asignatura_Id, ca.Curso_Asignatura_Estado, ca.Curso_Asignatura_Fecha_Creacion,
+      SELECT ta.tieneasig_Id, ta.Estado_Asignacion,
              a.Asignatura_Id, a.Asignatura_Nombre, a.Asignatura_Prioridad_Academica
-      FROM curso_asignatura ca
-      JOIN asignatura a ON ca.Asignatura_Id = a.Asignatura_Id
-      WHERE ca.Curso_Id = ?
+      FROM tieneasig ta
+      JOIN asignatura a ON ta.Asignatura_Id = a.Asignatura_Id
+      WHERE ta.Curso_Id = ?
       ORDER BY a.Asignatura_Nombre
     `, [id]);
     res.json(rows);
@@ -123,8 +123,8 @@ const getAsignaturasDisponibles = async (req, res) => {
       JOIN asignatura a ON ia.Asignatura_Id = a.Asignatura_Id
       WHERE ia.Plan_Educativo_Id = ?
         AND a.Asignatura_Id NOT IN (
-          SELECT Asignatura_Id FROM curso_asignatura
-          WHERE Curso_Id = ? AND Curso_Asignatura_Estado = 'Vigente'
+          SELECT Asignatura_Id FROM tieneasig
+          WHERE Curso_Id = ? AND Estado_Asignacion = 'Activa'
         )
       ORDER BY a.Asignatura_Nombre
     `, [planId, id]);
@@ -167,13 +167,12 @@ const asignarAsignaturas = async (req, res) => {
     );
     const idsValidos = new Set(asignaturasDelPlan.map(a => a.Asignatura_Id));
 
-    const fecha = new Date().toISOString().split('T')[0];
     const duplicadas = [];
     const insertadas = [];
 
     for (const item of asignaturas) {
       const asigId = item.asignatura_id;
-      const estado = item.estado === 'Inactiva' ? 'Inactiva' : 'Vigente';
+      const estado = item.estado === 'Inactiva' ? 'Inactiva' : 'Activa';
 
       if (!idsValidos.has(asigId)) {
         return res.status(400).json({
@@ -182,7 +181,7 @@ const asignarAsignaturas = async (req, res) => {
       }
 
       const [existente] = await pool.execute(
-        'SELECT Curso_Asignatura_Id FROM curso_asignatura WHERE Curso_Id = ? AND Asignatura_Id = ? AND Curso_Asignatura_Estado = "Vigente"',
+        'SELECT tieneasig_Id FROM tieneasig WHERE Curso_Id = ? AND Asignatura_Id = ? AND Estado_Asignacion = "Activa"',
         [id, asigId]
       );
       if (existente.length > 0) {
@@ -191,14 +190,14 @@ const asignarAsignaturas = async (req, res) => {
       }
 
       await pool.execute(
-        'INSERT INTO curso_asignatura (Curso_Asignatura_Estado, Curso_Asignatura_Fecha_Creacion, Curso_Id, Asignatura_Id) VALUES (?, ?, ?, ?)',
-        [estado, fecha, id, asigId]
+        'INSERT INTO tieneasig (Estado_Asignacion, Curso_Id, Asignatura_Id) VALUES (?, ?, ?)',
+        [estado, id, asigId]
       );
       insertadas.push(asigId);
     }
 
     if (insertadas.length === 0 && duplicadas.length > 0) {
-      return res.status(409).json({ error: 'Todas las asignaturas seleccionadas ya están asociadas al curso con estado vigente' });
+      return res.status(409).json({ error: 'Todas las asignaturas seleccionadas ya están asociadas al curso con estado activo' });
     }
 
     res.status(201).json({
