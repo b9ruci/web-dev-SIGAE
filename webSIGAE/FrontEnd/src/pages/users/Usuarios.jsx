@@ -2,18 +2,22 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 function Usuarios() {
-
   const { usuario } = useAuth();
+  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
 
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
+  const [filtroRol, setFiltroRol] = useState("Todos");
+  const [filtroEstado, setFiltroEstado] = useState("Todos");
 
+  // Modal roles
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
-
   const [roles, setRoles] = useState({
     Es_Administrador: false,
     Es_Docente: false,
     Es_Apoderado: false,
+    Administrador_Tipo: "Administrador Normal",
   });
 
   useEffect(() => {
@@ -21,274 +25,284 @@ function Usuarios() {
   }, []);
 
   const cargarUsuarios = async () => {
-
     try {
-
       const token = localStorage.getItem("token");
-
-      const res = await fetch(
-        "http://localhost:3000/api/usuarios",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
+      const res = await fetch("/api/usuarios", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
-
       setUsuarios(data);
-
     } catch (error) {
-
       console.error(error);
-
     } finally {
-
       setLoading(false);
-
     }
   };
 
-  const eliminarUsuario = async (id) => {
-
-    if (!window.confirm("¿Eliminar usuario?")) {
-      return;
-    }
-
+  const toggleEstado = async (id) => {
     try {
-
       const token = localStorage.getItem("token");
-
-      await fetch(
-        `http://localhost:3000/api/usuarios/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      cargarUsuarios();
-
+      const res = await fetch(`/api/usuarios/${id}/estado`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) cargarUsuarios();
     } catch (error) {
-
       console.error(error);
-
     }
   };
 
-  const abrirRoles = (usuario) => {
-
-    setUsuarioSeleccionado(usuario);
-
+  const abrirRoles = (u) => {
+    setUsuarioSeleccionado(u);
     setRoles({
-      Es_Administrador: !!usuario.Es_Administrador,
-      Es_Docente: !!usuario.Es_Docente,
-      Es_Apoderado: !!usuario.Es_Apoderado,
+      Es_Administrador: !!u.Es_Administrador,
+      Es_Docente: !!u.Es_Docente,
+      Es_Apoderado: !!u.Es_Apoderado,
+      Administrador_Tipo: u.Administrador_Tipo || "Administrador Normal",
     });
   };
 
   const guardarRoles = async () => {
-
     try {
-
       const token = localStorage.getItem("token");
-
-      await fetch(
-        `http://localhost:3000/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(roles),
-        }
-      );
-
-      setUsuarioSeleccionado(null);
-
-      cargarUsuarios();
-
-      alert("Roles actualizados");
-
+      const body = {
+        Es_Administrador: roles.Es_Administrador ? 1 : 0,
+        Es_Docente: roles.Es_Docente ? 1 : 0,
+        Es_Apoderado: roles.Es_Apoderado ? 1 : 0,
+        Administrador_Tipo: roles.Es_Administrador ? roles.Administrador_Tipo : null,
+      };
+      const res = await fetch(`/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setUsuarioSeleccionado(null);
+        cargarUsuarios();
+      }
     } catch (error) {
-
       console.error(error);
-
-      alert("Error al actualizar roles");
-
     }
   };
 
+  const getCorreoPrincipal = (u) => {
+    return u.Administrador_Correo_Institucional || u.Docente_Correo_Institucional || u.Apoderado_Correo_Natural || "—";
+  };
+
+  const getBadgesRoles = (u) => {
+    const badges = [];
+    if (u.Es_Administrador) {
+      if (u.Administrador_Tipo === "SuperAdmin") {
+        badges.push(<span key="sa" className="badge-rol badge-superadmin">Super Admin</span>);
+      } else {
+        badges.push(<span key="adm" className="badge-rol badge-admin">Administrador</span>);
+      }
+    }
+    if (u.Es_Docente) badges.push(<span key="doc" className="badge-rol badge-docente">Docente</span>);
+    if (u.Es_Apoderado) badges.push(<span key="apo" className="badge-rol badge-apoderado">Apoderado</span>);
+    return badges.length > 0 ? badges : <span style={{ color: "#94a3b8" }}>Sin roles</span>;
+  };
+
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const textoBusqueda = busqueda.toLowerCase();
+    const coincideTexto =
+      !busqueda ||
+      u.Usuario_Nombre_Completo?.toLowerCase().includes(textoBusqueda) ||
+      u.Usuario_RUT?.toLowerCase().includes(textoBusqueda);
+
+    const coincideRol =
+      filtroRol === "Todos" ||
+      (filtroRol === "Administrador" && u.Es_Administrador) ||
+      (filtroRol === "Docente" && u.Es_Docente) ||
+      (filtroRol === "Apoderado" && u.Es_Apoderado);
+
+    const coincideEstado =
+      filtroEstado === "Todos" ||
+      (filtroEstado === "Activo" && u.Usuario_Estado_Cuenta) ||
+      (filtroEstado === "Inactivo" && !u.Usuario_Estado_Cuenta);
+
+    return coincideTexto && coincideRol && coincideEstado;
+  });
+
   if (loading) {
-    return <h2>Cargando...</h2>;
+    return (
+      <div className="usuarios-container">
+        <p>Cargando usuarios...</p>
+      </div>
+    );
   }
 
   return (
+    <div className="usuarios-container">
+      <div className="usuarios-header">
+        <h1>Gestión de Usuarios</h1>
+        <p>Administra los usuarios del sistema SIGAE</p>
+      </div>
 
-    <div className="page-container">
+      {/* Filtros */}
+      <div className="usuarios-filtros">
+        <input
+          type="text"
+          className="usuarios-search"
+          placeholder="Buscar por nombre o RUT..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+        <select
+          className="usuarios-select"
+          value={filtroRol}
+          onChange={(e) => setFiltroRol(e.target.value)}
+        >
+          <option value="Todos">Todos los roles</option>
+          <option value="Administrador">Administrador</option>
+          <option value="Docente">Docente</option>
+          <option value="Apoderado">Apoderado</option>
+        </select>
+        <select
+          className="usuarios-select"
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+        >
+          <option value="Todos">Todos los estados</option>
+          <option value="Activo">Activo</option>
+          <option value="Inactivo">Inactivo</option>
+        </select>
+      </div>
 
-      <h1>Usuarios</h1>
-
-      <table>
-
-        <thead>
-
-          <tr>
-            <th>ID</th>
-            <th>Nombre</th>
-            <th>RUT</th>
-            <th>Roles</th>
-            <th>Acciones</th>
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {usuarios.map((usuarioFila) => (
-
-            <tr key={usuarioFila.Usuario_Id}>
-
-              <td>{usuarioFila.Usuario_Id}</td>
-
-              <td>
-                {usuarioFila.Usuario_Nombre_Completo}
-              </td>
-
-              <td>
-                {usuarioFila.Usuario_RUT}
-              </td>
-
-              <td>
-
-                {usuarioFila.Es_Administrador ? "Administrador " : ""}
-                {usuarioFila.Es_Docente ? "Docente " : ""}
-                {usuarioFila.Es_Apoderado ? "Apoderado" : ""}
-
-              </td>
-
-              <td>
-
-                <button
-                  onClick={() =>
-                    eliminarUsuario(
-                      usuarioFila.Usuario_Id
-                    )
-                  }
-                >
-                  Eliminar
-                </button>
-
-                {usuario?.administradorTipo === "SuperAdmin" && (
-
-                  <button
-                    onClick={() =>
-                      abrirRoles(usuarioFila)
-                    }
-                  >
-                    Gestionar Roles
-                  </button>
-
-                )}
-
-              </td>
-
+      {/* Tabla */}
+      {usuariosFiltrados.length === 0 ? (
+        <div className="usuarios-empty">No se encontraron usuarios</div>
+      ) : (
+        <table className="tabla-usuarios">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Nombre</th>
+              <th>RUT</th>
+              <th>Roles</th>
+              <th>Correo</th>
+              <th>Estado</th>
+              <th>Acciones</th>
             </tr>
+          </thead>
+          <tbody>
+            {usuariosFiltrados.map((u, idx) => {
+              const esMismoUsuario = u.Usuario_Id === usuario?.id;
+              const esSuperAdminFila = u.Administrador_Tipo === "SuperAdmin";
 
-          ))}
-
-        </tbody>
-
-      </table>
-
-      {usuarioSeleccionado && (
-
-        <div className="form-card">
-
-          <h2>
-            Roles de {usuarioSeleccionado.Usuario_Nombre_Completo}
-          </h2>
-
-          <label>
-
-            <input
-              type="checkbox"
-              checked={roles.Es_Administrador}
-              onChange={(e) =>
-                setRoles({
-                  ...roles,
-                  Es_Administrador: e.target.checked,
-                })
-              }
-            />
-
-            Administrador
-
-          </label>
-
-          <br />
-
-          <label>
-
-            <input
-              type="checkbox"
-              checked={roles.Es_Docente}
-              onChange={(e) =>
-                setRoles({
-                  ...roles,
-                  Es_Docente: e.target.checked,
-                })
-              }
-            />
-
-            Docente
-
-          </label>
-
-          <br />
-
-          <label>
-
-            <input
-              type="checkbox"
-              checked={roles.Es_Apoderado}
-              onChange={(e) =>
-                setRoles({
-                  ...roles,
-                  Es_Apoderado: e.target.checked,
-                })
-              }
-            />
-
-            Apoderado
-
-          </label>
-
-          <br />
-          <br />
-
-          <button onClick={guardarRoles}>
-            Guardar
-          </button>
-
-          <button
-            onClick={() =>
-              setUsuarioSeleccionado(null)
-            }
-          >
-            Cancelar
-          </button>
-
-        </div>
-
+              return (
+                <tr key={u.Usuario_Id}>
+                  <td>{idx + 1}</td>
+                  <td>{u.Usuario_Nombre_Completo}</td>
+                  <td>{u.Usuario_RUT}</td>
+                  <td>
+                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                      {getBadgesRoles(u)}
+                    </div>
+                  </td>
+                  <td>{getCorreoPrincipal(u)}</td>
+                  <td>
+                    {u.Usuario_Estado_Cuenta
+                      ? <span className="badge-activo">Activo</span>
+                      : <span className="badge-inactivo">Inactivo</span>}
+                  </td>
+                  <td>
+                    <div className="acciones-grupo">
+                      {!esMismoUsuario && !esSuperAdminFila && (
+                        <button
+                          className={u.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
+                          onClick={() => toggleEstado(u.Usuario_Id)}
+                        >
+                          {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
+                        </button>
+                      )}
+                      {esSuperAdmin && (
+                        <button
+                          className="btn-roles"
+                          onClick={() => abrirRoles(u)}
+                        >
+                          Gestionar Roles
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
 
+      {/* Modal gestión de roles */}
+      {usuarioSeleccionado && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+          }}
+        >
+          <div className="form-card" style={{ width: "420px", maxWidth: "95vw" }}>
+            <h2 style={{ marginBottom: "20px" }}>
+              Gestionar Roles: {usuarioSeleccionado.Usuario_Nombre_Completo}
+            </h2>
+            <div className="roles-grid">
+              <div className="rol-item">
+                <input
+                  type="checkbox"
+                  id="chk-admin"
+                  checked={roles.Es_Administrador}
+                  onChange={(e) => setRoles({ ...roles, Es_Administrador: e.target.checked })}
+                />
+                <label htmlFor="chk-admin">Administrador</label>
+              </div>
+              {roles.Es_Administrador && (
+                <select
+                  className="rol-tipo-select"
+                  value={roles.Administrador_Tipo}
+                  onChange={(e) => setRoles({ ...roles, Administrador_Tipo: e.target.value })}
+                >
+                  <option value="Administrador Normal">Administrador Normal</option>
+                  <option value="SuperAdmin">SuperAdmin</option>
+                </select>
+              )}
+              <div className="rol-item">
+                <input
+                  type="checkbox"
+                  id="chk-docente"
+                  checked={roles.Es_Docente}
+                  onChange={(e) => setRoles({ ...roles, Es_Docente: e.target.checked })}
+                />
+                <label htmlFor="chk-docente">Docente</label>
+              </div>
+              <div className="rol-item">
+                <input
+                  type="checkbox"
+                  id="chk-apoderado"
+                  checked={roles.Es_Apoderado}
+                  onChange={(e) => setRoles({ ...roles, Es_Apoderado: e.target.checked })}
+                />
+                <label htmlFor="chk-apoderado">Apoderado</label>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button className="btn-primario" onClick={guardarRoles}>
+                Guardar
+              </button>
+              <button
+                className="btn-desactivar"
+                style={{ alignSelf: "flex-start" }}
+                onClick={() => setUsuarioSeleccionado(null)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-
   );
 }
 

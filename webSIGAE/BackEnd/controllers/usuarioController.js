@@ -248,11 +248,27 @@ const updateRoles = async (req, res) => {
     }
 
 };
+const toggleEstado = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await db.query('SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    const u = rows[0];
+    const nuevoEstado = u.Usuario_Estado_Cuenta ? 0 : 1;
+    await db.query('UPDATE usuario SET Usuario_Estado_Cuenta = ? WHERE Usuario_Id = ?', [nuevoEstado, id]);
+    res.json({ mensaje: 'Estado actualizado', estado: nuevoEstado });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ mensaje: 'Error al actualizar estado' });
+  }
+};
+
 module.exports = {
   getUsuarios,
   getUsuarioById,
   createUsuario,
   updateUsuario,
   deleteUsuario,
-  updateRoles
+  updateRoles,
+  toggleEstado
 };
