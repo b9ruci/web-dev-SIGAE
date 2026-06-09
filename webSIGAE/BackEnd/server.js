@@ -17,11 +17,13 @@ const authRoutes        = require('./routes/authRoutes');
 const usuarioRoutes     = require('./routes/usuarioRoutes');
 const estudianteRoutes  = require('./routes/estudianteRoutes');
 const cursoRoutes       = require('./routes/cursoRoutes');
+const horarioRoutes = require('./routes/horarioRoutes');
 
 app.use('/api/auth',        authRoutes);
 app.use('/api/usuarios',    usuarioRoutes);
 app.use('/api/estudiantes', estudianteRoutes);
 app.use('/api/cursos',      cursoRoutes);
+app.use('/api/horarios', horarioRoutes);
 
 // 404
 app.use((req, res) => {
