@@ -1,5 +1,5 @@
 const express = require('express');
-const { authMiddleware } = require('../middleware/authMiddleware');
+const { verifyToken } = require('../middleware/authMiddleware');
 const {
   getHorarios,
   getCursos,
@@ -14,7 +14,7 @@ const {
 const router = express.Router();
 
 // Todos los endpoints requieren autenticación
-router.use(authMiddleware);
+router.use(verifyToken);
 
 // Datos de apoyo para formularios
 router.get('/cursos',      getCursos);
