@@ -186,14 +186,6 @@ const deleteUsuario = async (req, res) => {
   }
 };
 
-module.exports = {
-  getUsuarios,
-  getUsuarioById,
-  createUsuario,
-  updateUsuario,
-  deleteUsuario,
-  updateRoles
-};
 const updateRoles = async (req, res) => {
 
     const { id } = req.params;
@@ -255,4 +247,12 @@ const updateRoles = async (req, res) => {
 
     }
 
+};
+module.exports = {
+  getUsuarios,
+  getUsuarioById,
+  createUsuario,
+  updateUsuario,
+  deleteUsuario,
+  updateRoles
 };
