@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 
 const API = "/api";
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
-const ESTADOS = ["Activo", "Suspendido"];
 
 const EMPTY_FORM = {
   Horario_Asignatura_Dia_Semana: "",
@@ -21,44 +20,97 @@ function authHeaders() {
   };
 }
 
+/* ── Badge de estado ───────────────────────────────────────────── */
+function EstadoBadge({ estado }) {
+  const esActivo = estado === "Activo";
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "3px 12px",
+        borderRadius: "12px",
+        fontSize: "0.78rem",
+        fontWeight: 700,
+        background: esActivo ? "#dcfce7" : "#fee2e2",
+        color: esActivo ? "#166534" : "#991b1b",
+        border: `1px solid ${esActivo ? "#bbf7d0" : "#fecaca"}`,
+      }}
+    >
+      {estado}
+    </span>
+  );
+}
+
+/* ── Panel de acceso denegado (Apoderado) ──────────────────────── */
+function AccesoDenegado({ rol }) {
+  return (
+    <div style={styles.accessDenied}>
+      <div style={styles.accessDeniedIcon}>🔒</div>
+      <h2 style={{ margin: "0 0 0.5rem 0", color: "#1e3a5f" }}>
+        Sección no disponible
+      </h2>
+      <p style={{ margin: 0, color: "#6b7280", maxWidth: 380 }}>
+        El rol <strong>{rol}</strong> no tiene acceso al módulo de Horarios en
+        el Incremento 1. Si necesitas información sobre el horario de tu
+        alumno, consulta con la administración.
+      </p>
+    </div>
+  );
+}
+
+/* ── Componente principal ──────────────────────────────────────── */
 export default function Horarios() {
   const { rolActivo, usuario } = useAuth();
-  const esAdmin = rolActivo === "Administrador";
 
-  // ── Datos maestros ────────────────────────────────────────────
-  const [cursos,      setCursos]      = useState([]);
-  const [bloques,     setBloques]     = useState([]);
+  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esAdmin =
+    rolActivo === "Administrador" || esSuperAdmin;
+  const esDocente = rolActivo === "Docente";
+  const esApoderado = rolActivo === "Apoderado";
+
+  /* ── Datos maestros ────────────────────────────────────────── */
+  const [cursos, setCursos] = useState([]);
+  const [bloques, setBloques] = useState([]);
   const [asignaturas, setAsignaturas] = useState([]);
-  const [docentes,    setDocentes]    = useState([]);
+  const [docentes, setDocentes] = useState([]);
 
-  // ── Estado de la vista ────────────────────────────────────────
+  /* ── Estado de la vista ────────────────────────────────────── */
   const [cursoSeleccionado, setCursoSeleccionado] = useState("");
-  const [horarios,          setHorarios]          = useState([]);
-  const [loading,           setLoading]           = useState(false);
-  const [error,             setError]             = useState("");
+  const [horarios, setHorarios] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // ── Modal ─────────────────────────────────────────────────────
+  /* ── Confirmación de suspensión masiva ─────────────────────── */
+  const [confirmandoSuspenderTodo, setConfirmandoSuspenderTodo] =
+    useState(false);
+  const [suspendiendo, setSuspendiendo] = useState(false);
+
+  /* ── Modal crear / editar ───────────────────────────────────── */
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [modoEdicion,  setModoEdicion]  = useState(false);
-  const [idEditando,   setIdEditando]   = useState(null);
-  const [form,         setForm]         = useState(EMPTY_FORM);
-  const [guardando,    setGuardando]    = useState(false);
-  const [errorModal,   setErrorModal]   = useState("");
+  const [modoEdicion, setModoEdicion] = useState(false);
+  const [idEditando, setIdEditando] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [guardando, setGuardando] = useState(false);
+  const [errorModal, setErrorModal] = useState("");
 
-  // ── Carga de datos maestros ───────────────────────────────────
+  /* ── Carga de datos maestros ───────────────────────────────── */
   useEffect(() => {
+    if (esApoderado) return;
     const cargar = async () => {
       try {
-        const [rC, rB, rA, rD] = await Promise.all([
-          fetch(`${API}/horarios/cursos`,      { headers: authHeaders() }),
-          fetch(`${API}/horarios/bloques`,     { headers: authHeaders() }),
+        const promises = [
+          fetch(`${API}/horarios/cursos`, { headers: authHeaders() }),
+          fetch(`${API}/horarios/bloques`, { headers: authHeaders() }),
           fetch(`${API}/horarios/asignaturas`, { headers: authHeaders() }),
-          esAdmin
-            ? fetch(`${API}/horarios/docentes`, { headers: authHeaders() })
-            : Promise.resolve(null),
-        ]);
-        setCursos(     await rC.json());
-        setBloques(    await rB.json());
+        ];
+        if (esAdmin) {
+          promises.push(
+            fetch(`${API}/horarios/docentes`, { headers: authHeaders() })
+          );
+        }
+        const [rC, rB, rA, rD] = await Promise.all(promises);
+        setCursos(await rC.json());
+        setBloques(await rB.json());
         setAsignaturas(await rA.json());
         if (rD) setDocentes(await rD.json());
       } catch {
@@ -66,9 +118,9 @@ export default function Horarios() {
       }
     };
     cargar();
-  }, [esAdmin]);
+  }, [esAdmin, esApoderado]);
 
-  // ── Carga de horarios ─────────────────────────────────────────
+  /* ── Carga de horarios ─────────────────────────────────────── */
   const cargarHorarios = useCallback(async (cursoId) => {
     setLoading(true);
     setError("");
@@ -76,7 +128,7 @@ export default function Horarios() {
       const url = cursoId
         ? `${API}/horarios?curso_id=${cursoId}`
         : `${API}/horarios`;
-      const res  = await fetch(url, { headers: authHeaders() });
+      const res = await fetch(url, { headers: authHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setHorarios(data);
@@ -88,11 +140,8 @@ export default function Horarios() {
   }, []);
 
   useEffect(() => {
-    if (!esAdmin) {
-      // Docente: carga su propio horario sin filtro de curso
-      cargarHorarios("");
-    }
-  }, [esAdmin, cargarHorarios]);
+    if (esDocente) cargarHorarios("");
+  }, [esDocente, cargarHorarios]);
 
   const handleCursoChange = (e) => {
     const id = e.target.value;
@@ -101,13 +150,17 @@ export default function Horarios() {
     else setHorarios([]);
   };
 
-  // ── Agrupar por día para la vista tipo grilla ─────────────────
+  /* ── Agrupar por día ───────────────────────────────────────── */
   const horariosPorDia = DIAS.reduce((acc, dia) => {
     acc[dia] = horarios.filter((h) => h.dia === dia);
     return acc;
   }, {});
 
-  // ── Modal helpers ─────────────────────────────────────────────
+  const totalBloques = horarios.length;
+  const bloquesActivos = horarios.filter((h) => h.estado === "Activo").length;
+  const bloquesSuspendidos = totalBloques - bloquesActivos;
+
+  /* ── Modal helpers ─────────────────────────────────────────── */
   const abrirCrear = () => {
     setForm({ ...EMPTY_FORM, Curso_Id: cursoSeleccionado });
     setModoEdicion(false);
@@ -119,11 +172,11 @@ export default function Horarios() {
   const abrirEditar = (h) => {
     setForm({
       Horario_Asignatura_Dia_Semana: h.dia,
-      Horario_Asignatura_Estado:     h.estado,
-      Curso_Id:                      h.Curso_Id,
-      Bloque_Horario_Id:             h.Bloque_Horario_Id,
-      Asignatura_Id:                 h.Asignatura_Id,
-      Usuario_Id:                    h.Usuario_Id || "",
+      Horario_Asignatura_Estado: h.estado,
+      Curso_Id: h.Curso_Id,
+      Bloque_Horario_Id: h.Bloque_Horario_Id,
+      Asignatura_Id: h.Asignatura_Id,
+      Usuario_Id: h.Usuario_Id || "",
     });
     setModoEdicion(true);
     setIdEditando(h.Horario_Asignatura_Id);
@@ -136,29 +189,32 @@ export default function Horarios() {
     setErrorModal("");
   };
 
-  const handleFormChange = (e) => {
+  const handleFormChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
 
-  // ── Guardar (crear o editar) ──────────────────────────────────
+  /* ── Guardar (crear o editar) ──────────────────────────────── */
   const handleGuardar = async (e) => {
     e.preventDefault();
     setGuardando(true);
     setErrorModal("");
-
     const body = {
       ...form,
-      Curso_Id:         Number(form.Curso_Id),
+      Curso_Id: Number(form.Curso_Id),
       Bloque_Horario_Id: Number(form.Bloque_Horario_Id),
-      Asignatura_Id:    Number(form.Asignatura_Id),
-      Usuario_Id:       form.Usuario_Id ? Number(form.Usuario_Id) : null,
+      Asignatura_Id: Number(form.Asignatura_Id),
+      Usuario_Id: form.Usuario_Id ? Number(form.Usuario_Id) : null,
     };
-
     try {
-      const url    = modoEdicion ? `${API}/horarios/${idEditando}` : `${API}/horarios`;
+      const url = modoEdicion
+        ? `${API}/horarios/${idEditando}`
+        : `${API}/horarios`;
       const method = modoEdicion ? "PUT" : "POST";
-      const res    = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
-      const data   = await res.json();
+      const res = await fetch(url, {
+        method,
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       cerrarModal();
       cargarHorarios(cursoSeleccionado);
@@ -169,14 +225,14 @@ export default function Horarios() {
     }
   };
 
-  // ── Cambiar estado desde la grilla ────────────────────────────
+  /* ── Cambiar estado de un bloque ───────────────────────────── */
   const handleCambiarEstado = async (id, estadoActual) => {
     const nuevoEstado = estadoActual === "Activo" ? "Suspendido" : "Activo";
     try {
-      const res  = await fetch(`${API}/horarios/${id}/estado`, {
-        method:  "PATCH",
+      const res = await fetch(`${API}/horarios/${id}/estado`, {
+        method: "PATCH",
         headers: authHeaders(),
-        body:    JSON.stringify({ estado: nuevoEstado }),
+        body: JSON.stringify({ estado: nuevoEstado }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -186,33 +242,71 @@ export default function Horarios() {
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────
-  return (
-    <div style={{ padding: "1.5rem" }}>
+  /* ── Suspender TODOS los bloques activos del curso ─────────── */
+  const handleSuspenderTodo = async () => {
+    setSuspendiendo(true);
+    setError("");
+    try {
+      const activos = horarios.filter((h) => h.estado === "Activo");
+      await Promise.all(
+        activos.map((h) =>
+          fetch(`${API}/horarios/${h.Horario_Asignatura_Id}/estado`, {
+            method: "PATCH",
+            headers: authHeaders(),
+            body: JSON.stringify({ estado: "Suspendido" }),
+          })
+        )
+      );
+      setConfirmandoSuspenderTodo(false);
+      cargarHorarios(cursoSeleccionado);
+    } catch {
+      setError("Error al suspender clases.");
+    } finally {
+      setSuspendiendo(false);
+    }
+  };
 
-      {/* Encabezado */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <h1 style={{ margin: 0 }}>
-          {esAdmin ? "Gestión de Horarios" : `Mi Horario — ${usuario?.nombre}`}
-        </h1>
-        {esAdmin && cursoSeleccionado && (
-          <button className="btn-primary" onClick={abrirCrear}>
-            + Agregar bloque
-          </button>
-        )}
+  /* ── Si es Apoderado ───────────────────────────────────────── */
+  if (esApoderado) return <AccesoDenegado rol="Apoderado" />;
+
+  /* ── Render ────────────────────────────────────────────────── */
+  return (
+    <div style={styles.page}>
+
+      {/* ── Encabezado ── */}
+      <div style={styles.header}>
+        <div>
+          <h1 style={styles.titulo}>
+            {esAdmin ? "Gestión de Horarios" : `Mi Horario`}
+          </h1>
+          <p style={styles.subtitulo}>
+            {esAdmin
+              ? "Administración de bloques horarios por curso"
+              : `Horario asignado a ${usuario?.nombre || "docente"} — solo lectura`}
+          </p>
+        </div>
+
+        <div style={styles.headerRight}>
+          <RolBadge rol={esAdmin ? (esSuperAdmin ? "Super Administrador" : "Administrador") : "Docente"} />
+          {esAdmin && cursoSeleccionado && (
+            <button className="btn-primary" onClick={abrirCrear} style={styles.btnCrear}>
+              + Agregar bloque
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Selector de curso (solo admin) */}
+      {/* ── Selector de curso (solo admin) ── */}
       {esAdmin && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <label htmlFor="cursoSelect" style={{ marginRight: "0.5rem", fontWeight: 600 }}>
+        <div style={styles.selectorRow}>
+          <label htmlFor="cursoSelect" style={styles.label}>
             Curso:
           </label>
           <select
             id="cursoSelect"
             value={cursoSeleccionado}
             onChange={handleCursoChange}
-            style={{ padding: "0.4rem 0.8rem", borderRadius: "6px", border: "1px solid #ccc" }}
+            style={styles.select}
           >
             <option value="">— Selecciona un curso —</option>
             {cursos.map((c) => (
@@ -224,194 +318,630 @@ export default function Horarios() {
         </div>
       )}
 
-      {/* Error global */}
+      {/* ── Tarjetas de resumen (admin + curso elegido) ── */}
+      {esAdmin && cursoSeleccionado && horarios.length > 0 && (
+        <div style={styles.statsRow}>
+          <StatCard label="Total bloques" value={totalBloques} color="#1e3a5f" />
+          <StatCard label="Activos" value={bloquesActivos} color="#166534" bg="#dcfce7" />
+          <StatCard label="Suspendidos" value={bloquesSuspendidos} color="#991b1b" bg="#fee2e2" />
+        </div>
+      )}
+
+      {/* ── Error global ── */}
       {error && (
-        <p style={{ color: "#dc2626", background: "#fee2e2", padding: "0.75rem", borderRadius: "6px", marginBottom: "1rem" }}>
-          {error}
-        </p>
+        <div style={styles.errorBanner}>{error}</div>
       )}
 
-      {/* Mensaje inicial */}
+      {/* ── Mensaje inicial (admin sin curso) ── */}
       {esAdmin && !cursoSeleccionado && !loading && (
-        <p style={{ color: "#6b7280" }}>Selecciona un curso para ver su horario.</p>
+        <div style={styles.emptyState}>
+          <span style={styles.emptyIcon}>📅</span>
+          <p>Selecciona un curso para ver y gestionar su horario.</p>
+        </div>
       )}
 
-      {/* Loading */}
-      {loading && <p style={{ color: "#6b7280" }}>Cargando horarios...</p>}
+      {loading && <p style={styles.loadingText}>Cargando horarios...</p>}
 
-      {/* Grilla semanal */}
+      {/* ── Grilla semanal ── */}
       {!loading && horarios.length > 0 && (
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "700px" }}>
-            <thead>
-              <tr style={{ background: "#1e3a5f", color: "#fff" }}>
-                <th style={thStyle}>Día</th>
-                <th style={thStyle}>Bloque</th>
-                <th style={thStyle}>Asignatura</th>
-                <th style={thStyle}>Docente</th>
-                <th style={thStyle}>Estado</th>
-                {esAdmin && <th style={thStyle}>Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {DIAS.map((dia) =>
-                horariosPorDia[dia].length === 0 ? null : (
-                  horariosPorDia[dia].map((h, idx) => (
-                    <tr
-                      key={h.Horario_Asignatura_Id}
-                      style={{
-                        background: idx % 2 === 0 ? "#f9fafb" : "#fff",
-                        borderBottom: "1px solid #e5e7eb",
-                      }}
-                    >
-                      {idx === 0 ? (
-                        <td
-                          rowSpan={horariosPorDia[dia].length}
-                          style={{ ...tdStyle, fontWeight: 700, background: "#dbeafe", textAlign: "center" }}
+        <>
+          {/* Acción masiva — solo Admin con curso seleccionado */}
+          {esAdmin && cursoSeleccionado && bloquesActivos > 0 && (
+            <div style={styles.accionMasiva}>
+              {!confirmandoSuspenderTodo ? (
+                <button
+                  style={styles.btnSuspenderTodo}
+                  onClick={() => setConfirmandoSuspenderTodo(true)}
+                >
+                  ⚠ Suspender todas las clases del curso
+                </button>
+              ) : (
+                <div style={styles.confirmRow}>
+                  <span style={{ color: "#92400e", fontWeight: 600 }}>
+                    ¿Confirmar suspensión de {bloquesActivos} bloque(s) activo(s)?
+                  </span>
+                  <button
+                    style={styles.btnConfirmarSuspender}
+                    onClick={handleSuspenderTodo}
+                    disabled={suspendiendo}
+                  >
+                    {suspendiendo ? "Suspendiendo..." : "Sí, suspender"}
+                  </button>
+                  <button
+                    style={styles.btnCancelarConfirm}
+                    onClick={() => setConfirmandoSuspenderTodo(false)}
+                    disabled={suspendiendo}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={styles.tabla}>
+              <thead>
+                <tr style={styles.theadRow}>
+                  <th style={styles.th}>Día</th>
+                  <th style={styles.th}>Bloque horario</th>
+                  <th style={styles.th}>Asignatura</th>
+                  <th style={styles.th}>Docente</th>
+                  <th style={styles.th}>Estado</th>
+                  {/* Columna Acciones solo para Admin — CU49, CU55, CU57 */}
+                  {esAdmin && <th style={styles.th}>Acciones</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {DIAS.map((dia) =>
+                  horariosPorDia[dia].length === 0
+                    ? null
+                    : horariosPorDia[dia].map((h, idx) => (
+                        <tr
+                          key={h.Horario_Asignatura_Id}
+                          style={{
+                            background:
+                              h.estado === "Suspendido"
+                                ? "#fef9f9"
+                                : idx % 2 === 0
+                                ? "#f9fafb"
+                                : "#fff",
+                            borderBottom: "1px solid #e5e7eb",
+                            opacity: h.estado === "Suspendido" ? 0.75 : 1,
+                          }}
                         >
-                          {dia}
-                        </td>
-                      ) : null}
-                      <td style={tdStyle}>
-                        {h.hora_inicio?.slice(0, 5)} – {h.hora_fin?.slice(0, 5)}
-                        <br />
-                        <small style={{ color: "#6b7280" }}>{h.jornada} · {h.tipo_bloque}</small>
-                      </td>
-                      <td style={tdStyle}>{h.asignatura}</td>
-                      <td style={tdStyle}>{h.docente || <span style={{ color: "#9ca3af" }}>Sin asignar</span>}</td>
-                      <td style={tdStyle}>
-                        <span style={{
-                          padding: "2px 10px",
-                          borderRadius: "12px",
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                          background: h.estado === "Activo" ? "#dcfce7" : "#fee2e2",
-                          color:      h.estado === "Activo" ? "#166534" : "#991b1b",
-                        }}>
-                          {h.estado}
-                        </span>
-                      </td>
-                      {esAdmin && (
-                        <td style={{ ...tdStyle, whiteSpace: "nowrap" }}>
-                          <button
-                            onClick={() => abrirEditar(h)}
-                            style={btnSecundario}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={() => handleCambiarEstado(h.Horario_Asignatura_Id, h.estado)}
-                            style={{ ...btnSecundario, marginLeft: "0.4rem", background: h.estado === "Activo" ? "#fee2e2" : "#dcfce7" }}
-                          >
-                            {h.estado === "Activo" ? "Suspender" : "Activar"}
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                          {idx === 0 ? (
+                            <td
+                              rowSpan={horariosPorDia[dia].length}
+                              style={styles.tdDia}
+                            >
+                              {dia}
+                            </td>
+                          ) : null}
 
-      {/* Sin datos */}
-      {!loading && horarios.length === 0 && (cursoSeleccionado || !esAdmin) && (
-        <p style={{ color: "#6b7280" }}>No hay bloques horarios registrados{cursoSeleccionado ? " para este curso" : ""}.</p>
-      )}
+                          <td style={styles.td}>
+                            <span style={styles.hora}>
+                              {h.hora_inicio?.slice(0, 5)} –{" "}
+                              {h.hora_fin?.slice(0, 5)}
+                            </span>
+                            <br />
+                            <small style={styles.detalleFila}>
+                              {h.jornada} · {h.tipo_bloque}
+                            </small>
+                          </td>
 
-      {/* ── Modal crear / editar ── */}
-      {modalAbierto && (
-        <div style={overlayStyle} onClick={cerrarModal}>
-          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ marginTop: 0 }}>{modoEdicion ? "Editar bloque" : "Agregar bloque"}</h2>
+                          <td style={styles.td}>{h.asignatura}</td>
 
-            <form onSubmit={handleGuardar}>
+                          <td style={styles.td}>
+                            {h.docente ? (
+                              h.docente
+                            ) : (
+                              <span style={styles.sinAsignar}>
+                                Sin asignar
+                              </span>
+                            )}
+                          </td>
 
-              {/* Día */}
-              <label style={labelStyle}>Día *</label>
-              <select name="Horario_Asignatura_Dia_Semana" value={form.Horario_Asignatura_Dia_Semana} onChange={handleFormChange} style={inputStyle} required>
-                <option value="">— Selecciona —</option>
-                {DIAS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
+                          <td style={styles.td}>
+                            <EstadoBadge estado={h.estado} />
+                          </td>
 
-              {/* Bloque horario */}
-              <label style={labelStyle}>Bloque horario *</label>
-              <select name="Bloque_Horario_Id" value={form.Bloque_Horario_Id} onChange={handleFormChange} style={inputStyle} required>
-                <option value="">— Selecciona —</option>
-                {bloques.map((b) => (
-                  <option key={b.Bloque_Horario_Id} value={b.Bloque_Horario_Id}>
-                    {b.Bloque_Horario_Hora_Inicio?.slice(0, 5)} – {b.Bloque_Horario_Hora_Fin?.slice(0, 5)} ({b.Bloque_Horario_Jornada})
-                  </option>
-                ))}
-              </select>
-
-              {/* Asignatura */}
-              <label style={labelStyle}>Asignatura *</label>
-              <select name="Asignatura_Id" value={form.Asignatura_Id} onChange={handleFormChange} style={inputStyle} required>
-                <option value="">— Selecciona —</option>
-                {asignaturas.map((a) => (
-                  <option key={a.Asignatura_Id} value={a.Asignatura_Id}>{a.Asignatura_Nombre}</option>
-                ))}
-              </select>
-
-              {/* Docente */}
-              <label style={labelStyle}>Docente</label>
-              <select name="Usuario_Id" value={form.Usuario_Id} onChange={handleFormChange} style={inputStyle}>
-                <option value="">— Sin asignar —</option>
-                {docentes.map((d) => (
-                  <option key={d.Usuario_Id} value={d.Usuario_Id}>
-                    {d.Usuario_Nombre_Completo}{d.Docente_Especialidad ? ` (${d.Docente_Especialidad})` : ""}
-                  </option>
-                ))}
-              </select>
-
-              {/* Curso (solo si no hay curso seleccionado previamente) */}
-              {!cursoSeleccionado && (
-                <>
-                  <label style={labelStyle}>Curso *</label>
-                  <select name="Curso_Id" value={form.Curso_Id} onChange={handleFormChange} style={inputStyle} required>
-                    <option value="">— Selecciona —</option>
-                    {cursos.map((c) => (
-                      <option key={c.Curso_Id} value={c.Curso_Id}>{c.Curso_Nombre}</option>
-                    ))}
-                  </select>
-                </>
-              )}
-
-              {/* Estado */}
-              <label style={labelStyle}>Estado *</label>
-              <select name="Horario_Asignatura_Estado" value={form.Horario_Asignatura_Estado} onChange={handleFormChange} style={inputStyle} required>
-                {ESTADOS.map((e) => <option key={e} value={e}>{e}</option>)}
-              </select>
-
-              {errorModal && (
-                <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.5rem" }}>{errorModal}</p>
-              )}
-
-              <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.25rem", justifyContent: "flex-end" }}>
-                <button type="button" onClick={cerrarModal} style={btnSecundario} disabled={guardando}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn-primary" disabled={guardando}>
-                  {guardando ? "Guardando..." : modoEdicion ? "Guardar cambios" : "Agregar"}
-                </button>
-              </div>
-
-            </form>
+                          {/* Botones de acción — SOLO Administrador (CU Incremento 1) */}
+                          {esAdmin && (
+                            <td style={{ ...styles.td, whiteSpace: "nowrap" }}>
+                              <button
+                                onClick={() => abrirEditar(h)}
+                                style={styles.btnAccion}
+                                title="Editar bloque"
+                              >
+                                ✏ Editar
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleCambiarEstado(
+                                    h.Horario_Asignatura_Id,
+                                    h.estado
+                                  )
+                                }
+                                style={{
+                                  ...styles.btnAccion,
+                                  marginLeft: "0.4rem",
+                                  background:
+                                    h.estado === "Activo"
+                                      ? "#fee2e2"
+                                      : "#dcfce7",
+                                  color:
+                                    h.estado === "Activo"
+                                      ? "#991b1b"
+                                      : "#166534",
+                                  borderColor:
+                                    h.estado === "Activo"
+                                      ? "#fecaca"
+                                      : "#bbf7d0",
+                                }}
+                                title={
+                                  h.estado === "Activo"
+                                    ? "Suspender clase"
+                                    : "Reactivar clase"
+                                }
+                              >
+                                {h.estado === "Activo" ? "⏸ Suspender" : "▶ Activar"}
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </>
+      )}
+
+      {/* ── Sin datos ── */}
+      {!loading &&
+        horarios.length === 0 &&
+        (cursoSeleccionado || esDocente) && (
+          <div style={styles.emptyState}>
+            <span style={styles.emptyIcon}>📋</span>
+            <p>
+              No hay bloques horarios registrados
+              {cursoSeleccionado ? " para este curso" : ""}.
+            </p>
+          </div>
+        )}
+
+      {/* ── Leyenda de permisos ── */}
+      <PermisosLeyenda esAdmin={esAdmin} esDocente={esDocente} />
+
+      {/* ── Modal crear / editar (solo Admin) ── */}
+      {esAdmin && modalAbierto && (
+        <ModalForm
+          modoEdicion={modoEdicion}
+          form={form}
+          bloques={bloques}
+          asignaturas={asignaturas}
+          docentes={docentes}
+          cursos={cursos}
+          cursoSeleccionado={cursoSeleccionado}
+          guardando={guardando}
+          errorModal={errorModal}
+          onChange={handleFormChange}
+          onSubmit={handleGuardar}
+          onClose={cerrarModal}
+        />
       )}
     </div>
   );
 }
 
-// ── Estilos inline ─────────────────────────────────────────────
-const thStyle = { padding: "0.75rem 1rem", textAlign: "left", fontWeight: 600 };
-const tdStyle = { padding: "0.65rem 1rem", verticalAlign: "middle" };
-const labelStyle = { display: "block", fontWeight: 600, marginBottom: "0.25rem", marginTop: "0.75rem", fontSize: "0.875rem" };
-const inputStyle = { width: "100%", padding: "0.45rem 0.6rem", borderRadius: "6px", border: "1px solid #d1d5db", boxSizing: "border-box" };
-const btnSecundario = { padding: "0.4rem 0.9rem", borderRadius: "6px", border: "1px solid #d1d5db", background: "#f9fafb", cursor: "pointer", fontSize: "0.875rem" };
-const overlayStyle = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 };
-const modalStyle  = { background: "#fff", borderRadius: "10px", padding: "2rem", width: "100%", maxWidth: "480px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.2)" };
+/* ── Sub-componentes ───────────────────────────────────────────── */
+
+function RolBadge({ rol }) {
+  const color =
+    rol === "Super Administrador"
+      ? { bg: "#ede9fe", text: "#5b21b6", border: "#c4b5fd" }
+      : rol === "Administrador"
+      ? { bg: "#dbeafe", text: "#1e40af", border: "#93c5fd" }
+      : { bg: "#fef9c3", text: "#92400e", border: "#fde68a" };
+  return (
+    <span
+      style={{
+        padding: "4px 14px",
+        borderRadius: "20px",
+        fontSize: "0.82rem",
+        fontWeight: 700,
+        background: color.bg,
+        color: color.text,
+        border: `1px solid ${color.border}`,
+      }}
+    >
+      {rol}
+    </span>
+  );
+}
+
+function StatCard({ label, value, color, bg = "#f0f4ff" }) {
+  return (
+    <div
+      style={{
+        background: bg,
+        border: `1px solid ${color}22`,
+        borderRadius: "10px",
+        padding: "0.9rem 1.4rem",
+        minWidth: 120,
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: "1.6rem", fontWeight: 800, color }}>
+        {value}
+      </div>
+      <div style={{ fontSize: "0.8rem", color: "#6b7280", marginTop: 2 }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function PermisosLeyenda({ esAdmin, esDocente }) {
+  const permisos = esAdmin
+    ? [
+        { icono: "✅", texto: "Ver horario por curso" },
+        { icono: "✅", texto: "Crear bloques horarios (CU49)" },
+        { icono: "✅", texto: "Editar bloques (CU55)" },
+        { icono: "✅", texto: "Suspender / Activar clases (CU49)" },
+        { icono: "✅", texto: "Asignar docente a asignatura (CU57)" },
+        { icono: "✅", texto: "Suspender todas las clases del curso" },
+      ]
+    : esDocente
+    ? [
+        { icono: "✅", texto: "Ver propio horario (lectura)" },
+        { icono: "🚫", texto: "Crear / Editar bloques" },
+        { icono: "🚫", texto: "Suspender clases" },
+      ]
+    : [];
+
+  if (permisos.length === 0) return null;
+
+  return (
+    <div style={styles.leyendaBox}>
+      <strong style={{ color: "#1e3a5f", fontSize: "0.85rem" }}>
+        Permisos del rol (Incremento 1):
+      </strong>
+      <ul style={{ margin: "0.4rem 0 0 0", paddingLeft: "1rem" }}>
+        {permisos.map((p) => (
+          <li key={p.texto} style={{ fontSize: "0.82rem", color: "#374151", marginBottom: 2 }}>
+            {p.icono} {p.texto}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ModalForm({
+  modoEdicion, form, bloques, asignaturas, docentes, cursos,
+  cursoSeleccionado, guardando, errorModal,
+  onChange, onSubmit, onClose,
+}) {
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ marginTop: 0, color: "#1e3a5f" }}>
+          {modoEdicion ? "Editar bloque horario" : "Agregar bloque horario"}
+        </h2>
+
+        <form onSubmit={onSubmit}>
+          <label style={styles.labelModal}>Día *</label>
+          <select
+            name="Horario_Asignatura_Dia_Semana"
+            value={form.Horario_Asignatura_Dia_Semana}
+            onChange={onChange}
+            style={styles.inputModal}
+            required
+          >
+            <option value="">— Selecciona —</option>
+            {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"].map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+
+          <label style={styles.labelModal}>Bloque horario *</label>
+          <select
+            name="Bloque_Horario_Id"
+            value={form.Bloque_Horario_Id}
+            onChange={onChange}
+            style={styles.inputModal}
+            required
+          >
+            <option value="">— Selecciona —</option>
+            {bloques.map((b) => (
+              <option key={b.Bloque_Horario_Id} value={b.Bloque_Horario_Id}>
+                {b.Bloque_Horario_Hora_Inicio?.slice(0, 5)} –{" "}
+                {b.Bloque_Horario_Hora_Fin?.slice(0, 5)} ({b.Bloque_Horario_Jornada})
+              </option>
+            ))}
+          </select>
+
+          <label style={styles.labelModal}>Asignatura *</label>
+          <select
+            name="Asignatura_Id"
+            value={form.Asignatura_Id}
+            onChange={onChange}
+            style={styles.inputModal}
+            required
+          >
+            <option value="">— Selecciona —</option>
+            {asignaturas.map((a) => (
+              <option key={a.Asignatura_Id} value={a.Asignatura_Id}>
+                {a.Asignatura_Nombre}
+              </option>
+            ))}
+          </select>
+
+          <label style={styles.labelModal}>Docente (CU57)</label>
+          <select
+            name="Usuario_Id"
+            value={form.Usuario_Id}
+            onChange={onChange}
+            style={styles.inputModal}
+          >
+            <option value="">— Sin asignar —</option>
+            {docentes.map((d) => (
+              <option key={d.Usuario_Id} value={d.Usuario_Id}>
+                {d.Usuario_Nombre_Completo}
+                {d.Docente_Especialidad ? ` — ${d.Docente_Especialidad}` : ""}
+              </option>
+            ))}
+          </select>
+
+          {!cursoSeleccionado && (
+            <>
+              <label style={styles.labelModal}>Curso *</label>
+              <select
+                name="Curso_Id"
+                value={form.Curso_Id}
+                onChange={onChange}
+                style={styles.inputModal}
+                required
+              >
+                <option value="">— Selecciona —</option>
+                {cursos.map((c) => (
+                  <option key={c.Curso_Id} value={c.Curso_Id}>
+                    {c.Curso_Nombre}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+
+          <label style={styles.labelModal}>Estado *</label>
+          <select
+            name="Horario_Asignatura_Estado"
+            value={form.Horario_Asignatura_Estado}
+            onChange={onChange}
+            style={styles.inputModal}
+            required
+          >
+            <option value="Activo">Activo</option>
+            <option value="Suspendido">Suspendido</option>
+          </select>
+
+          {errorModal && (
+            <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.5rem" }}>
+              {errorModal}
+            </p>
+          )}
+
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={styles.btnCancelar}
+              disabled={guardando}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="btn-primary" disabled={guardando}>
+              {guardando ? "Guardando..." : modoEdicion ? "Guardar cambios" : "Agregar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── Estilos ───────────────────────────────────────────────────── */
+const styles = {
+  page: { padding: "1.75rem" },
+
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: "1.5rem",
+    gap: "1rem",
+    flexWrap: "wrap",
+  },
+  titulo: { margin: 0, color: "#1e3a5f", fontSize: "1.5rem" },
+  subtitulo: { margin: "0.3rem 0 0 0", color: "#6b7280", fontSize: "0.9rem" },
+  headerRight: { display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" },
+
+  btnCrear: { padding: "0.5rem 1.1rem" },
+
+  selectorRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.75rem",
+    marginBottom: "1.25rem",
+    background: "#f0f4ff",
+    border: "1px solid #dbeafe",
+    padding: "0.8rem 1.1rem",
+    borderRadius: "10px",
+  },
+  label: { fontWeight: 700, color: "#1e3a5f", fontSize: "0.95rem", whiteSpace: "nowrap" },
+  select: {
+    padding: "0.45rem 0.8rem",
+    borderRadius: "6px",
+    border: "1px solid #93c5fd",
+    fontSize: "0.9rem",
+    minWidth: 200,
+  },
+
+  statsRow: {
+    display: "flex",
+    gap: "1rem",
+    marginBottom: "1.25rem",
+    flexWrap: "wrap",
+  },
+
+  errorBanner: {
+    color: "#dc2626",
+    background: "#fee2e2",
+    border: "1px solid #fecaca",
+    padding: "0.75rem 1rem",
+    borderRadius: "8px",
+    marginBottom: "1rem",
+    fontSize: "0.9rem",
+  },
+
+  emptyState: {
+    textAlign: "center",
+    padding: "3rem 1rem",
+    color: "#6b7280",
+    background: "#f9fafb",
+    borderRadius: "10px",
+    border: "1px dashed #d1d5db",
+  },
+  emptyIcon: { fontSize: "2.5rem", display: "block", marginBottom: "0.5rem" },
+
+  loadingText: { color: "#6b7280", fontStyle: "italic" },
+
+  accionMasiva: {
+    marginBottom: "1rem",
+    padding: "0.8rem 1rem",
+    background: "#fffbeb",
+    border: "1px solid #fde68a",
+    borderRadius: "8px",
+  },
+  btnSuspenderTodo: {
+    background: "#fef3c7",
+    border: "1px solid #fcd34d",
+    color: "#92400e",
+    padding: "0.45rem 1rem",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "0.875rem",
+  },
+  confirmRow: { display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" },
+  btnConfirmarSuspender: {
+    background: "#dc2626",
+    color: "#fff",
+    border: "none",
+    padding: "0.4rem 0.9rem",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "0.875rem",
+  },
+  btnCancelarConfirm: {
+    background: "#f9fafb",
+    border: "1px solid #d1d5db",
+    color: "#374151",
+    padding: "0.4rem 0.9rem",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontSize: "0.875rem",
+  },
+
+  tabla: { width: "100%", borderCollapse: "collapse", minWidth: 700 },
+  theadRow: { background: "#1e3a5f", color: "#fff" },
+  th: { padding: "0.75rem 1rem", textAlign: "left", fontWeight: 600, fontSize: "0.875rem" },
+  td: { padding: "0.65rem 1rem", verticalAlign: "middle", fontSize: "0.9rem" },
+  tdDia: {
+    padding: "0.65rem 1rem",
+    fontWeight: 700,
+    background: "#dbeafe",
+    textAlign: "center",
+    verticalAlign: "middle",
+    color: "#1e40af",
+    fontSize: "0.9rem",
+  },
+  hora: { fontWeight: 600, color: "#111827" },
+  detalleFila: { color: "#6b7280" },
+  sinAsignar: { color: "#9ca3af", fontStyle: "italic" },
+  btnAccion: {
+    padding: "0.35rem 0.75rem",
+    borderRadius: "6px",
+    border: "1px solid #d1d5db",
+    background: "#f9fafb",
+    cursor: "pointer",
+    fontSize: "0.8rem",
+    fontWeight: 500,
+  },
+
+  leyendaBox: {
+    marginTop: "2rem",
+    padding: "0.9rem 1.1rem",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "8px",
+    maxWidth: 420,
+  },
+
+  accessDenied: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "4rem 2rem",
+    textAlign: "center",
+  },
+  accessDeniedIcon: { fontSize: "3.5rem", marginBottom: "1rem" },
+
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  modal: {
+    background: "#fff",
+    borderRadius: "12px",
+    padding: "2rem",
+    width: "100%",
+    maxWidth: 490,
+    maxHeight: "90vh",
+    overflowY: "auto",
+    boxShadow: "0 10px 40px rgba(0,0,0,0.25)",
+  },
+  labelModal: {
+    display: "block",
+    fontWeight: 600,
+    marginBottom: "0.25rem",
+    marginTop: "0.85rem",
+    fontSize: "0.875rem",
+    color: "#374151",
+  },
+  inputModal: {
+    width: "100%",
+    padding: "0.45rem 0.6rem",
+    borderRadius: "6px",
+    border: "1px solid #d1d5db",
+    boxSizing: "border-box",
+    fontSize: "0.9rem",
+  },
+  btnCancelar: {
+    padding: "0.4rem 0.9rem",
+    borderRadius: "6px",
+    border: "1px solid #d1d5db",
+    background: "#f9fafb",
+    cursor: "pointer",
+    fontSize: "0.875rem",
+  },
+};
