@@ -62,11 +62,11 @@ function AccesoDenegado({ rol }) {
 export default function Horarios() {
   const { rolActivo, usuario } = useAuth();
 
+  const rolEfectivo = rolActivo || usuario?.roles?.[0];
   const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
-  const esAdmin =
-    rolActivo === "Administrador" || esSuperAdmin;
-  const esDocente = rolActivo === "Docente";
-  const esApoderado = rolActivo === "Apoderado";
+  const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
+  const esDocente = rolEfectivo === "Docente";
+  const esApoderado = rolEfectivo === "Apoderado";
 
   /* ── Datos maestros ────────────────────────────────────────── */
   const [cursos, setCursos] = useState([]);
