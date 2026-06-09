@@ -182,4 +182,33 @@ const validateResetToken = async (req, res) => {
   }
 };
 
-module.exports = { forgotPassword, resetPassword, validateResetToken };
+// PUT /api/auth/cambiar-contrasena
+// Body: { usuarioId, contrasenaActual, nuevaContrasena }
+// Headers: Authorization Bearer token
+const cambiarContrasena = async (req, res) => {
+  const { usuarioId, contrasenaActual, nuevaContrasena } = req.body;
+  if (!usuarioId || !contrasenaActual || !nuevaContrasena)
+    return res.status(400).json({ error: 'Todos los campos son requeridos' });
+  if (nuevaContrasena.length < 8)
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+  const hasUpper = /[A-Z]/.test(nuevaContrasena);
+  const hasNum   = /[0-9]/.test(nuevaContrasena);
+  if (!hasUpper || !hasNum)
+    return res.status(400).json({ error: 'La contraseña debe contener al menos una mayúscula y un número' });
+  try {
+    const [rows] = await pool.execute(
+      'SELECT Usuario_Contraseña FROM usuario WHERE Usuario_Id = ?', [usuarioId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const valida = await bcrypt.compare(contrasenaActual, rows[0].Usuario_Contraseña);
+    if (!valida) return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+    const hash = await bcrypt.hash(nuevaContrasena, 10);
+    await pool.execute('UPDATE usuario SET Usuario_Contraseña = ? WHERE Usuario_Id = ?', [hash, usuarioId]);
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+module.exports = { forgotPassword, resetPassword, validateResetToken, cambiarContrasena };

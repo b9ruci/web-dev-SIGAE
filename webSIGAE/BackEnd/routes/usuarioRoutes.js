@@ -39,6 +39,12 @@ router.put(
   usuarioController.updateRoles
 );
 
+router.put(
+  '/:id/estado',
+  verifyToken,
+  usuarioController.toggleEstado
+);
+
 router.delete(
   '/:id',
   verifyToken,

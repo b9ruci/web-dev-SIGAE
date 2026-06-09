@@ -772,3 +772,351 @@ select {
   text-align: center;
   padding: 20px 0;
 }
+
+/* ===== PERFIL ===== */
+.perfil-container {
+  padding: 30px;
+  max-width: 800px;
+}
+
+.perfil-header {
+  margin-bottom: 30px;
+}
+
+.perfil-header h1 {
+  color: #0f172a;
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.perfil-header p {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.perfil-card {
+  background: white;
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  margin-bottom: 24px;
+}
+
+.perfil-card h2 {
+  font-size: 1.05rem;
+  color: #0f172a;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.perfil-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.perfil-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.perfil-campo label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.perfil-campo span {
+  font-size: 0.95rem;
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.perfil-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.badge-rol {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.badge-admin { background: #dbeafe; color: #1e40af; }
+.badge-superadmin { background: #0f172a; color: white; }
+.badge-docente { background: #dcfce7; color: #166534; }
+.badge-apoderado { background: #fef3c7; color: #92400e; }
+
+.badge-activo { background: #dcfce7; color: #166534; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.badge-inactivo { background: #fee2e2; color: #991b1b; padding: 3px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+
+.cambiar-pwd-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.campo-pwd {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.campo-pwd label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.campo-pwd input {
+  padding: 11px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.campo-pwd input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.pwd-error {
+  font-size: 0.8rem;
+  color: #ef4444;
+}
+
+.msg-exito {
+  padding: 10px 14px;
+  background: #dcfce7;
+  color: #166534;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.msg-error-form {
+  padding: 10px 14px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.btn-primario {
+  padding: 11px 22px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  align-self: flex-start;
+}
+
+.btn-primario:hover { background: #1d4ed8; }
+.btn-primario:disabled { background: #93c5fd; cursor: not-allowed; }
+
+/* ===== PANEL GESTIÓN USUARIOS ===== */
+.usuarios-container {
+  padding: 30px;
+}
+
+.usuarios-header {
+  margin-bottom: 24px;
+}
+
+.usuarios-header h1 {
+  color: #0f172a;
+  font-size: 1.8rem;
+  margin-bottom: 4px;
+}
+
+.usuarios-header p {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.usuarios-filtros {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.usuarios-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.usuarios-search:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.usuarios-select {
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  font-size: 0.88rem;
+  background: white;
+  cursor: pointer;
+  outline: none;
+}
+
+.tabla-usuarios {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.tabla-usuarios th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tabla-usuarios td {
+  padding: 13px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 0.88rem;
+  vertical-align: middle;
+}
+
+.tabla-usuarios tr:last-child td { border-bottom: none; }
+.tabla-usuarios tr:hover td { background: #fafafa; }
+
+.acciones-grupo {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-desactivar {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid #fca5a5;
+  background: #fff1f2;
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-desactivar:hover { background: #fee2e2; }
+
+.btn-reactivar {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #16a34a;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-reactivar:hover { background: #dcfce7; }
+
+.btn-roles {
+  padding: 5px 12px;
+  border-radius: 7px;
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-roles:hover { background: #e0e7ff; }
+
+.roles-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.rol-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rol-item label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.rol-tipo-select {
+  margin-top: 6px;
+  margin-left: 26px;
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  width: 200px;
+}
+
+.usuarios-empty {
+  text-align: center;
+  padding: 40px;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+/* ===== SIDEBAR INFO USUARIO ===== */
+.sidebar-user-info {
+  margin-bottom: 20px;
+}
+
+.sidebar-user-info .nombre {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+}
+
+.sidebar-user-info .rol-badge {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.menu-section {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+  padding: 4px 12px;
+  margin-top: 8px;
+  display: block;
+}
