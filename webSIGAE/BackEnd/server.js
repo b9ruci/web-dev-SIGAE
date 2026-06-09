@@ -12,14 +12,16 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// ── RUTAS ────────────────────────────────────
+// ── RUTAS ────────────────────────────────────────────
 const authRoutes        = require('./routes/authRoutes');
 const usuarioRoutes     = require('./routes/usuarioRoutes');
-const estudianteRoutes  = require('./routes/estudianteRoutes');  // ← nuevo
+const estudianteRoutes  = require('./routes/estudianteRoutes');
+const cursoRoutes       = require('./routes/cursoRoutes');
 
 app.use('/api/auth',        authRoutes);
 app.use('/api/usuarios',    usuarioRoutes);
-app.use('/api/estudiantes', estudianteRoutes);                   // ← nuevo
+app.use('/api/estudiantes', estudianteRoutes);
+app.use('/api/cursos',      cursoRoutes);
 
 // 404
 app.use((req, res) => {

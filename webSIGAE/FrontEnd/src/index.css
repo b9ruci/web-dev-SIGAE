@@ -24,15 +24,48 @@ body {
   gap: 16px;
 }
 
+.login-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.login-logo-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
 .login-form h1 {
   text-align: center;
   color: #111827;
+  font-size: 28px;
+  margin: 0;
 }
 
 .login-form p {
   text-align: center;
   color: #6b7280;
-  margin-bottom: 10px;
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.login-msg {
+  font-size: 14px;
+  border-radius: 10px;
+  margin: 0;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
 }
 
 .login-form input {
@@ -41,14 +74,29 @@ body {
   border-radius: 10px;
   outline: none;
   font-size: 15px;
+  transition: border-color 0.2s;
 }
 
 .login-form input:focus {
   border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.login-form input.input-invalid {
+  border-color: #ef4444;
+}
+
+.login-form input.input-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.input-error-msg {
+  font-size: 13px;
+  color: #ef4444;
 }
 
 .login-form button {
-  background: #111827;
+  background: #2563eb;
   color: white;
   border: none;
   padding: 14px;
@@ -56,11 +104,17 @@ body {
   cursor: pointer;
   font-size: 15px;
   font-weight: 600;
-  transition: 0.3s;
+  transition: background 0.2s, opacity 0.2s;
+  margin-top: 4px;
 }
 
-.login-form button:hover {
-  background: #1f2937;
+.login-form button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.login-form button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .login-links {
@@ -493,4 +547,228 @@ select {
   border-radius: 12px;
   text-align: center;
   color: #64748b;
+}
+/* === Cursos: asignaturas === */
+.curso-card-clickable {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.curso-nombre {
+  font-weight: 600;
+}
+
+.curso-link {
+  font-size: 0.75rem;
+  color: #6366f1;
+}
+
+.btn-volver {
+  background: none;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.btn-volver:hover {
+  text-decoration: underline;
+}
+
+.btn-secundario {
+  padding: 9px 20px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #1e293b;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-secundario:hover {
+  background: #f1f5f9;
+}
+
+/* Tabla asignaturas */
+.tabla-asignaturas {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  margin-top: 1rem;
+}
+
+.tabla-asignaturas th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tabla-asignaturas td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  font-size: 0.9rem;
+}
+
+.tabla-asignaturas tr:last-child td {
+  border-bottom: none;
+}
+
+.badge-estado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.badge-vigente {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-inactiva {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: white;
+  border-radius: 14px;
+  padding: 28px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+}
+
+.modal-header h2 {
+  font-size: 1.1rem;
+  color: #1e293b;
+  margin: 0;
+}
+
+.btn-cerrar {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: #94a3b8;
+  padding: 0 4px;
+}
+
+.btn-cerrar:hover {
+  color: #1e293b;
+}
+
+.modal-subtitulo {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+.asignaturas-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.asignatura-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  transition: border-color 0.15s;
+}
+
+.asignatura-item.seleccionada {
+  border-color: #6366f1;
+  background: #f5f3ff;
+}
+
+.asignatura-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.asig-nombre {
+  font-weight: 500;
+  flex: 1;
+  color: #1e293b;
+}
+
+.asig-tipo {
+  font-size: 0.78rem;
+  color: #6366f1;
+  background: #ede9fe;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.asig-horas {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.asig-estado-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.asig-estado-select select {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.empty-state-text {
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 20px 0;
 }
