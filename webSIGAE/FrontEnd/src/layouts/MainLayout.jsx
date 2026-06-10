@@ -26,7 +26,9 @@ function MainLayout() {
 
           {usuario && (
             <div className="sidebar-user-info">
-              <div className="nombre">{usuario.nombre}</div>
+              <div className="nombre">
+                {usuario.nombre || usuario.Usuario_Nombre_Completo || "Usuario"}
+              </div>
               <div className="rol-badge">{rolEfectivo || "Usuario"}</div>
             </div>
           )}
@@ -42,6 +44,7 @@ function MainLayout() {
                 {esSuperAdmin && <Link to="/registrar-admin">Registrar Admin</Link>}
                 <Link to="/registrar-docente">Registrar Docente</Link>
                 <Link to="/registrar-apoderado">Registrar Apoderado</Link>
+                <Link to="/apoderados">Gestión de Apoderados</Link>
                 <Link to="/registrar-estudiante">Registrar Estudiante</Link>
                 <Link to="/cursos">Cursos</Link>
                 <Link to="/horarios">Horarios</Link>

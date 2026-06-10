@@ -28,6 +28,7 @@ import RegisterAdmin from "../pages/users/RegisterAdmin";
 import RegisterTeacher from "../pages/users/RegisterTeacher";
 import RegisterGuardian from "../pages/users/RegisterGuardian";
 import RegisterStudent from "../pages/users/RegisterStudent";
+import Apoderados from "../pages/users/Apoderados";
 import Perfil from "../pages/users/Perfil";
 
 /* ACADEMIC */
@@ -107,10 +108,10 @@ function AppRouter() {
             path="/usuarios"
             element={<Usuarios />}
           />
-          
+
           <Route
-          path="/gestion-roles"
-          element={<GestionRoles />}
+            path="/gestion-roles"
+            element={<GestionRoles />}
           />
 
           <Route
@@ -131,6 +132,11 @@ function AppRouter() {
           <Route
             path="/registrar-estudiante"
             element={<RegisterStudent />}
+          />
+
+          <Route
+            path="/apoderados"
+            element={<Apoderados />}
           />
 
           <Route
