@@ -35,7 +35,15 @@ export function AuthProvider({ children }) {
     localStorage.setItem("rolActivo", rol);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const currentToken = localStorage.getItem("token");
+    // Invalidar sesión en el servidor (fire-and-forget, no bloquear UI si falla)
+    if (currentToken) {
+      fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${currentToken}` },
+      }).catch(() => {});
+    }
     setUsuario(null);
     setToken(null);
     setRolActivo(null);

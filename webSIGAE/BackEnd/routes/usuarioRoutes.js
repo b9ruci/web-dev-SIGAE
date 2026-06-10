@@ -5,50 +5,21 @@ const usuarioController = require('../controllers/usuarioController');
 
 const {
   verifyToken,
-  verifySuperAdmin
+  verifyAdmin,
+  verifySuperAdmin,
 } = require('../middleware/authMiddleware');
 
-router.get(
-  '/',
-  verifyToken,
-  usuarioController.getUsuarios
-);
+// Cualquier usuario autenticado puede leer su propio perfil
+router.get('/',    verifyToken, usuarioController.getUsuarios);
+router.get('/:id', verifyToken, usuarioController.getUsuarioById);
 
-router.get(
-  '/:id',
-  verifyToken,
-  usuarioController.getUsuarioById
-);
+// Solo Administrador puede crear, modificar estado o eliminar usuarios
+router.post('/',         verifyToken, verifyAdmin, usuarioController.createUsuario);
+router.put('/:id',       verifyToken, verifyAdmin, usuarioController.updateUsuario);
+router.put('/:id/estado',verifyToken, verifyAdmin, usuarioController.toggleEstado);
+router.delete('/:id',    verifyToken, verifyAdmin, usuarioController.deleteUsuario);
 
-router.post(
-  '/',
-  verifyToken,
-  usuarioController.createUsuario
-);
-
-router.put(
-  '/:id',
-  verifyToken,
-  usuarioController.updateUsuario
-);
-
-router.put(
-  '/:id/roles',
-  verifyToken,
-  verifySuperAdmin,
-  usuarioController.updateRoles
-);
-
-router.put(
-  '/:id/estado',
-  verifyToken,
-  usuarioController.toggleEstado
-);
-
-router.delete(
-  '/:id',
-  verifyToken,
-  usuarioController.deleteUsuario
-);
+// Solo SuperAdmin puede cambiar roles
+router.put('/:id/roles', verifyToken, verifySuperAdmin, usuarioController.updateRoles);
 
 module.exports = router;

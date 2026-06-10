@@ -14,7 +14,17 @@ function authHeaders() {
 
 async function handleResponse(res) {
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.mensaje || `Error ${res.status}`);
+  if (!res.ok) {
+    // CU 13: token expirado → limpiar sesión y redirigir
+    if (res.status === 401 && data.codigo === 'TOKEN_EXPIRADO') {
+      localStorage.removeItem('usuario');
+      localStorage.removeItem('token');
+      localStorage.removeItem('rolActivo');
+      window.location.href = '/session-expired';
+      return;
+    }
+    throw new Error(data.mensaje || data.error || `Error ${res.status}`);
+  }
   return data;
 }
 

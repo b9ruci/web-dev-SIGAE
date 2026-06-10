@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
 
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
 
   const authHeader = req.headers['authorization'];
 
@@ -22,13 +23,32 @@ const verifyToken = (req, res, next) => {
     );
 
     req.user = decoded;
+    req.token = token;
 
     next();
 
   } catch (error) {
 
+    // Distinguir token expirado de token inválido (CU 13)
+    if (error.name === 'TokenExpiredError') {
+      // Marcar sesión como expirada en BD
+      try {
+        await pool.execute(
+          `UPDATE sesion
+           SET Sesion_Estado = 0, Sesion_Fecha_Expiracion = NOW()
+           WHERE Sesion_Token_Acceso = ? AND Sesion_Estado = 1`,
+          [token]
+        );
+      } catch (_) { /* no bloquear la respuesta si falla la BD */ }
+
+      return res.status(401).json({
+        error: 'Sesión expirada',
+        codigo: 'TOKEN_EXPIRADO'
+      });
+    }
+
     return res.status(401).json({
-      error: 'Token inválido o expirado'
+      error: 'Token inválido'
     });
 
   }

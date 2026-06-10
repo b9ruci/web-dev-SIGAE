@@ -15,7 +15,7 @@ import GestionRoles from "../pages/users/GestionRoles";
 
 /* PROTECTED ROUTE */
 
-import ProtectedRoute from "./ProtectedRoute";
+import ProtectedRoute, { RoleRoute } from "./ProtectedRoute";
 
 /* DASHBOARD */
 
@@ -58,34 +58,15 @@ function AppRouter() {
 
       <Routes>
 
-        {/* AUTH */}
+        {/* AUTH — públicas */}
 
-        <Route
-          path="/"
-          element={<Login />}
-        />
+        <Route path="/"                element={<Login />} />
+        <Route path="/seleccionar-rol" element={<SelectRole />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password"  element={<ResetPassword />} />
+        <Route path="/session-expired" element={<SessionExpired />} />
 
-        <Route
-          path="/seleccionar-rol"
-          element={<SelectRole />}
-        />
-
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
-
-        <Route
-          path="/reset-password"
-          element={<ResetPassword />}
-        />
-
-        <Route
-          path="/session-expired"
-          element={<SessionExpired />}
-        />
-
-        {/* PRIVATE ROUTES */}
+        {/* RUTAS PRIVADAS — requieren sesión */}
 
         <Route
           element={
@@ -95,18 +76,37 @@ function AppRouter() {
           }
         >
 
-          {/* DASHBOARD */}
+          {/* Accesibles por todos los roles autenticados */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/perfil"    element={<Perfil />} />
 
+          {/* Accesibles por Docente y Apoderado */}
+          <Route path="/citaciones" element={<Citaciones />} />
+          <Route path="/mensajes"   element={<Mensajes />} />
+
+          {/* Accesibles por Docente */}
           <Route
-            path="/dashboard"
-            element={<Dashboard />}
+            path="/horarios"
+            element={
+              <RoleRoute roles={["Docente", "Administrador"]}>
+                <Horarios />
+              </RoleRoute>
+            }
           />
 
-          {/* USERS */}
-
+          {/* Exclusivas de Administrador / SuperAdmin */}
           <Route
             path="/usuarios"
-            element={<Usuarios />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Usuarios />
+              </RoleRoute>
+            }
+          />
+          
+          <Route
+          path="/gestion-roles"
+          element={<GestionRoles />}
           />
 
           <Route
@@ -116,22 +116,38 @@ function AppRouter() {
 
           <Route
             path="/registrar-admin"
-            element={<RegisterAdmin />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <RegisterAdmin />
+              </RoleRoute>
+            }
           />
 
           <Route
             path="/registrar-docente"
-            element={<RegisterTeacher />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <RegisterTeacher />
+              </RoleRoute>
+            }
           />
 
           <Route
             path="/registrar-apoderado"
-            element={<RegisterGuardian />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <RegisterGuardian />
+              </RoleRoute>
+            }
           />
 
           <Route
             path="/registrar-estudiante"
-            element={<RegisterStudent />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <RegisterStudent />
+              </RoleRoute>
+            }
           />
 
           <Route
@@ -148,36 +164,29 @@ function AppRouter() {
 
           <Route
             path="/cursos"
-            element={<Cursos />}
-          />
-
-          <Route
-            path="/horarios"
-            element={<Horarios />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Cursos />
+              </RoleRoute>
+            }
           />
 
           <Route
             path="/bloques"
-            element={<BloquesHorarios />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <BloquesHorarios />
+              </RoleRoute>
+            }
           />
-
-          {/* COMMUNICATION */}
-
-          <Route
-            path="/mensajes"
-            element={<Mensajes />}
-          />
-
-          <Route
-            path="/citaciones"
-            element={<Citaciones />}
-          />
-
-          {/* REPORTS */}
 
           <Route
             path="/reportes"
-            element={<Reportes />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Reportes />
+              </RoleRoute>
+            }
           />
 
         </Route>
