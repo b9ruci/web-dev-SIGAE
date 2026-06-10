@@ -3,23 +3,45 @@ import { useEffect, useState } from "react";
 function GestionRoles() {
 
   const [usuarios, setUsuarios] = useState([]);
+  const [usuariosFiltrados, setUsuariosFiltrados] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     cargarUsuarios();
   }, []);
 
+  useEffect(() => {
+
+    const texto = busqueda.toLowerCase();
+
+    const resultado = usuarios.filter(
+      (usuario) =>
+        usuario.Usuario_Nombre_Completo
+          ?.toLowerCase()
+          .includes(texto) ||
+        usuario.Usuario_RUT
+          ?.toLowerCase()
+          .includes(texto)
+    );
+
+    setUsuariosFiltrados(resultado);
+
+  }, [busqueda, usuarios]);
+
   const cargarUsuarios = async () => {
 
     try {
 
-      const token = localStorage.getItem("token");
+      const token =
+        localStorage.getItem("token");
 
       const res = await fetch(
         "http://localhost:3000/api/usuarios",
         {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization:
+              `Bearer ${token}`
           }
         }
       );
@@ -27,6 +49,7 @@ function GestionRoles() {
       const data = await res.json();
 
       setUsuarios(data);
+      setUsuariosFiltrados(data);
 
     } catch (error) {
 
@@ -40,76 +63,84 @@ function GestionRoles() {
 
   };
 
-  const actualizarRoles = async (usuario) => {
-
-    try {
-
-      const token = localStorage.getItem("token");
-
-      const body = {
-
-        Es_Administrador:
-          usuario.Es_Administrador,
-
-        Es_Docente:
-          usuario.Es_Docente,
-
-        Es_Apoderado:
-          usuario.Es_Apoderado,
-
-        Administrador_Tipo:
-          usuario.Administrador_Tipo
-
-      };
-
-      const res = await fetch(
-        `http://localhost:3000/api/usuarios/${usuario.Usuario_Id}/roles`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify(body)
-        }
-      );
-
-      const data = await res.json();
-
-      alert(data.mensaje);
-
-    } catch (error) {
-
-      console.error(error);
-
-      alert("Error al actualizar roles");
-
-    }
-
-  };
-
   const toggleRol = (
     id,
     campo
   ) => {
 
     setUsuarios((prev) =>
-      prev.map((u) =>
-        u.Usuario_Id === id
+      prev.map((usuario) =>
+        usuario.Usuario_Id === id
           ? {
-              ...u,
+              ...usuario,
               [campo]:
-                u[campo] ? 0 : 1
+                usuario[campo] ? 0 : 1
             }
-          : u
+          : usuario
       )
     );
 
   };
 
+  const guardarRoles = async (
+    usuario
+  ) => {
+
+    try {
+
+      const token =
+        localStorage.getItem("token");
+
+      const res = await fetch(
+        `http://localhost:3000/api/usuarios/${usuario.Usuario_Id}/roles`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type":
+              "application/json",
+            Authorization:
+              `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            Es_Administrador:
+              usuario.Es_Administrador,
+            Es_Docente:
+              usuario.Es_Docente,
+            Es_Apoderado:
+              usuario.Es_Apoderado,
+            Administrador_Tipo:
+              usuario.Administrador_Tipo
+          })
+        }
+      );
+
+      const data =
+        await res.json();
+
+      alert(
+        data.mensaje ||
+        "Roles actualizados"
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+        "Error al actualizar roles"
+      );
+
+    }
+
+  };
+
   if (loading) {
 
-    return <h2>Cargando usuarios...</h2>;
+    return (
+      <h2>
+        Cargando usuarios...
+      </h2>
+    );
 
   }
 
@@ -117,7 +148,25 @@ function GestionRoles() {
 
     <div className="page-container">
 
-      <h1>Gestión de Roles</h1>
+      <h1>
+        Gestión de Roles
+      </h1>
+
+      <input
+        type="text"
+        placeholder="Buscar por nombre o RUT"
+        value={busqueda}
+        onChange={(e) =>
+          setBusqueda(
+            e.target.value
+          )
+        }
+        style={{
+          marginBottom: "20px",
+          padding: "10px",
+          width: "350px"
+        }}
+      />
 
       <table>
 
@@ -127,6 +176,8 @@ function GestionRoles() {
 
             <th>ID</th>
 
+            <th>RUT</th>
+
             <th>Nombre</th>
 
             <th>Administrador</th>
@@ -135,7 +186,7 @@ function GestionRoles() {
 
             <th>Apoderado</th>
 
-            <th>Guardar</th>
+            <th>Acción</th>
 
           </tr>
 
@@ -143,90 +194,102 @@ function GestionRoles() {
 
         <tbody>
 
-          {usuarios.map((usuario) => (
+          {usuariosFiltrados.map(
+            (usuario) => (
 
-            <tr
-              key={usuario.Usuario_Id}
-            >
-
-              <td>
-                {usuario.Usuario_Id}
-              </td>
-
-              <td>
-                {
-                  usuario.Usuario_Nombre_Completo
+              <tr
+                key={
+                  usuario.Usuario_Id
                 }
-              </td>
+              >
 
-              <td>
-
-                <input
-                  type="checkbox"
-                  checked={
-                    !!usuario.Es_Administrador
+                <td>
+                  {
+                    usuario.Usuario_Id
                   }
-                  onChange={() =>
-                    toggleRol(
-                      usuario.Usuario_Id,
-                      "Es_Administrador"
-                    )
+                </td>
+
+                <td>
+                  {
+                    usuario.Usuario_RUT
                   }
-                />
+                </td>
 
-              </td>
-
-              <td>
-
-                <input
-                  type="checkbox"
-                  checked={
-                    !!usuario.Es_Docente
+                <td>
+                  {
+                    usuario.Usuario_Nombre_Completo
                   }
-                  onChange={() =>
-                    toggleRol(
-                      usuario.Usuario_Id,
-                      "Es_Docente"
-                    )
-                  }
-                />
+                </td>
 
-              </td>
+                <td>
 
-              <td>
+                  <input
+                    type="checkbox"
+                    checked={
+                      !!usuario.Es_Administrador
+                    }
+                    onChange={() =>
+                      toggleRol(
+                        usuario.Usuario_Id,
+                        "Es_Administrador"
+                      )
+                    }
+                  />
 
-                <input
-                  type="checkbox"
-                  checked={
-                    !!usuario.Es_Apoderado
-                  }
-                  onChange={() =>
-                    toggleRol(
-                      usuario.Usuario_Id,
-                      "Es_Apoderado"
-                    )
-                  }
-                />
+                </td>
 
-              </td>
+                <td>
 
-              <td>
+                  <input
+                    type="checkbox"
+                    checked={
+                      !!usuario.Es_Docente
+                    }
+                    onChange={() =>
+                      toggleRol(
+                        usuario.Usuario_Id,
+                        "Es_Docente"
+                      )
+                    }
+                  />
 
-                <button
-                  onClick={() =>
-                    actualizarRoles(
-                      usuario
-                    )
-                  }
-                >
-                  Guardar
-                </button>
+                </td>
 
-              </td>
+                <td>
 
-            </tr>
+                  <input
+                    type="checkbox"
+                    checked={
+                      !!usuario.Es_Apoderado
+                    }
+                    onChange={() =>
+                      toggleRol(
+                        usuario.Usuario_Id,
+                        "Es_Apoderado"
+                      )
+                    }
+                  />
 
-          ))}
+                </td>
+
+                <td>
+
+                  <button
+                    onClick={() =>
+                      guardarRoles(
+                        usuario
+                      )
+                    }
+                  >
+                    Guardar
+                  </button>
+
+                </td>
+
+              </tr>
+
+            )
+          )}
 
         </tbody>
 
