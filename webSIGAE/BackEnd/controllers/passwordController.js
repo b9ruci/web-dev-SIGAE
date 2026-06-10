@@ -250,26 +250,37 @@ const validateResetToken = async (req, res) => {
     return res.status(400).json({ valid: false, error: 'Token requerido' });
   }
 
+  console.log('[validateResetToken] token recibido (primeros 10 chars):', token.substring(0, 10));
+
   try {
-    const [rows] = await pool.execute(
-      `SELECT Solicitud_Recuperacion_Fecha_Expiracion, Solicitud_Recuperacion_Estado
+    // Buscar sin filtrar por estado primero — para identificar exactamente por qué falla
+    const [todas] = await pool.execute(
+      `SELECT Solicitud_Recuperacion_Estado, Solicitud_Recuperacion_Fecha_Expiracion
        FROM solicitud_recuperacion
-       WHERE Solicitud_Recuperacion_Token = ?
-         AND Solicitud_Recuperacion_Estado = 'En Proceso'`,
+       WHERE Solicitud_Recuperacion_Token = ?`,
       [token]
     );
 
-    if (rows.length === 0) {
+    if (todas.length === 0) {
+      console.log('[validateResetToken] Token no encontrado en BD');
       return res.json({ valid: false, error: 'El enlace no es válido o ya fue utilizado' });
     }
 
-    if (new Date() > new Date(rows[0].Solicitud_Recuperacion_Fecha_Expiracion)) {
-      return res.json({ valid: false, error: 'El enlace ha expirado. Solicita uno nuevo.' });
+    const solicitud = todas[0];
+    console.log('[validateResetToken] Estado en BD:', solicitud.Solicitud_Recuperacion_Estado);
+
+    if (solicitud.Solicitud_Recuperacion_Estado !== 'En Proceso') {
+      return res.json({ valid: false, error: `El enlace ya fue ${solicitud.Solicitud_Recuperacion_Estado === 'Utilizado' ? 'utilizado' : 'expirado'}. Solicita uno nuevo.` });
+    }
+
+    if (new Date() > new Date(solicitud.Solicitud_Recuperacion_Fecha_Expiracion)) {
+      console.log('[validateResetToken] Token expirado. Expiración:', solicitud.Solicitud_Recuperacion_Fecha_Expiracion);
+      return res.json({ valid: false, error: 'El enlace ha expirado (30 min). Solicita uno nuevo.' });
     }
 
     res.json({ valid: true });
   } catch (error) {
-    console.error('Error en validateResetToken:', error);
+    console.error('[validateResetToken] Error:', error.message);
     res.status(500).json({ valid: false, error: 'Error interno del servidor' });
   }
 };
@@ -285,16 +296,33 @@ const cambiarContrasena = async (req, res) => {
 
   try {
     const [rows] = await pool.execute(
-      'SELECT Usuario_Contraseña FROM usuario WHERE Usuario_Id = ?', [usuarioId]
+      'SELECT `Usuario_Contraseña` FROM usuario WHERE Usuario_Id = ?', [usuarioId]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
-    const valida = await bcrypt.compare(contrasenaActual, rows[0].Usuario_Contraseña);
+
+    const hashActual = rows[0]['Usuario_Contraseña'];
+    if (!hashActual) {
+      console.error('[cambiarContrasena] Hash vacío para usuarioId:', usuarioId);
+      return res.status(500).json({ error: 'Error al leer la contraseña almacenada' });
+    }
+
+    const valida = await bcrypt.compare(contrasenaActual, hashActual);
     if (!valida) return res.status(401).json({ error: 'La contraseña actual es incorrecta' });
+
     const hash = await bcrypt.hash(nuevaContrasena, 10);
-    await pool.execute('UPDATE usuario SET Usuario_Contraseña = ? WHERE Usuario_Id = ?', [hash, usuarioId]);
+    const [result] = await pool.execute(
+      'UPDATE usuario SET `Usuario_Contraseña` = ? WHERE Usuario_Id = ?', [hash, usuarioId]
+    );
+
+    if (result.affectedRows === 0) {
+      console.error('[cambiarContrasena] UPDATE no afectó filas para usuarioId:', usuarioId);
+      return res.status(500).json({ error: 'No se pudo actualizar la contraseña' });
+    }
+
+    console.log('[cambiarContrasena] Contraseña actualizada para usuarioId:', usuarioId);
     res.json({ message: 'Contraseña actualizada correctamente' });
   } catch (e) {
-    console.error(e);
+    console.error('[cambiarContrasena] Error:', e.message);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
