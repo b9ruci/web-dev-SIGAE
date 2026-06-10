@@ -170,7 +170,12 @@ const forgotPassword = async (req, res) => {
     //          <a href="${resetLink}">${resetLink}</a>`,
     // });
 
-    res.json({ message: 'Si los datos son correctos, recibirás un enlace de recuperación.' });
+    const esDev = process.env.NODE_ENV !== 'production';
+    res.json({
+      message: 'Si los datos son correctos, recibirás un enlace de recuperación.',
+      // Solo en desarrollo: devuelve el link para pruebas sin SMTP configurado
+      ...(esDev && { devResetLink: resetLink }),
+    });
   } catch (error) {
     console.error('Error en forgotPassword:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
