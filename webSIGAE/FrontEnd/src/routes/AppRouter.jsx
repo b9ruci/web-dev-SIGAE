@@ -11,6 +11,7 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import ResetPassword from "../pages/auth/ResetPassword";
 import SessionExpired from "../pages/auth/SessionExpired";
 import SelectRole from "../pages/auth/SelectRole";
+import GestionRoles from "../pages/users/GestionRoles";
 
 /* PROTECTED ROUTE */
 
@@ -100,6 +101,16 @@ function AppRouter() {
                 <Usuarios />
               </RoleRoute>
             }
+          />
+          
+          <Route
+          path="/gestion-roles"
+          element={<GestionRoles />}
+          />
+          
+          <Route
+          path="/gestion-roles"
+          element={<GestionRoles />}
           />
 
           <Route

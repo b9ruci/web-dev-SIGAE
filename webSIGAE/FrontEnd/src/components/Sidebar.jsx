@@ -37,12 +37,15 @@ function Sidebar() {
         <Link to="/dashboard">
           Dashboard
         </Link>
-
-        {(rolActivo === "Administrador" ||
-          usuario?.roles?.includes("Administrador")) && (
+        
+        usuario?.roles?.includes("Administrador") && (
           <>
             <Link to="/usuarios">
               Usuarios
+            </Link>
+
+            <Link to="/gestion-roles">
+            Gestión de Roles
             </Link>
 
             <Link to="/registrar-admin">
@@ -73,7 +76,7 @@ function Sidebar() {
               Reportes
             </Link>
           </>
-        )}
+        )
 
         {rolActivo === "Docente" && (
           <>
