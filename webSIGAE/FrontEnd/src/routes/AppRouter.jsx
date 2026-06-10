@@ -107,6 +107,11 @@ function AppRouter() {
           path="/gestion-roles"
           element={<GestionRoles />}
           />
+          
+          <Route
+          path="/gestion-roles"
+          element={<GestionRoles />}
+          />
 
           <Route
             path="/registrar-admin"
