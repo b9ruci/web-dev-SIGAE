@@ -80,4 +80,28 @@ const login = async (req, res) => {
   }
 };
 
-module.exports = { login };
+// POST /api/auth/logout
+const logout = async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token no proporcionado' });
+  }
+
+  try {
+    // Marcar la sesión como inactiva (Sesion_Estado = 0) y registrar la expiración
+    await pool.execute(
+      `UPDATE sesion
+       SET Sesion_Estado = 0, Sesion_Fecha_Expiracion = NOW()
+       WHERE Sesion_Token_Acceso = ? AND Sesion_Estado = 1`,
+      [token]
+    );
+    res.json({ message: 'Sesión cerrada correctamente' });
+  } catch (error) {
+    console.error('Error en logout:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+module.exports = { login, logout };
