@@ -66,12 +66,74 @@ const createUsuario = async (req, res) => {
     return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
 
   try {
-    // Verificar RUT duplicado
-    const [existeRUT] = await db.query(
-      'SELECT Usuario_Id FROM usuario WHERE Usuario_RUT = ?', [Usuario_RUT]
-    );
-    if (existeRUT.length > 0)
-      return res.status(400).json({ mensaje: 'Ya existe un usuario con ese RUT' });
+    
+    // Verificar si existe usuario con ese RUT
+const [existeRUT] = await db.query(
+  `SELECT
+      Usuario_Id,
+      Es_Administrador,
+      Es_Docente,
+      Es_Apoderado
+   FROM usuario
+   WHERE Usuario_RUT = ?`,
+  [Usuario_RUT]
+);
+
+if (existeRUT.length > 0) {
+
+  const usuario = existeRUT[0];
+
+  if (Es_Docente) {
+
+    if (usuario.Es_Docente) {
+      return res.status(400).json({
+        mensaje: 'El usuario ya posee el rol Docente'
+      });
+    }
+
+    return res.status(409).json({
+      requiereAsignacionRol: true,
+      usuarioId: usuario.Usuario_Id,
+      rol: 'Docente',
+      mensaje:
+        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+    });
+  }
+
+  if (Es_Apoderado) {
+
+    if (usuario.Es_Apoderado) {
+      return res.status(400).json({
+        mensaje: 'El usuario ya posee el rol Apoderado'
+      });
+    }
+
+    return res.status(409).json({
+      requiereAsignacionRol: true,
+      usuarioId: usuario.Usuario_Id,
+      rol: 'Apoderado',
+      mensaje:
+        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+    });
+  }
+
+  if (Es_Administrador) {
+
+    if (usuario.Es_Administrador) {
+      return res.status(400).json({
+        mensaje: 'El usuario ya posee el rol Administrador'
+      });
+    }
+
+    return res.status(409).json({
+      requiereAsignacionRol: true,
+      usuarioId: usuario.Usuario_Id,
+      rol: 'Administrador',
+      mensaje:
+        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+    });
+  }
+}
 
     // Verificar correo duplicado según rol
     if (Es_Docente) {

@@ -30,8 +30,28 @@ function RegisterGuardian() {
       alert("Apoderado registrado correctamente");
       navigate("/usuarios");
     } catch (err) {
-      setError(err.message || "Error al registrar el apoderado");
-    } finally {
+
+  if (
+    err.data?.requiereAsignacionRol
+  ) {
+
+    alert(
+      err.data.mensaje
+    );
+
+    navigate(
+      `/gestion-roles/${err.data.usuarioId}`
+    );
+
+    return;
+  }
+
+  setError(
+    err.message ||
+    "Error al registrar apoderado"
+  );
+
+} finally {
       setLoading(false);
     }
   };

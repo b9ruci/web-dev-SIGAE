@@ -29,8 +29,28 @@ function RegisterAdmin() {
       alert("Administrador registrado correctamente");
       navigate("/usuarios");
     } catch (err) {
-      setError(err.message || "Error al registrar el administrador");
-    } finally {
+
+  if (
+    err.data?.requiereAsignacionRol
+  ) {
+
+    alert(
+      err.data.mensaje
+    );
+
+    navigate(
+      `/gestion-roles/${err.data.usuarioId}`
+    );
+
+    return;
+  }
+
+  setError(
+    err.message ||
+    "Error al registrar administrador"
+  );
+
+} finally {
       setLoading(false);
     }
   };

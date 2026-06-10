@@ -31,8 +31,29 @@ function RegisterTeacher() {
       alert("Docente registrado correctamente");
       navigate("/usuarios");
     } catch (err) {
-      setError(err.message || "Error al registrar el docente");
-    } finally {
+
+  if (
+    err.data?.requiereAsignacionRol
+  ) {
+
+    alert(
+      err.data.mensaje
+    );
+
+    navigate(
+      `/gestion-roles/${err.data.usuarioId}`
+    );
+
+    return;
+  }
+
+  setError(
+    err.message ||
+    "Error al registrar el docente"
+  );
+
+}
+     finally {
       setLoading(false);
     }
   };

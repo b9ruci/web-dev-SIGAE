@@ -23,7 +23,15 @@ async function handleResponse(res) {
       window.location.href = '/session-expired';
       return;
     }
-    throw new Error(data.mensaje || data.error || `Error ${res.status}`);
+    const error = new Error(
+  data.mensaje ||
+  data.error ||
+  `Error ${res.status}`
+);
+
+error.data = data;
+
+throw error;
   }
   return data;
 }
