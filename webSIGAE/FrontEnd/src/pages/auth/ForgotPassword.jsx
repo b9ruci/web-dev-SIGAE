@@ -202,34 +202,41 @@ function ForgotPassword() {
                 bandeja de entrada y también la carpeta de spam.
               </p>
             </div>
-            {devResetLink && (
-              <div style={{ marginTop: "1rem", padding: "0.75rem", background: "#fef3c7", border: "1px solid #d97706", borderRadius: "6px" }}>
-                <p style={{ fontSize: "0.8rem", color: "#92400e", marginBottom: "0.5rem", fontWeight: 600 }}>
-                  Modo desarrollo — enlace de prueba:
-                </p>
-                <a
-                  href={devResetLink}
-                  style={{ display: "block", wordBreak: "break-all", fontSize: "0.78rem", color: "#1d4ed8", marginBottom: "0.75rem" }}
-                >
-                  {devResetLink}
-                </a>
-                <a
-                  href={devResetLink}
-                  style={{
-                    display: "block",
-                    textAlign: "center",
-                    padding: "0.5rem 1rem",
-                    background: "#1d4ed8",
-                    color: "#fff",
-                    borderRadius: "4px",
-                    textDecoration: "none",
-                    fontWeight: 600,
-                  }}
-                >
-                  Ir a restablecer contraseña →
-                </a>
-              </div>
-            )}
+            {devResetLink && (() => {
+              let devResetPath = devResetLink;
+              try {
+                const parsed = new URL(devResetLink);
+                devResetPath = parsed.pathname + parsed.search;
+              } catch (_) {}
+              return (
+                <div style={{ marginTop: "1rem", padding: "0.75rem", background: "#fef3c7", border: "1px solid #d97706", borderRadius: "6px" }}>
+                  <p style={{ fontSize: "0.8rem", color: "#92400e", marginBottom: "0.5rem", fontWeight: 600 }}>
+                    Modo desarrollo — enlace de prueba:
+                  </p>
+                  <Link
+                    to={devResetPath}
+                    style={{ display: "block", wordBreak: "break-all", fontSize: "0.78rem", color: "#1d4ed8", marginBottom: "0.75rem" }}
+                  >
+                    {devResetLink}
+                  </Link>
+                  <Link
+                    to={devResetPath}
+                    style={{
+                      display: "block",
+                      textAlign: "center",
+                      padding: "0.5rem 1rem",
+                      background: "#1d4ed8",
+                      color: "#fff",
+                      borderRadius: "4px",
+                      textDecoration: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    Ir a restablecer contraseña →
+                  </Link>
+                </div>
+              );
+            })()}
           </>
         )}
 
