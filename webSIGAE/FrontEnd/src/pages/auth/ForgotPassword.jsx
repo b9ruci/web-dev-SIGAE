@@ -24,6 +24,7 @@ function ForgotPassword() {
   const [correoSeleccionado, setCorreoSeleccionado] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [devResetLink, setDevResetLink] = useState("");
 
   const handleRutChange = (e) => {
     const valor = e.target.value;
@@ -94,6 +95,7 @@ function ForgotPassword() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Error al enviar el enlace");
+      if (data.devResetLink) setDevResetLink(data.devResetLink);
       setPaso("enviado");
     } catch (err) {
       setError(err.message);
@@ -189,16 +191,46 @@ function ForgotPassword() {
         )}
 
         {paso === "enviado" && (
-          <div className="success-message">
-            <p>
-              Si el RUT ingresado corresponde a una cuenta activa, recibirás un
-              enlace de recuperación en el correo seleccionado.
-            </p>
-            <p style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>
-              El enlace es válido por <strong>30 minutos</strong>. Revisa tu
-              bandeja de entrada y también la carpeta de spam.
-            </p>
-          </div>
+          <>
+            <div className="success-message">
+              <p>
+                Si el RUT ingresado corresponde a una cuenta activa, recibirás un
+                enlace de recuperación en el correo seleccionado.
+              </p>
+              <p style={{ fontSize: "0.9rem", marginTop: "0.5rem" }}>
+                El enlace es válido por <strong>30 minutos</strong>. Revisa tu
+                bandeja de entrada y también la carpeta de spam.
+              </p>
+            </div>
+            {devResetLink && (
+              <div style={{ marginTop: "1rem", padding: "0.75rem", background: "#fef3c7", border: "1px solid #d97706", borderRadius: "6px" }}>
+                <p style={{ fontSize: "0.8rem", color: "#92400e", marginBottom: "0.5rem", fontWeight: 600 }}>
+                  Modo desarrollo — enlace de prueba:
+                </p>
+                <a
+                  href={devResetLink}
+                  style={{ display: "block", wordBreak: "break-all", fontSize: "0.78rem", color: "#1d4ed8", marginBottom: "0.75rem" }}
+                >
+                  {devResetLink}
+                </a>
+                <a
+                  href={devResetLink}
+                  style={{
+                    display: "block",
+                    textAlign: "center",
+                    padding: "0.5rem 1rem",
+                    background: "#1d4ed8",
+                    color: "#fff",
+                    borderRadius: "4px",
+                    textDecoration: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  Ir a restablecer contraseña →
+                </a>
+              </div>
+            )}
+          </>
         )}
 
         <Link
