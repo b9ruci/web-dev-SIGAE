@@ -199,7 +199,7 @@ CREATE TABLE `curso` (
 
 LOCK TABLES `curso` WRITE;
 /*!40000 ALTER TABLE `curso` DISABLE KEYS */;
-INSERT INTO `curso` VALUES (222,'A','1ero Básico A',22),(223,'B','1ero Básico B',22),(224,'A','2do Básico A',23),(225,'A','1ero Medio A',24),(226,'A','2do Medio A',25);
+INSERT INTO `curso` VALUES (222,'A','1ero Básico A',24),(223,'B','1ero Básico B',24),(224,'A','2do Básico A',25),(225,'A','1ero Medio A',32),(226,'A','2do Medio A',33);
 /*!40000 ALTER TABLE `curso` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -418,7 +418,7 @@ CREATE TABLE `nivel_educativo` (
   `Nivel_Educativo_Nombre` varchar(100) NOT NULL,
   PRIMARY KEY (`Nivel_Educativo_Id`),
   UNIQUE KEY `Nivel_Educativo_Nombre_UNIQUE` (`Nivel_Educativo_Nombre`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=110 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -427,7 +427,7 @@ CREATE TABLE `nivel_educativo` (
 
 LOCK TABLES `nivel_educativo` WRITE;
 /*!40000 ALTER TABLE `nivel_educativo` DISABLE KEYS */;
-INSERT INTO `nivel_educativo` VALUES (22,'1ero Básico'),(24,'1ero Medio'),(23,'2do Básico'),(25,'2do Medio');
+INSERT INTO `nivel_educativo` VALUES (24,'1ero Básico'),(32,'1ero Medio'),(25,'2do Básico'),(33,'2do Medio'),(26,'3ero Básico'),(34,'3ero Medio'),(27,'4to Básico'),(35,'4to Medio'),(28,'5to Básico'),(29,'6to Básico'),(30,'7mo Básico'),(31,'8vo Básico'),(23,'Kinder'),(22,'Pre-Kinder');
 /*!40000 ALTER TABLE `nivel_educativo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -482,7 +482,7 @@ CREATE TABLE `plan_educativo` (
 
 LOCK TABLES `plan_educativo` WRITE;
 /*!40000 ALTER TABLE `plan_educativo` DISABLE KEYS */;
-INSERT INTO `plan_educativo` VALUES (2222222,'2026',22),(2222223,'2026',23),(2222224,'2026',24),(2222225,'2026',25);
+INSERT INTO `plan_educativo` VALUES (2222222,'2026',24),(2222223,'2026',25),(2222224,'2026',32),(2222225,'2026',33);
 /*!40000 ALTER TABLE `plan_educativo` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -620,7 +620,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'12345678-9','961900000','Esperanza Penelope Gonzales Farias',1,'1234',NULL,0,NULL,NULL,NULL,1,'Super Admin','es.gonzales@jacquescousteau.edu',0,NULL,NULL),(2,'21717363-3','979746782','Carlos Vicente Gonzales Muñoz',1,'ilovemilf',NULL,0,NULL,NULL,NULL,1,'Administrador Normal','ca.gonzales@jacquescousteau.edu',0,NULL,NULL),(3,'19111111-1','946789765','María Claudia Morales Rojas',1,'hash123',NULL,1,38,'Matemáticas','ma.morales@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(4,'159395855','944706559','Pedro Humberto Fernandez Soto',1,'4532',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Avenida Concha y Toro 134, Puente Alto','pedrofernandez453@gmail.com'),(5,'14444444-4','912345678','Ana Lucía Torres Vega',1,'hash456',NULL,1,32,'Lenguaje','an.torres@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(6,'15555555-5','923456789','Roberto Andrés Silva Pinto',1,'hash789',NULL,1,40,'Historia','ro.silva@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(7,'16666666-6','934567890','Carmen Gloria Díaz Muñoz',1,'hash012',NULL,1,36,'Ciencias','ca.diaz@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(8,'17777777-7','945678901','Luis Eduardo Ramos Fuentes',1,'hash345',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Calle Los Pinos 456, Santiago','luisramos@gmail.com'),(9,'18888888-8','956789012','Sandra Patricia Vera Molina',1,'hash678',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Pasaje Las Rosas 789, Maipú','sandravera@gmail.com'),(10,'19999999-9','967890123','Jorge Ignacio Campos Reyes',1,'hash901',NULL,1,38,'Inglés','jo.campos@jacquescousteau.edu',0,NULL,NULL,1,'Avenida Principal 321, Las Condes','jorge.campos@gmail.com');
+INSERT INTO `usuario` VALUES (1,'5682711-0','961900000','Esperanza Penelope Gonzales Farias',1,'1234',NULL,0,NULL,NULL,NULL,1,'Super Admin','es.gonzales@jacquescousteau.edu',0,NULL,NULL),(2,'9343727-6','979746782','Carlos Vicente Gonzales Muñoz',1,'ilovemilf',NULL,0,NULL,NULL,NULL,1,'Administrador Normal','ca.gonzales@jacquescousteau.edu',0,NULL,NULL),(3,'3483606-k','946789765','María Claudia Morales Rojas',1,'Gato123',NULL,1,38,'Matemáticas','ma.morales@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(4,'5738925-7','944706559','Pedro Humberto Fernandez Soto',1,'4532',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Avenida Concha y Toro 134, Puente Alto','pedrofernandez453@gmail.com'),(5,'3890710-7','912345678','Ana Lucía Torres Vega',1,'Hamster#23',NULL,1,32,'Lenguaje','an.torres@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(6,'7135657-4','923456789','Roberto Andrés Silva Pinto',1,'Cotorra-15',NULL,1,40,'Historia','ro.silva@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(7,'2258000-0','934567890','Carmen Gloria Díaz Muñoz',1,'Perrito@7',NULL,1,36,'Ciencias','ca.diaz@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(8,'8636451-4','945678901','Luis Eduardo Ramos Fuentes',1,'Conejo#42',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Calle Los Pinos 456, Santiago','luisramos@gmail.com'),(9,'9230041-2','956789012','Sandra Patricia Vera Molina',1,'Tortuga-99',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Pasaje Las Rosas 789, Maipú','sandravera@gmail.com'),(10,'5158743-k','967890123','Jorge Ignacio Campos Reyes',1,'Pinguino@5',NULL,1,38,'Inglés','jo.campos@jacquescousteau.edu',0,NULL,NULL,1,'Avenida Principal 321, Las Condes','jorge.campos@gmail.com');
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -633,4 +633,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-06-07  5:41:43
+-- Dump completed on 2026-06-09 20:16:35
