@@ -135,10 +135,107 @@ const deleteEstudiante = async (req, res) => {
   }
 };
 
+// ── NUEVAS FUNCIONES ─────────────────────────────────────────────────────────
+
+// Obtener estudiantes sin apoderado asignado (para el selector del modal)
+const getEstudiantesSinApoderado = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT
+        e.Estudiante_Id,
+        e.Estudiante_Nombre_Completo,
+        e.Estudiante_RUT,
+        e.Estudiante_Estado_Academico,
+        c.Curso_Nombre
+       FROM estudiante e
+       JOIN curso c ON e.Curso_Id = c.Curso_Id
+       WHERE e.Apoderado_Usuario_Id IS NULL
+       ORDER BY e.Estudiante_Nombre_Completo ASC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al obtener estudiantes sin apoderado' });
+  }
+};
+
+// Asignar apoderado a uno o más estudiantes (CU 7 y CU 8)
+// Body: { apoderadoId: number, estudianteIds: number[] }
+const asignarApoderado = async (req, res) => {
+  const { apoderadoId, estudianteIds } = req.body;
+
+  if (!apoderadoId || !Array.isArray(estudianteIds) || estudianteIds.length === 0) {
+    return res.status(400).json({
+      mensaje: 'Se requiere apoderadoId y al menos un estudianteId',
+    });
+  }
+
+  try {
+    // Verificar que el apoderado existe y está activo
+    const [apoderado] = await db.query(
+      `SELECT Usuario_Id, Usuario_Nombre_Completo, Es_Apoderado, Usuario_Estado_Cuenta
+       FROM usuario
+       WHERE Usuario_Id = ?`,
+      [apoderadoId]
+    );
+
+    if (apoderado.length === 0) {
+      return res.status(404).json({ mensaje: 'Apoderado no encontrado' });
+    }
+    if (!apoderado[0].Es_Apoderado) {
+      return res.status(400).json({ mensaje: 'El usuario seleccionado no tiene rol de apoderado' });
+    }
+    if (!apoderado[0].Usuario_Estado_Cuenta) {
+      return res.status(400).json({ mensaje: 'El apoderado seleccionado está inactivo' });
+    }
+
+    const asignados   = [];
+    const omitidos    = [];
+    const noEncontrados = [];
+
+    for (const estudianteId of estudianteIds) {
+      const [estudiante] = await db.query(
+        'SELECT Estudiante_Id, Estudiante_Nombre_Completo, Apoderado_Usuario_Id FROM estudiante WHERE Estudiante_Id = ?',
+        [estudianteId]
+      );
+
+      if (estudiante.length === 0) {
+        noEncontrados.push(estudianteId);
+        continue;
+      }
+
+      // Si ya tiene este mismo apoderado, omitir
+      if (estudiante[0].Apoderado_Usuario_Id === apoderadoId) {
+        omitidos.push(estudiante[0].Estudiante_Nombre_Completo);
+        continue;
+      }
+
+      await db.query(
+        'UPDATE estudiante SET Apoderado_Usuario_Id = ? WHERE Estudiante_Id = ?',
+        [apoderadoId, estudianteId]
+      );
+      asignados.push(estudiante[0].Estudiante_Nombre_Completo);
+    }
+
+    res.json({
+      mensaje      : 'Proceso completado',
+      asignados    : asignados.length,
+      omitidos     : omitidos.length,
+      noEncontrados: noEncontrados.length,
+      detalle      : { asignados, omitidos, noEncontrados },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al asignar apoderado' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
   getEstudianteById,
   createEstudiante,
   updateEstudiante,
   deleteEstudiante,
+  getEstudiantesSinApoderado,
+  asignarApoderado,
 };

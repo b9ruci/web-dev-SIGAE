@@ -9,6 +9,7 @@ BackEnd/appsettings.json
 BackEnd/routes/estudianteRoutes.js
 BackEnd/routes/dashboardRoutes.js
 BackEnd/routes/authRoutes.js
+BackEnd/routes/horarioRoutes.js
 BackEnd/routes/usuarioRoutes.js
 BackEnd/routes/cursoRoutes.js
 BackEnd/server.js
@@ -22,6 +23,7 @@ BackEnd/controllers/regController.js
 BackEnd/controllers/estudianteController.js
 BackEnd/controllers/cursoController.js
 BackEnd/controllers/usuarioController.js
+BackEnd/controllers/horarioController.js
 BackEnd/node_modules/hasown/CHANGELOG.md
 BackEnd/node_modules/hasown/.nycrc
 BackEnd/node_modules/hasown/index.js
@@ -3205,7 +3207,6 @@ BackEnd/.env
 BackEnd/userRoles.Es_Docente,
 BackEnd/scripts/hashPasswords
 BackEnd/API/AUTH/login.sql
-BackEnd/API/AUTH/forgotpassword.
 Database/SIGAE.sql
 FrontEnd/package.json
 FrontEnd/public/favicon.svg

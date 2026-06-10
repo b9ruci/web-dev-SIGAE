@@ -29,7 +29,6 @@ async function handleResponse(res) {
 }
 
 // ── ADMINISTRADOR ────────────────────────────
-// Correo va a Administrador_Correo_Institucional
 export async function registrarAdmin({ nombre, rut, correo, telefono, password, estado }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
     method : 'POST',
@@ -51,7 +50,6 @@ export async function registrarAdmin({ nombre, rut, correo, telefono, password, 
 }
 
 // ── DOCENTE ──────────────────────────────────
-// Correo va a Docente_Correo_Institucional
 export async function registrarDocente({ nombre, rut, correo, telefono, password, especialidad, cargaHoraria, estado }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
     method : 'POST',
@@ -74,7 +72,6 @@ export async function registrarDocente({ nombre, rut, correo, telefono, password
 }
 
 // ── APODERADO ────────────────────────────────
-// Correo va a Apoderado_Correo_Natural
 export async function registrarApoderado({ nombre, rut, correo, telefono, direccion, password, estado }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
     method : 'POST',
@@ -96,7 +93,6 @@ export async function registrarApoderado({ nombre, rut, correo, telefono, direcc
 }
 
 // ── ESTUDIANTE ───────────────────────────────
-// No es usuario del sistema — tabla `estudiante`
 export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico }) {
   const res = await fetch(`${BASE_URL}/estudiantes`, {
     method : 'POST',
@@ -108,6 +104,36 @@ export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico 
       Estudiante_Estado_Academico : estadoAcademico,
       Apoderado_Usuario_Id        : null,
     }),
+  });
+  return handleResponse(res);
+}
+
+// ── ASOCIACIÓN APODERADO-ESTUDIANTE ──────────
+
+// Obtener todos los apoderados activos con sus estudiantes ya asociados
+export async function getApoderados() {
+  const res = await fetch(`${BASE_URL}/usuarios`, {
+    headers: authHeaders(),
+  });
+  const data = await handleResponse(res);
+  // Filtrar solo los que tienen rol apoderado activos
+  return data.filter((u) => u.Es_Apoderado && u.Usuario_Estado_Cuenta);
+}
+
+// Obtener estudiantes que aún no tienen apoderado asignado
+export async function getEstudiantesSinApoderado() {
+  const res = await fetch(`${BASE_URL}/estudiantes/sin-apoderado`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// Asignar apoderado a uno o más estudiantes
+export async function asignarApoderado({ apoderadoId, estudianteIds }) {
+  const res = await fetch(`${BASE_URL}/estudiantes/asignar-apoderado`, {
+    method : 'POST',
+    headers: authHeaders(),
+    body   : JSON.stringify({ apoderadoId, estudianteIds }),
   });
   return handleResponse(res);
 }
