@@ -1,12 +1,15 @@
-// routes/estudianteRoutes.js
 const express = require('express');
 const router  = express.Router();
 const estudianteController = require('../controllers/estudianteController');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
-router.get('/',    estudianteController.getEstudiantes);
-router.get('/:id', estudianteController.getEstudianteById);
-router.post('/',   estudianteController.createEstudiante);
-router.put('/:id', estudianteController.updateEstudiante);
-router.delete('/:id', estudianteController.deleteEstudiante);
+// Cualquier usuario autenticado puede consultar estudiantes
+router.get('/',    verifyToken, estudianteController.getEstudiantes);
+router.get('/:id', verifyToken, estudianteController.getEstudianteById);
+
+// Solo Administrador puede crear, modificar o eliminar fichas estudiantiles
+router.post('/',   verifyToken, verifyAdmin, estudianteController.createEstudiante);
+router.put('/:id', verifyToken, verifyAdmin, estudianteController.updateEstudiante);
+router.delete('/:id', verifyToken, verifyAdmin, estudianteController.deleteEstudiante);
 
 module.exports = router;
