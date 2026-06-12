@@ -10,7 +10,7 @@ const {
 } = require('../middleware/authMiddleware');
 
 // Cualquier usuario autenticado puede leer su propio perfil
-router.get('/',    verifyToken, usuarioController.getUsuarios);
+router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
 router.get('/:id', verifyToken, usuarioController.getUsuarioById);
 
 // Solo Administrador puede crear, modificar estado o eliminar usuarios

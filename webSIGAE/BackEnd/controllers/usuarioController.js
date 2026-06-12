@@ -17,6 +17,15 @@ const getUsuarios = async (req, res) => {
 // Obtener un usuario por ID
 const getUsuarioById = async (req, res) => {
   const { id } = req.params;
+  const solicitante = req.user;
+
+  const esPropioUsuario = String(solicitante.id) === String(id);
+  const esAdmin = (solicitante.roles || []).includes('Administrador');
+
+  if (!esPropioUsuario && !esAdmin) {
+    return res.status(403).json({ mensaje: 'No tienes permiso para ver este perfil' });
+  }
+
   try {
     const [rows] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });

@@ -37,6 +37,10 @@ function Sidebar() {
         <Link to="/dashboard">
           Dashboard
         </Link>
+
+        <Link to="/perfil">
+          Mi Perfil
+        </Link>
         
         usuario?.roles?.includes("Administrador") && (
           <>
@@ -106,10 +110,6 @@ function Sidebar() {
 
             <Link to="/mensajes">
               Mensajes
-            </Link>
-
-            <Link to="/perfil">
-              Mi Perfil
             </Link>
           </>
         )}
