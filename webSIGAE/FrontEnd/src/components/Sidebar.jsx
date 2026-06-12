@@ -68,6 +68,10 @@ function Sidebar() {
               Plan Educativo
             </Link>
 
+            <Link to="/plan-educativo">
+              Plan Educativo
+            </Link>
+
             <Link to="/cursos">
               Cursos
             </Link>
@@ -84,6 +88,10 @@ function Sidebar() {
 
         {rolActivo === "Docente" && (
           <>
+            <Link to="/plan-educativo">
+              Plan Educativo
+            </Link>
+
             <Link to="/plan-educativo">
               Plan Educativo
             </Link>
