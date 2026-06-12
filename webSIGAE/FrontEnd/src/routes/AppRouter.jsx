@@ -78,8 +78,15 @@ function AppRouter() {
 
           {/* Accesibles por todos los roles autenticados */}
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/perfil"    element={<Perfil />} />
-
+          <Route path="/perfil"     element={<Perfil />} />
+          <Route
+            path="/perfil/:id"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+              <Perfil />
+              </RoleRoute>
+            }
+        />
           {/* Accesibles por Docente y Apoderado */}
           <Route path="/citaciones" element={<Citaciones />} />
           <Route path="/mensajes"   element={<Mensajes />} />

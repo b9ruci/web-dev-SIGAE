@@ -319,15 +319,34 @@ const updateRoles = async (req, res) => {
     }
 
 };
+
 const toggleEstado = async (req, res) => {
   const { id } = req.params;
+  const solicitante = req.user;
+
+  // No puede desactivarse a sí mismo
+  if (String(solicitante.id) === String(id)) {
+    return res.status(403).json({ mensaje: 'No puedes desactivar tu propia cuenta' });
+  }
+
   try {
-    const [rows] = await db.query('SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]);
+    const [rows] = await db.query(
+      'SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?',
+      [id]
+    );
     if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    const u = rows[0];
-    const nuevoEstado = u.Usuario_Estado_Cuenta ? 0 : 1;
+
+    const objetivo = rows[0];
+
+    // No puede desactivar a otro SuperAdministrador
+    if (objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'SuperAdmin') {
+      return res.status(403).json({ mensaje: 'No puedes desactivar a un SuperAdministrador' });
+    }
+
+    const nuevoEstado = objetivo.Usuario_Estado_Cuenta ? 0 : 1;
     await db.query('UPDATE usuario SET Usuario_Estado_Cuenta = ? WHERE Usuario_Id = ?', [nuevoEstado, id]);
     res.json({ mensaje: 'Estado actualizado', estado: nuevoEstado });
+
   } catch (e) {
     console.error(e);
     res.status(500).json({ mensaje: 'Error al actualizar estado' });

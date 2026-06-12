@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useParams } from "react-router-dom";
 
 function Perfil() {
   const { usuario } = useAuth();
+  const { id: idParam } = useParams();
+  const idObjetivo = idParam || usuario?.id;
+  const esPerfilPropio = !idParam || String(idParam) === String(usuario?.id);
+
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
 
@@ -15,16 +20,16 @@ function Perfil() {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    if (!usuario?.id) return;
+    if (!idObjetivo) return;
     const token = localStorage.getItem("token");
-    fetch(`/api/usuarios/${usuario.id}`, {
+    fetch(`/api/usuarios/${idObjetivo}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
       .then((data) => setDatos(data))
       .catch(console.error)
       .finally(() => setCargando(false));
-  }, [usuario]);
+  }, [idObjetivo]);
 
   const getRoles = () => {
     if (!datos) return [];
@@ -113,8 +118,8 @@ function Perfil() {
   return (
     <div className="perfil-container">
       <div className="perfil-header">
-        <h1>Mi Perfil</h1>
-        <p>Información de tu cuenta en SIGAE</p>
+        <h1>{esPerfilPropio ? "Mi Perfil" : `Perfil de ${datos?.Usuario_Nombre_Completo || "Usuario"}`}</h1>
+        <p>{esPerfilPropio ? "Información de tu cuenta en SIGAE" : "Vista de perfil (solo lectura)"}</p>
       </div>
 
       {/* Información personal */}
@@ -175,6 +180,7 @@ function Perfil() {
       </div>
 
       {/* Cambiar contraseña */}
+      {esPerfilPropio && (
       <div className="perfil-card">
         <h2>Cambiar Contraseña</h2>
         <form className="cambiar-pwd-form" onSubmit={handleCambiarContrasena}>
@@ -219,6 +225,7 @@ function Perfil() {
           </button>
         </form>
       </div>
+      )}
     </div>
   );
 }

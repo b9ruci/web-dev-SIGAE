@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 function Usuarios() {
   const { usuario } = useAuth();
   const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
-
+  const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
@@ -225,7 +226,13 @@ function Usuarios() {
                           onClick={() => abrirRoles(u)}
                         >
                           Gestionar Roles
-                        </button>
+                          <button
+                            className="btn-roles"
+                            onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}
+                          >
+                            Ver Perfil
+                            </button>
+                          </button>
                       )}
                     </div>
                   </td>

@@ -16,7 +16,7 @@ router.get('/:id', verifyToken, usuarioController.getUsuarioById);
 // Solo Administrador puede crear, modificar estado o eliminar usuarios
 router.post('/',         verifyToken, verifyAdmin, usuarioController.createUsuario);
 router.put('/:id',       verifyToken, verifyAdmin, usuarioController.updateUsuario);
-router.put('/:id/estado',verifyToken, verifyAdmin, usuarioController.toggleEstado);
+router.put('/:id/estado', verifyToken, verifySuperAdmin, usuarioController.toggleEstado);
 router.delete('/:id',    verifyToken, verifyAdmin, usuarioController.deleteUsuario);
 
 // Solo SuperAdmin puede cambiar roles
