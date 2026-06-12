@@ -107,13 +107,21 @@ function AppRouter() {
           
           <Route
           path="/gestion-roles"
-          element={<GestionRoles />}
+          element={
+          <RoleRoute roles={["Administrador"]}>
+            <GestionRoles />
+            </RoleRoute>
+          }
           />
 
-          <Route
-            path="/gestion-roles"
-            element={<GestionRoles />}
-          />
+<Route
+  path="/gestion-roles/:id"
+  element={
+    <RoleRoute roles={["Administrador"]}>
+      <GestionRoles />
+    </RoleRoute>
+  }
+/>
 
           <Route
             path="/registrar-admin"
