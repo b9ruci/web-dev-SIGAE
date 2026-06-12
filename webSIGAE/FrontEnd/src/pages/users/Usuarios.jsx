@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 function Usuarios() {
   const { usuario } = useAuth();
   const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const navigate = useNavigate();
 
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -109,9 +111,12 @@ function Usuarios() {
   const usuariosFiltrados = usuarios.filter((u) => {
     const textoBusqueda = busqueda.toLowerCase();
     const coincideTexto =
-      !busqueda ||
-      u.Usuario_Nombre_Completo?.toLowerCase().includes(textoBusqueda) ||
-      u.Usuario_RUT?.toLowerCase().includes(textoBusqueda);
+  !busqueda ||
+  u.Usuario_Nombre_Completo?.toLowerCase().includes(textoBusqueda) ||
+  u.Usuario_RUT?.toLowerCase().includes(textoBusqueda) ||
+  u.Administrador_Correo_Institucional?.toLowerCase().includes(textoBusqueda) ||
+  u.Docente_Correo_Institucional?.toLowerCase().includes(textoBusqueda) ||
+  u.Apoderado_Correo_Natural?.toLowerCase().includes(textoBusqueda);
 
     const coincideRol =
       filtroRol === "Todos" ||
@@ -147,7 +152,7 @@ function Usuarios() {
         <input
           type="text"
           className="usuarios-search"
-          placeholder="Buscar por nombre o RUT..."
+          placeholder="Buscar por nombre, RUT o correo..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -185,6 +190,7 @@ function Usuarios() {
               <th>Roles</th>
               <th>Correo</th>
               <th>Estado</th>
+              <th>Perfil</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -209,6 +215,16 @@ function Usuarios() {
                       ? <span className="badge-activo">Activo</span>
                       : <span className="badge-inactivo">Inactivo</span>}
                   </td>
+                  <td>
+                    <button
+                    className="btn-roles"
+                    onClick={() =>
+                      navigate(`/perfil-usuario/${u.Usuario_Id}`)
+                    }
+                    >
+                      Ver Perfil
+                      </button>
+                      </td>
                   <td>
                     <div className="acciones-grupo">
                       {!esMismoUsuario && !esSuperAdminFila && (
