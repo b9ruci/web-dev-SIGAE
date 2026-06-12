@@ -145,3 +145,21 @@ export async function asignarApoderado({ apoderadoId, estudianteIds }) {
   });
   return handleResponse(res);
 }
+// Buscar usuario existente por RUT, nombre o correo
+export async function buscarUsuarioExistente({ rut, nombre, correo }) {
+
+  const res = await fetch(
+    `${BASE_URL}/usuarios/buscar`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        rut,
+        nombre,
+        correo
+      })
+    }
+  );
+
+  return handleResponse(res);
+}
