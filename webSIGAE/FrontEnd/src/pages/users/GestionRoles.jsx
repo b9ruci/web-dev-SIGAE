@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 
 function GestionRoles() {
+
+  const { id } = useParams();
 
   const [usuarios, setUsuarios] = useState([]);
   const [usuariosFiltrados, setUsuariosFiltrados] = useState([]);
@@ -9,7 +12,7 @@ function GestionRoles() {
 
   useEffect(() => {
     cargarUsuarios();
-  }, []);
+  }, [id]);
 
   useEffect(() => {
 
@@ -47,10 +50,24 @@ function GestionRoles() {
       );
 
       const data = await res.json();
-
+      
       setUsuarios(data);
-      setUsuariosFiltrados(data);
-
+      
+      if (id) {
+        
+        const usuarioEncontrado = data.filter(
+          
+          usuario => usuario.Usuario_Id === Number(id)
+        
+        );
+        
+        setUsuariosFiltrados(usuarioEncontrado);
+      
+      } else {
+        
+        setUsuariosFiltrados(data);
+      
+      }
     } catch (error) {
 
       console.error(error);
