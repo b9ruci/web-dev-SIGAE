@@ -36,6 +36,7 @@ import Perfil from "../pages/users/Perfil";
 import Cursos from "../pages/academic/Cursos";
 import Horarios from "../pages/academic/Horarios";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
+import PlanEducativo from "../pages/academic/PlanEducativo";
 
 /* COMMUNICATION */
 
