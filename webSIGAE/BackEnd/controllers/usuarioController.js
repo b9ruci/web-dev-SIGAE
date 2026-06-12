@@ -212,14 +212,36 @@ if (existeRUT.length > 0) {
 // Actualizar usuario
 const updateUsuario = async (req, res) => {
   const { id } = req.params;
-  const datosActualizar = { ...req.body };
-  delete datosActualizar.Usuario_Id;
-
-  const { Usuario_Contraseña, ...otrosDatos } = datosActualizar;
+  const solicitante = req.user;
 
   try {
-    const [existe] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
+    const [existe] = await db.query(
+      'SELECT Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]
+    );
     if (existe.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
+    const objetivo = existe[0];
+    const esSuperAdmin = solicitante.administradorTipo === 'SuperAdmin';
+    const esAdmin = (solicitante.roles || []).includes('Administrador');
+
+    // SuperAdmin puede editar Admin, Docente y Apoderado (no a otros SuperAdmin)
+    // Admin puede editar solo Docente y Apoderado
+    const objetivoEsSuperAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'SuperAdmin';
+    const objetivoEsAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo !== 'SuperAdmin';
+
+    if (objetivoEsSuperAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para editar a un SuperAdministrador' });
+    }
+    if (objetivoEsAdmin && !esSuperAdmin) {
+      return res.status(403).json({ mensaje: 'Solo un SuperAdministrador puede editar a un Administrador' });
+    }
+    if (!esSuperAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para editar usuarios' });
+    }
+
+    const datosActualizar = { ...req.body };
+    delete datosActualizar.Usuario_Id;
+    const { Usuario_Contraseña, ...otrosDatos } = datosActualizar;
 
     let hash = null;
     if (Usuario_Contraseña) hash = await bcrypt.hash(Usuario_Contraseña, 10);

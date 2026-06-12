@@ -220,18 +220,19 @@ function Usuarios() {
                           {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
                         </button>
                       )}
+                        <button
+                          className="btn-roles"
+                          onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}
+                        >
+                          Ver Perfil
+                        </button>
+                        
                       {esSuperAdmin && (
                         <button
                           className="btn-roles"
                           onClick={() => abrirRoles(u)}
                         >
                           Gestionar Roles
-                          <button
-                            className="btn-roles"
-                            onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}
-                          >
-                            Ver Perfil
-                            </button>
                           </button>
                       )}
                     </div>

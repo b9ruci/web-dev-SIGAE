@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useParams } from "react-router-dom";
+import FormEditarUsuario from "./FormEditarUsuario";
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -11,7 +12,6 @@ function Perfil() {
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
 
-  // Cambiar contraseña
   const [contrasenaActual, setContrasenaActual] = useState("");
   const [nuevaContrasena, setNuevaContrasena] = useState("");
   const [confirmarContrasena, setConfirmarContrasena] = useState("");
@@ -30,6 +30,16 @@ function Perfil() {
       .catch(console.error)
       .finally(() => setCargando(false));
   }, [idObjetivo]);
+
+  const recargarDatos = () => {
+    const token = localStorage.getItem("token");
+    fetch(`/api/usuarios/${idObjetivo}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => setDatos(data))
+      .catch(console.error);
+  };
 
   const getRoles = () => {
     if (!datos) return [];
@@ -115,6 +125,18 @@ function Perfil() {
   const roles = getRoles();
   const correos = getCorreos();
 
+  const puedeEditar = (() => {
+    if (esPerfilPropio) return false;
+    if (!datos) return false;
+    const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+    const esAdmin = (usuario?.roles || []).includes("Administrador");
+    const objetivoEsSuperAdmin = datos.Es_Administrador && datos.Administrador_Tipo === "SuperAdmin";
+    const objetivoEsAdmin = datos.Es_Administrador && datos.Administrador_Tipo !== "SuperAdmin";
+    if (objetivoEsSuperAdmin) return false;
+    if (objetivoEsAdmin) return esSuperAdmin;
+    return esSuperAdmin || esAdmin;
+  })();
+
   return (
     <div className="perfil-container">
       <div className="perfil-header">
@@ -122,21 +144,20 @@ function Perfil() {
         <p>{esPerfilPropio ? "Información de tu cuenta en SIGAE" : "Vista de perfil (solo lectura)"}</p>
       </div>
 
-      {/* Información personal */}
       <div className="perfil-card">
         <h2>Información Personal</h2>
         <div className="perfil-grid">
           <div className="perfil-campo">
             <label>Nombre Completo</label>
-            <span>{datos?.Usuario_Nombre_Completo || "—"}</span>
+            <span>{datos?.Usuario_Nombre_Completo || "Sin nombre registrado"}</span>
           </div>
           <div className="perfil-campo">
             <label>RUT</label>
-            <span>{datos?.Usuario_RUT || "—"}</span>
+            <span>{datos?.Usuario_RUT || "Sin RUT registrado"}</span>
           </div>
           <div className="perfil-campo">
             <label>Teléfono</label>
-            <span>{datos?.Usuario_Telefono || "—"}</span>
+            <span>{datos?.Usuario_Telefono || "Sin teléfono registrado"}</span>
           </div>
           <div className="perfil-campo">
             <label>Estado de Cuenta</label>
@@ -148,7 +169,7 @@ function Perfil() {
           </div>
           <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
             <label>Correo(s)</label>
-            <span>{correos.length > 0 ? correos.join(" · ") : "—"}</span>
+            <span>{correos.length > 0 ? correos.join(" · ") : "Sin correos registrados"}</span>
           </div>
           <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
             <label>Roles</label>
@@ -162,70 +183,77 @@ function Perfil() {
             <>
               <div className="perfil-campo">
                 <label>Especialidad</label>
-                <span>{datos.Docente_Especialidad || "—"}</span>
+                <span>{datos.Docente_Especialidad || "Sin especialidad registrada"}</span>
               </div>
               <div className="perfil-campo">
                 <label>Carga Horaria Máxima</label>
-                <span>{datos.Docente_Carga_Horaria_Maxima || "—"} hrs</span>
+                <span>{datos.Docente_Carga_Horaria_Maxima || "Sin carga horaria registrada"} hrs</span>
               </div>
             </>
           ) : null}
           {datos?.Es_Apoderado ? (
             <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
               <label>Dirección</label>
-              <span>{datos.Apoderado_Direccion || "—"}</span>
+              <span>{datos.Apoderado_Direccion || "Sin dirección registrada"}</span>
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* Cambiar contraseña */}
       {esPerfilPropio && (
-      <div className="perfil-card">
-        <h2>Cambiar Contraseña</h2>
-        <form className="cambiar-pwd-form" onSubmit={handleCambiarContrasena}>
-          <div className="campo-pwd">
-            <label htmlFor="contrasenaActual">Contraseña Actual</label>
-            <input
-              id="contrasenaActual"
-              type="password"
-              value={contrasenaActual}
-              onChange={(e) => setContrasenaActual(e.target.value)}
-              required
-            />
-          </div>
-          <div className="campo-pwd">
-            <label htmlFor="nuevaContrasena">Nueva Contraseña</label>
-            <input
-              id="nuevaContrasena"
-              type="password"
-              value={nuevaContrasena}
-              onChange={(e) => setNuevaContrasena(e.target.value)}
-              required
-            />
-            <span className="pwd-error" style={{ display: nuevaContrasena && nuevaContrasena.length < 8 ? "block" : "none" }}>
-              Mínimo 8 caracteres, una mayúscula y un número
-            </span>
-          </div>
-          <div className="campo-pwd">
-            <label htmlFor="confirmarContrasena">Confirmar Nueva Contraseña</label>
-            <input
-              id="confirmarContrasena"
-              type="password"
-              value={confirmarContrasena}
-              onChange={(e) => setConfirmarContrasena(e.target.value)}
-              className={confirmarContrasena && confirmarContrasena !== nuevaContrasena ? "input-invalid" : ""}
-              required
-            />
-          </div>
-          {msgExito && <div className="msg-exito">{msgExito}</div>}
-          {msgError && <div className="msg-error-form">{msgError}</div>}
-          <button type="submit" className="btn-primario" disabled={enviando}>
-            {enviando ? "Actualizando..." : "Actualizar contraseña"}
-          </button>
-        </form>
-      </div>
+        <div className="perfil-card">
+          <h2>Cambiar Contraseña</h2>
+          <form className="cambiar-pwd-form" onSubmit={handleCambiarContrasena}>
+            <div className="campo-pwd">
+              <label htmlFor="contrasenaActual">Contraseña Actual</label>
+              <input
+                id="contrasenaActual"
+                type="password"
+                value={contrasenaActual}
+                onChange={(e) => setContrasenaActual(e.target.value)}
+                required
+              />
+            </div>
+            <div className="campo-pwd">
+              <label htmlFor="nuevaContrasena">Nueva Contraseña</label>
+              <input
+                id="nuevaContrasena"
+                type="password"
+                value={nuevaContrasena}
+                onChange={(e) => setNuevaContrasena(e.target.value)}
+                required
+              />
+              <span className="pwd-error" style={{ display: nuevaContrasena && nuevaContrasena.length < 8 ? "block" : "none" }}>
+                Mínimo 8 caracteres, una mayúscula y un número
+              </span>
+            </div>
+            <div className="campo-pwd">
+              <label htmlFor="confirmarContrasena">Confirmar Nueva Contraseña</label>
+              <input
+                id="confirmarContrasena"
+                type="password"
+                value={confirmarContrasena}
+                onChange={(e) => setConfirmarContrasena(e.target.value)}
+                className={confirmarContrasena && confirmarContrasena !== nuevaContrasena ? "input-invalid" : ""}
+                required
+              />
+            </div>
+            {msgExito && <div className="msg-exito">{msgExito}</div>}
+            {msgError && <div className="msg-error-form">{msgError}</div>}
+            <button type="submit" className="btn-primario" disabled={enviando}>
+              {enviando ? "Actualizando..." : "Actualizar contraseña"}
+            </button>
+          </form>
+        </div>
       )}
+
+      {puedeEditar && (
+        <div className="perfil-card">
+          <h2>Editar Datos</h2>
+          <FormEditarUsuario datos={datos} onGuardado={recargarDatos} />
+        </div>
+      )}
+
     </div>
   );
 }
