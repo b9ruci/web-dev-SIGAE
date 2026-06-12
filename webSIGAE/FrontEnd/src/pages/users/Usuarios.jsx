@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 function Usuarios() {
   const { usuario } = useAuth();
+  const navigate = useNavigate();
   const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
 
   const [usuarios, setUsuarios] = useState([]);
@@ -219,6 +221,12 @@ function Usuarios() {
                           {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
                         </button>
                       )}
+                      <button
+                        className="btn-roles"
+                        onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}
+                      >
+                        Ver Perfil
+                      </button>
                       {esSuperAdmin && (
                         <button
                           className="btn-roles"
