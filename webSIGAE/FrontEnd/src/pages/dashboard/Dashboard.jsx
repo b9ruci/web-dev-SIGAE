@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../../services/api";
 
 /* ── Dashboard de Administrador ───────────────────── */
 function DashboardAdmin() {
@@ -11,11 +12,11 @@ function DashboardAdmin() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    fetch("/api/dashboard/stats", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    apiFetch("/api/dashboard/stats")
+      .then((r) => {
+        if (!r || !r.ok) throw new Error();
+        return r.json();
+      })
       .then(setStats)
       .catch(console.error)
       .finally(() => setLoading(false));

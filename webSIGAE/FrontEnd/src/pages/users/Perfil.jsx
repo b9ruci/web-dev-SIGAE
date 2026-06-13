@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
+import { apiFetch } from "../../services/api";
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -21,12 +22,9 @@ function Perfil() {
 
   useEffect(() => {
     if (!idObjetivo) return;
-    const token = localStorage.getItem("token");
-    fetch(`/api/usuarios/${idObjetivo}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch(`/api/usuarios/${idObjetivo}`)
       .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if (!r || !r.ok) throw new Error(`HTTP ${r?.status}`);
         return r.json();
       })
       .then((data) => setDatos(data))
@@ -35,12 +33,9 @@ function Perfil() {
   }, [idObjetivo]);
 
   const recargarDatos = () => {
-    const token = localStorage.getItem("token");
-    fetch(`/api/usuarios/${idObjetivo}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    apiFetch(`/api/usuarios/${idObjetivo}`)
       .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        if (!r || !r.ok) throw new Error(`HTTP ${r?.status}`);
         return r.json();
       })
       .then((data) => setDatos(data))
