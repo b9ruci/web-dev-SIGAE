@@ -22,7 +22,10 @@ router.put('/:id',       verifyToken, verifyAdmin, usuarioController.updateUsuar
 router.put('/:id/estado', verifyToken, verifyAdmin, usuarioController.toggleEstado);
 router.delete('/:id',    verifyToken, verifyAdmin, usuarioController.deleteUsuario);
 
-// Solo SuperAdmin puede cambiar roles
+// Asignar un nuevo rol a usuario existente (Admin puede asignar Docente/Apoderado; solo SuperAdmin puede asignar Admin)
+router.post('/:id/asignar-rol', verifyToken, verifyAdmin, usuarioController.asignarRol);
+
+// Solo SuperAdmin puede cambiar/revocar roles libremente
 router.put('/:id/roles', verifyToken, verifySuperAdmin, usuarioController.updateRoles);
 
 module.exports = router;

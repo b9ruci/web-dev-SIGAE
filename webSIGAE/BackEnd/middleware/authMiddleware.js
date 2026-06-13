@@ -86,14 +86,10 @@ const verifyAdmin = (req, res, next) => {
 
 const verifySuperAdmin = (req, res, next) => {
 
-  if (
-    req.user?.administradorTipo !==
-    'SuperAdmin'
-  ) {
+  if (req.user?.administradorTipo !== 'Super Admin') {
 
     return res.status(403).json({
-      error:
-        'Solo un SuperAdmin puede modificar roles'
+      error: 'Solo un Super Administrador puede realizar esta acción'
     });
 
   }
@@ -106,9 +102,9 @@ const verifyPuedeCrearRol = (req, res, next) => {
   const { Es_Administrador } = req.body;
 
   if (Es_Administrador) {
-    if (req.user?.administradorTipo !== 'SuperAdmin') {
+    if (req.user?.administradorTipo !== 'Super Admin') {
       return res.status(403).json({
-        error: 'Solo un SuperAdmin puede registrar administradores'
+        error: 'Solo un Super Administrador puede registrar administradores'
       });
     }
   }
