@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../../services/api";
 
 /* ── Dashboard de Administrador ───────────────────── */
-function DashboardAdmin() {
+function DashboardAdmin({ esSuperAdmin }) {
   const [stats, setStats] = useState({
     usuarios: 0, docentes: 0, apoderados: 0,
     estudiantes: 0, cursos: 0, citaciones: 0,
@@ -41,6 +41,8 @@ function DashboardAdmin() {
       <div className="quick-actions">
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
+          <Link to="/usuarios">Gestión de Usuarios</Link>
+          {esSuperAdmin && <Link to="/registrar-admin">Registrar Administrador</Link>}
           <Link to="/registrar-docente">Registrar Docente</Link>
           <Link to="/registrar-apoderado">Registrar Apoderado</Link>
           <Link to="/registrar-estudiante">Registrar Estudiante</Link>
@@ -95,7 +97,7 @@ function Dashboard() {
   const { usuario, rolActivo } = useAuth();
 
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin =
     rolEfectivo === "Administrador" ||
     esSuperAdmin ||
@@ -103,7 +105,7 @@ function Dashboard() {
   const esDocente  = rolEfectivo === "Docente";
   const esApoderado = rolEfectivo === "Apoderado";
 
-  if (esAdmin)     return <DashboardAdmin />;
+  if (esAdmin)     return <DashboardAdmin esSuperAdmin={esSuperAdmin} />;
   if (esDocente)   return <DashboardDocente nombre={usuario?.nombre} />;
   if (esApoderado) return <DashboardApoderado nombre={usuario?.nombre} />;
 

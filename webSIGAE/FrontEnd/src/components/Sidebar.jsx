@@ -14,6 +14,10 @@ function Sidebar() {
     window.location.href = "/";
   };
 
+  const rolEfectivo = rolActivo || usuario?.roles?.[0];
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
+  const esAdmin = rolEfectivo === "Administrador";
+
   return (
 
     <aside className="sidebar">
@@ -27,7 +31,7 @@ function Sidebar() {
         </p>
 
         <small>
-          {rolActivo || usuario?.roles?.[0]}
+          {rolEfectivo}
         </small>
 
       </div>
@@ -41,20 +45,22 @@ function Sidebar() {
         <Link to="/perfil">
           Mi Perfil
         </Link>
-        
-        {usuario?.roles?.includes("Administrador") && (
+
+        {esAdmin && (
           <>
             <Link to="/usuarios">
               Usuarios
             </Link>
 
             <Link to="/gestion-roles">
-            Gestión de Roles
+              Gestión de Roles
             </Link>
 
-            <Link to="/registrar-admin">
-              Registrar Admin
-            </Link>
+            {esSuperAdmin && (
+              <Link to="/registrar-admin">
+                Registrar Admin
+              </Link>
+            )}
 
             <Link to="/registrar-docente">
               Registrar Docente
@@ -67,13 +73,9 @@ function Sidebar() {
             <Link to="/registrar-estudiante">
               Registrar Estudiante
             </Link>
-            
-            <Link to="/apoderados">
-            Asignar Est. a Apoderados
-            </Link>
 
-            <Link to="/plan-educativo">
-              Plan Educativo
+            <Link to="/apoderados">
+              Asignar Est. a Apoderados
             </Link>
 
             <Link to="/plan-educativo">
@@ -94,12 +96,8 @@ function Sidebar() {
           </>
         )}
 
-        {rolActivo === "Docente" && (
+        {rolEfectivo === "Docente" && (
           <>
-            <Link to="/plan-educativo">
-              Plan Educativo
-            </Link>
-
             <Link to="/plan-educativo">
               Plan Educativo
             </Link>
@@ -122,7 +120,7 @@ function Sidebar() {
           </>
         )}
 
-        {rolActivo === "Apoderado" && (
+        {rolEfectivo === "Apoderado" && (
           <>
             <Link to="/citaciones">
               Citaciones
@@ -140,7 +138,7 @@ function Sidebar() {
         className="logout-btn"
         onClick={handleLogout}
       >
-        Cerrar sesiÃ³n
+        Cerrar sesión
       </button>
 
     </aside>
