@@ -89,8 +89,23 @@ const verifySuperAdmin = (req, res, next) => {
 
 };
 
+const verifyPuedeCrearRol = (req, res, next) => {
+  const { Es_Administrador } = req.body;
+
+  if (Es_Administrador) {
+    if (req.user?.administradorTipo !== 'SuperAdmin') {
+      return res.status(403).json({
+        error: 'Solo un SuperAdmin puede registrar administradores'
+      });
+    }
+  }
+
+  next();
+};
+
 module.exports = {
   verifyToken,
   verifyAdmin,
-  verifySuperAdmin
+  verifySuperAdmin,
+  verifyPuedeCrearRol,   // ← agrega esta línea
 };
