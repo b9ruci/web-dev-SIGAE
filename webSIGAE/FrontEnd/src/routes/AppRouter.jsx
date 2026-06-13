@@ -36,6 +36,7 @@ import Perfil from "../pages/users/Perfil";
 import Cursos from "../pages/academic/Cursos";
 import Horarios from "../pages/academic/Horarios";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
+import PlanEducativo from "../pages/academic/PlanEducativo";
 
 /* COMMUNICATION */
 
@@ -113,13 +114,21 @@ function AppRouter() {
           
           <Route
           path="/gestion-roles"
-          element={<GestionRoles />}
+          element={
+          <RoleRoute roles={["Administrador"]}>
+            <GestionRoles />
+            </RoleRoute>
+          }
           />
 
-          <Route
-            path="/gestion-roles"
-            element={<GestionRoles />}
-          />
+<Route
+  path="/gestion-roles/:id"
+  element={
+    <RoleRoute roles={["Administrador"]}>
+      <GestionRoles />
+    </RoleRoute>
+  }
+/>
 
           <Route
             path="/registrar-admin"
