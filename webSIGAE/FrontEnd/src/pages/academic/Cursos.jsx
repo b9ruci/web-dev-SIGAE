@@ -207,15 +207,14 @@ function PanelAsignaturasCurso({ curso, token, esAdmin, onVolver }) {
           </thead>
           <tbody>
             {asignadas.map((a) => (
-              <tr key={a.Curso_Asignatura_Id}>
+              <tr key={a.tieneasig_Id}>
                 <td>{a.Asignatura_Nombre}</td>
                 <td>{a.Asignatura_Prioridad_Academica}</td>
-                  <td>
-                    <span className={`badge-estado ${a.Estado_Asignacion === "Activa" ? "badge-vigente" : "badge-inactiva"}`}>
+                <td>
+                  <span className={`badge-estado ${a.Estado_Asignacion === "Activa" ? "badge-vigente" : "badge-inactiva"}`}>
                     {a.Estado_Asignacion}
                   </span>
                 </td>
-                <td>{new Date(a.Curso_Asignatura_Fecha_Creacion).toLocaleDateString("es-CL")}</td>
               </tr>
             ))}
           </tbody>
