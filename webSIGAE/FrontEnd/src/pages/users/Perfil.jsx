@@ -25,7 +25,10 @@ function Perfil() {
     fetch(`/api/usuarios/${idObjetivo}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => setDatos(data))
       .catch(console.error)
       .finally(() => setCargando(false));
@@ -36,7 +39,10 @@ function Perfil() {
     fetch(`/api/usuarios/${idObjetivo}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => setDatos(data))
       .catch(console.error);
   };
@@ -121,6 +127,7 @@ function Perfil() {
   };
 
   if (cargando) return <div className="perfil-container"><p>Cargando perfil...</p></div>;
+  if (!datos) return <div className="perfil-container"><p>No se pudo cargar el perfil.</p></div>;
 
   const roles = getRoles();
   const correos = getCorreos();
