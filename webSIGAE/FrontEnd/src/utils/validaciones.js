@@ -30,7 +30,8 @@ export function validarRut(rutCompleto) {
 }
 
 export function validarCorreoInstitucional(correo) {
-  return correo.trim().toLowerCase().endsWith(DOMINIO_INSTITUCIONAL);
+  const normalizado = correo.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado) && normalizado.endsWith(DOMINIO_INSTITUCIONAL);
 }
 
 export function validarCorreo(correo) {
