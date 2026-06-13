@@ -293,6 +293,7 @@ function TabBloques() {
   const [guardando, setGuardando] = useState(false);
   const [errorModal,setErrorModal]= useState("");
   const [eliminando,setEliminando]= useState(null);
+  const [vista,     setVista]     = useState("calendario");
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -378,9 +379,26 @@ function TabBloques() {
             estar dentro del rango institucional y no puede solaparse (CU49).
           </p>
         </div>
-        <button className="btn-primary" onClick={abrirCrear} style={{ flexShrink: 0 }}>
-          + Nuevo bloque
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
+          <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+            <button
+              onClick={() => setVista("calendario")}
+              style={{ padding: "0.35rem 0.75rem", border: "none", cursor: "pointer",
+                background: vista === "calendario" ? "#1e3a5f" : "#f9fafb",
+                color: vista === "calendario" ? "#fff" : "#6b7280",
+                fontSize: "0.82rem", fontWeight: 500 }}
+            >📅 Calendario</button>
+            <button
+              onClick={() => setVista("lista")}
+              style={{ padding: "0.35rem 0.75rem", border: "none", borderLeft: "1px solid #e5e7eb",
+                cursor: "pointer",
+                background: vista === "lista" ? "#1e3a5f" : "#f9fafb",
+                color: vista === "lista" ? "#fff" : "#6b7280",
+                fontSize: "0.82rem", fontWeight: 500 }}
+            >☰ Lista</button>
+          </div>
+          <button className="btn-primary" onClick={abrirCrear}>+ Nuevo bloque</button>
+        </div>
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
@@ -402,45 +420,54 @@ function TabBloques() {
             <StatMini label="Total"            value={bloques.length}       color="#374151" bg="#f3f4f6" />
           </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={s.tabla}>
-              <thead>
-                <tr style={s.theadRow}>
-                  <th style={s.th}>Hora inicio</th>
-                  <th style={s.th}>Hora fin</th>
-                  <th style={s.th}>Duración</th>
-                  <th style={s.th}>Jornada</th>
-                  <th style={s.th}>Tipo</th>
-                  <th style={s.th}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bloques.map((b, idx) => {
-                  const durMin = calcDuracion(b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin);
-                  return (
-                    <tr key={b.Bloque_Horario_Id}
-                      style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff", borderBottom: "1px solid #e5e7eb" }}>
-                      <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Inicio)}</td>
-                      <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Fin)}</td>
-                      <td style={{ ...s.td, color: "#6b7280" }}>{durMin} min</td>
-                      <td style={s.td}>{b.Bloque_Horario_Jornada}</td>
-                      <td style={s.td}><TipoChip tipo={b.Bloque_Horario_Tipo} /></td>
-                      <td style={{ ...s.td, whiteSpace: "nowrap" }}>
-                        <button onClick={() => abrirEditar(b)} style={s.btnAccion}>✏ Editar</button>
-                        <button
-                          onClick={() => { if (window.confirm("¿Eliminar este bloque?")) handleEliminar(b.Bloque_Horario_Id); }}
-                          style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
-                          disabled={eliminando === b.Bloque_Horario_Id}
-                        >
-                          {eliminando === b.Bloque_Horario_Id ? "..." : "🗑 Eliminar"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {vista === "calendario" ? (
+            <VistaCalendario
+              bloques={bloques}
+              onEditar={abrirEditar}
+              onEliminar={handleEliminar}
+              eliminando={eliminando}
+            />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={s.tabla}>
+                <thead>
+                  <tr style={s.theadRow}>
+                    <th style={s.th}>Hora inicio</th>
+                    <th style={s.th}>Hora fin</th>
+                    <th style={s.th}>Duración</th>
+                    <th style={s.th}>Jornada</th>
+                    <th style={s.th}>Tipo</th>
+                    <th style={s.th}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bloques.map((b, idx) => {
+                    const durMin = calcDuracion(b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin);
+                    return (
+                      <tr key={b.Bloque_Horario_Id}
+                        style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff", borderBottom: "1px solid #e5e7eb" }}>
+                        <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Inicio)}</td>
+                        <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Fin)}</td>
+                        <td style={{ ...s.td, color: "#6b7280" }}>{durMin} min</td>
+                        <td style={s.td}>{b.Bloque_Horario_Jornada}</td>
+                        <td style={s.td}><TipoChip tipo={b.Bloque_Horario_Tipo} /></td>
+                        <td style={{ ...s.td, whiteSpace: "nowrap" }}>
+                          <button onClick={() => abrirEditar(b)} style={s.btnAccion}>✏ Editar</button>
+                          <button
+                            onClick={() => { if (window.confirm("¿Eliminar este bloque?")) handleEliminar(b.Bloque_Horario_Id); }}
+                            style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
+                            disabled={eliminando === b.Bloque_Horario_Id}
+                          >
+                            {eliminando === b.Bloque_Horario_Id ? "..." : "🗑 Eliminar"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 
@@ -748,6 +775,190 @@ function TabEventos() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Vista Calendario (Google Calendar-style) ─────────────────── */
+
+const PX_POR_MIN = 1.5;
+
+const TIPO_COLORES = {
+  "Clase":            { bg: "#eff6ff", borde: "#3b82f6", acento: "#1e40af", icono: "📚" },
+  "Recreo":           { bg: "#f0fdf4", borde: "#22c55e", acento: "#166534", icono: "⛹" },
+  "Evento Académico": { bg: "#fefce8", borde: "#eab308", acento: "#92400e", icono: "🎓" },
+};
+
+function toMin(t) {
+  if (!t) return 0;
+  const [h, m] = String(t).split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function minToHHMM(m) {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+function VistaCalendario({ bloques, onEditar, onEliminar, eliminando }) {
+  const [hovered, setHovered] = useState(null);
+
+  if (!bloques.length) return null;
+
+  const starts  = bloques.map(b => toMin(b.Bloque_Horario_Hora_Inicio));
+  const ends    = bloques.map(b => toMin(b.Bloque_Horario_Hora_Fin));
+  const rangoMin = Math.floor(Math.min(...starts) / 60) * 60;
+  const rangoMax = Math.ceil(Math.max(...ends)   / 60) * 60;
+  const totalMin = rangoMax - rangoMin;
+  const totalPx  = totalMin * PX_POR_MIN;
+
+  const horas = Array.from({ length: totalMin / 60 + 1 }, (_, i) => rangoMin + i * 60);
+
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+      {/* Encabezado de columnas */}
+      <div style={{ display: "flex", borderBottom: "2px solid #e5e7eb" }}>
+        <div style={{ width: 56, flexShrink: 0, borderRight: "1px solid #e5e7eb" }} />
+        {["Mañana", "Tarde"].map((j, ji) => {
+          const n = bloques.filter(b => b.Bloque_Horario_Jornada === j).length;
+          return (
+            <div key={j} style={{
+              flex: 1, padding: "10px 0", textAlign: "center",
+              background: j === "Mañana" ? "#eff6ff" : "#faf5ff",
+              borderLeft: ji > 0 ? "1px solid #e5e7eb" : "none",
+              fontWeight: 700, fontSize: "0.88rem",
+              color: j === "Mañana" ? "#1e40af" : "#7c3aed",
+            }}>
+              {j === "Mañana" ? "☀" : "🌙"} {j}
+              <span style={{ fontWeight: 400, marginLeft: 6, opacity: 0.65, fontSize: "0.78rem" }}>
+                {n} {n === 1 ? "bloque" : "bloques"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Cuerpo: etiquetas de hora + columnas de jornada */}
+      <div style={{ display: "flex" }}>
+        {/* Etiquetas de hora */}
+        <div style={{ width: 56, flexShrink: 0, position: "relative", height: totalPx, borderRight: "1px solid #e5e7eb", background: "#fff" }}>
+          {horas.map(m => (
+            <div key={m} style={{
+              position: "absolute",
+              top: (m - rangoMin) * PX_POR_MIN - 7,
+              right: 8, fontSize: "0.7rem", color: "#9ca3af", fontWeight: 600, lineHeight: 1,
+            }}>
+              {minToHHMM(m)}
+            </div>
+          ))}
+        </div>
+
+        {/* Columnas por jornada */}
+        {["Mañana", "Tarde"].map((j, ji) => {
+          const jornadaBloques = bloques.filter(b => b.Bloque_Horario_Jornada === j);
+          return (
+            <div key={j} style={{
+              flex: 1, position: "relative", height: totalPx,
+              borderLeft: ji > 0 ? "1px solid #e5e7eb" : "none",
+              background: "#fafafa",
+            }}>
+              {/* Líneas de hora llena */}
+              {horas.map(m => (
+                <div key={m} style={{
+                  position: "absolute", top: (m - rangoMin) * PX_POR_MIN,
+                  left: 0, right: 0, height: 1, background: "#e5e7eb",
+                }} />
+              ))}
+              {/* Líneas de media hora (más suaves) */}
+              {horas.slice(0, -1).map(m => (
+                <div key={`h${m}`} style={{
+                  position: "absolute", top: (m + 30 - rangoMin) * PX_POR_MIN,
+                  left: 0, right: 0, height: 1, background: "#f3f4f6",
+                }} />
+              ))}
+
+              {jornadaBloques.length === 0 && (
+                <div style={{
+                  position: "absolute", inset: 0,
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  color: "#d1d5db", fontSize: "0.8rem", fontStyle: "italic", gap: 4,
+                }}>
+                  <span style={{ fontSize: "1.5rem" }}>—</span>
+                  Sin bloques
+                </div>
+              )}
+
+              {/* Bloques posicionados */}
+              {jornadaBloques.map(b => {
+                const sMin  = toMin(b.Bloque_Horario_Hora_Inicio);
+                const eMin  = toMin(b.Bloque_Horario_Hora_Fin);
+                const top   = (sMin - rangoMin) * PX_POR_MIN;
+                const h     = Math.max((eMin - sMin) * PX_POR_MIN - 3, 22);
+                const col   = TIPO_COLORES[b.Bloque_Horario_Tipo] || TIPO_COLORES["Clase"];
+                const dur   = eMin - sMin;
+                const isHov = hovered === b.Bloque_Horario_Id;
+
+                return (
+                  <div
+                    key={b.Bloque_Horario_Id}
+                    onMouseEnter={() => setHovered(b.Bloque_Horario_Id)}
+                    onMouseLeave={() => setHovered(null)}
+                    style={{
+                      position: "absolute", top, left: 5, right: 5, height: h,
+                      background: col.bg,
+                      border: `1px solid ${col.borde}`,
+                      borderLeft: `3px solid ${col.acento}`,
+                      borderRadius: 6, padding: "2px 5px 2px 6px",
+                      overflow: "hidden", cursor: "pointer",
+                      zIndex: isHov ? 10 : 1,
+                      boxShadow: isHov ? "0 3px 10px rgba(0,0,0,0.12)" : "none",
+                      transition: "box-shadow 0.15s",
+                    }}
+                  >
+                    <div style={{ display: "flex", height: "100%", justifyContent: "space-between" }}>
+                      {/* Texto del bloque */}
+                      <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }} onClick={() => onEditar(b)}>
+                        <div style={{ fontWeight: 700, fontSize: "0.72rem", color: col.acento, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden" }}>
+                          {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)}
+                        </div>
+                        {h > 32 && (
+                          <div style={{ fontSize: "0.68rem", color: col.acento, opacity: 0.8, lineHeight: 1.3 }}>
+                            {col.icono} {b.Bloque_Horario_Tipo} · {dur} min
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Botones de acción (al hacer hover) */}
+                      {isHov && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 3, flexShrink: 0 }}>
+                          <button
+                            title="Editar"
+                            onClick={e => { e.stopPropagation(); onEditar(b); }}
+                            style={{
+                              width: 18, height: 18, padding: 0, border: "none", borderRadius: 4,
+                              cursor: "pointer", background: col.acento, color: "#fff",
+                              fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center",
+                            }}
+                          >✏</button>
+                          <button
+                            title="Eliminar"
+                            disabled={eliminando === b.Bloque_Horario_Id}
+                            onClick={e => { e.stopPropagation(); if (window.confirm("¿Eliminar este bloque?")) onEliminar(b.Bloque_Horario_Id); }}
+                            style={{
+                              width: 18, height: 18, padding: 0, border: "none", borderRadius: 4,
+                              cursor: "pointer", background: "#dc2626", color: "#fff",
+                              fontSize: "0.65rem", display: "flex", alignItems: "center", justifyContent: "center",
+                            }}
+                          >×</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
