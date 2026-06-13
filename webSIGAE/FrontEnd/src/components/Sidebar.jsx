@@ -38,14 +38,14 @@ function Sidebar() {
           Dashboard
         </Link>
         
-        usuario?.roles?.includes("Administrador") && (
+        {usuario?.roles?.includes("Administrador") && (
           <>
             <Link to="/usuarios">
               Usuarios
             </Link>
 
             <Link to="/gestion-roles">
-            Gestión de Roles
+              Gestión de Roles
             </Link>
 
             <Link to="/registrar-admin">
@@ -64,12 +64,8 @@ function Sidebar() {
               Registrar Estudiante
             </Link>
 
-            <Link to="/plan-educativo">
-              Plan Educativo
-            </Link>
-
-            <Link to="/plan-educativo">
-              Plan Educativo
+            <Link to="/apoderados">
+              Asignar Est. a Apoderados
             </Link>
 
             <Link to="/cursos">
@@ -84,7 +80,7 @@ function Sidebar() {
               Reportes
             </Link>
           </>
-        )
+        )}
 
         {rolActivo === "Docente" && (
           <>
@@ -136,7 +132,7 @@ function Sidebar() {
         className="logout-btn"
         onClick={handleLogout}
       >
-        Cerrar sesiÃ³n
+        Cerrar sesión
       </button>
 
     </aside>
