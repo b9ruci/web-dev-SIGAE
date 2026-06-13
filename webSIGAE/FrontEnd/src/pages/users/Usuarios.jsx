@@ -304,19 +304,21 @@ const confirmarAccion = async () => {
             </label>
 
             {accion === "rol" && (
-              <div style={{ marginLeft: "26px" }}>
-                <label style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "4px", display: "block" }}>
-                  Rol a quitar:
-                </label>
-                <select
-                  value={rolAQuitar}
-                  onChange={(e) => setModalConfirm({ ...modalConfirm, rolAQuitar: e.target.value })}
-                  style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", width: "100%" }}
+              <div style={{
+                marginLeft: "26px", padding: "12px 14px",
+                background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe",
+              }}>
+                <p style={{ margin: "0 0 10px", color: "#1d4ed8", fontSize: "0.88rem" }}>
+                  La gestión de roles individuales se realiza desde el módulo de{" "}
+                  <strong>Gestión de Roles</strong>.
+                </p>
+                <button
+                  className="btn-roles"
+                  style={{ fontSize: "0.85rem" }}
+                  onClick={() => { setModalConfirm(null); navigate("/gestion-roles"); }}
                 >
-                  {rolesActivos.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                  Ir a Gestión de Roles →
+                </button>
               </div>
             )}
           </div>
@@ -340,19 +342,19 @@ const confirmarAccion = async () => {
         )}
 
         <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            className={desactivando ? "btn-desactivar" : "btn-reactivar"}
-            onClick={confirmarAccion}
-            disabled={loadingToggle}
-          >
-            {loadingToggle
-              ? "Procesando..."
-              : accion === "rol"
-                ? `Quitar rol ${rolAQuitar}`
+          {accion !== "rol" && (
+            <button
+              className={desactivando ? "btn-desactivar" : "btn-reactivar"}
+              onClick={confirmarAccion}
+              disabled={loadingToggle}
+            >
+              {loadingToggle
+                ? "Procesando..."
                 : desactivando
                   ? "Confirmar desactivación"
                   : "Confirmar reactivación"}
-          </button>
+            </button>
+          )}
           <button
             className="btn-roles"
             onClick={() => setModalConfirm(null)}
