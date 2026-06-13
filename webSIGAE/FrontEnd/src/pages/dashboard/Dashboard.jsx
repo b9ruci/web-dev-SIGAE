@@ -46,6 +46,7 @@ function DashboardAdmin({ esSuperAdmin }) {
           <Link to="/registrar-docente">Registrar Docente</Link>
           <Link to="/registrar-apoderado">Registrar Apoderado</Link>
           <Link to="/registrar-estudiante">Registrar Estudiante</Link>
+          <Link to="/plan-educativo">Plan Educativo</Link>
           <Link to="/citaciones">Ver Citaciones</Link>
         </div>
       </div>
@@ -63,6 +64,7 @@ function DashboardDocente({ nombre }) {
       <div className="quick-actions">
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
+          <Link to="/plan-educativo">Plan Educativo</Link>
           <Link to="/horarios">Mi Horario</Link>
           <Link to="/citaciones">Mis Citaciones</Link>
           <Link to="/mensajes">Mensajes</Link>

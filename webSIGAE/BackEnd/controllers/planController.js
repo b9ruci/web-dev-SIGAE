@@ -95,15 +95,26 @@ const crearPlan = async (req, res) => {
       return res.status(404).json({ error: 'Nivel educativo no encontrado' });
     }
 
-    const [planExistente] = await conn.execute(
-      'SELECT Plan_Educativo_Id FROM plan_educativo WHERE Nivel_Educativo_Id = ? AND Plan_Educativo_Periodo_Lectivo = ?',
-      [nivel_educativo_id, periodo]
-    );
+    const [planExistente] = await conn.execute(`
+      SELECT pe.Plan_Educativo_Id,
+             COUNT(ia.IncluyeAsig_Id) AS total_asig
+      FROM plan_educativo pe
+      LEFT JOIN incluyeasig ia ON ia.Plan_Educativo_Id = pe.Plan_Educativo_Id
+      WHERE pe.Nivel_Educativo_Id = ? AND pe.Plan_Educativo_Periodo_Lectivo = ?
+      GROUP BY pe.Plan_Educativo_Id
+    `, [nivel_educativo_id, periodo]);
+
     if (planExistente.length > 0) {
-      await conn.rollback();
-      return res.status(409).json({
-        error: `Ya existe un plan educativo para ${niveles[0].Nivel_Educativo_Nombre} en el periodo ${periodo}`
-      });
+      if (Number(planExistente[0].total_asig) > 0) {
+        await conn.rollback();
+        return res.status(409).json({
+          error: `Ya existe un plan educativo para ${niveles[0].Nivel_Educativo_Nombre} en el periodo ${periodo}`
+        });
+      }
+      await conn.execute(
+        'DELETE FROM plan_educativo WHERE Plan_Educativo_Id = ?',
+        [planExistente[0].Plan_Educativo_Id]
+      );
     }
 
     const idsAsig = asignaturas.map(a => a.asignatura_id);
@@ -186,15 +197,26 @@ const clonarPlan = async (req, res) => {
       return res.status(404).json({ error: 'Nivel educativo de destino no encontrado' });
     }
 
-    const [planExistente] = await conn.execute(
-      'SELECT Plan_Educativo_Id FROM plan_educativo WHERE Nivel_Educativo_Id = ? AND Plan_Educativo_Periodo_Lectivo = ?',
-      [nivel_educativo_id, periodo]
-    );
+    const [planExistente] = await conn.execute(`
+      SELECT pe.Plan_Educativo_Id,
+             COUNT(ia.IncluyeAsig_Id) AS total_asig
+      FROM plan_educativo pe
+      LEFT JOIN incluyeasig ia ON ia.Plan_Educativo_Id = pe.Plan_Educativo_Id
+      WHERE pe.Nivel_Educativo_Id = ? AND pe.Plan_Educativo_Periodo_Lectivo = ?
+      GROUP BY pe.Plan_Educativo_Id
+    `, [nivel_educativo_id, periodo]);
+
     if (planExistente.length > 0) {
-      await conn.rollback();
-      return res.status(409).json({
-        error: `Ya existe un plan educativo para ${nivelDestino[0].Nivel_Educativo_Nombre} en el periodo ${periodo}`
-      });
+      if (Number(planExistente[0].total_asig) > 0) {
+        await conn.rollback();
+        return res.status(409).json({
+          error: `Ya existe un plan educativo para ${nivelDestino[0].Nivel_Educativo_Nombre} en el periodo ${periodo}`
+        });
+      }
+      await conn.execute(
+        'DELETE FROM plan_educativo WHERE Plan_Educativo_Id = ?',
+        [planExistente[0].Plan_Educativo_Id]
+      );
     }
 
     let asignaturasFinales = asignaturas;
@@ -270,8 +292,13 @@ const getNivelesSinPlan = async (req, res) => {
       SELECT ne.Nivel_Educativo_Id, ne.Nivel_Educativo_Nombre
       FROM nivel_educativo ne
       WHERE ne.Nivel_Educativo_Id NOT IN (
-        SELECT Nivel_Educativo_Id FROM plan_educativo
-        WHERE Plan_Educativo_Periodo_Lectivo = ?
+        SELECT pe.Nivel_Educativo_Id
+        FROM plan_educativo pe
+        WHERE pe.Plan_Educativo_Periodo_Lectivo = ?
+          AND EXISTS (
+            SELECT 1 FROM incluyeasig ia
+            WHERE ia.Plan_Educativo_Id = pe.Plan_Educativo_Id
+          )
       )
       ORDER BY ne.Nivel_Educativo_Nombre
     `, [periodo]);

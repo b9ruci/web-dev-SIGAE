@@ -79,6 +79,7 @@ export default function Horarios() {
   const [horarios, setHorarios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [vista, setVista] = useState("semana");
 
   /* ── Confirmación de suspensión masiva ─────────────────────── */
   const [confirmandoSuspenderTodo, setConfirmandoSuspenderTodo] =
@@ -345,6 +346,27 @@ export default function Horarios() {
       {/* ── Grilla semanal ── */}
       {!loading && horarios.length > 0 && (
         <>
+          {/* Toggle de vista */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "0.75rem" }}>
+            <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+              <button
+                onClick={() => setVista("semana")}
+                style={{ padding: "0.35rem 0.75rem", border: "none", cursor: "pointer",
+                  background: vista === "semana" ? "#1e3a5f" : "#f9fafb",
+                  color: vista === "semana" ? "#fff" : "#6b7280",
+                  fontSize: "0.82rem", fontWeight: 500 }}
+              >📅 Semana</button>
+              <button
+                onClick={() => setVista("lista")}
+                style={{ padding: "0.35rem 0.75rem", border: "none", borderLeft: "1px solid #e5e7eb",
+                  cursor: "pointer",
+                  background: vista === "lista" ? "#1e3a5f" : "#f9fafb",
+                  color: vista === "lista" ? "#fff" : "#6b7280",
+                  fontSize: "0.82rem", fontWeight: 500 }}
+              >☰ Lista</button>
+            </div>
+          </div>
+
           {/* Acción masiva — solo Admin con curso seleccionado */}
           {esAdmin && cursoSeleccionado && bloquesActivos > 0 && (
             <div style={styles.accionMasiva}>
@@ -379,6 +401,14 @@ export default function Horarios() {
             </div>
           )}
 
+          {vista === "semana" ? (
+            <VistaHorario
+              horarios={horarios}
+              esAdmin={esAdmin}
+              onEditar={abrirEditar}
+              onCambiarEstado={handleCambiarEstado}
+            />
+          ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={styles.tabla}>
               <thead>
@@ -495,6 +525,7 @@ export default function Horarios() {
               </tbody>
             </table>
           </div>
+          )}
         </>
       )}
 
@@ -747,6 +778,167 @@ function ModalForm({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/* ── Vista Semanal (Google Calendar-style) ─────────────────────── */
+
+const PX_H = 1.5;
+
+function toMinH(t) {
+  if (!t) return 0;
+  const [h, m] = String(t).split(":").map(Number);
+  return h * 60 + (m || 0);
+}
+
+function minToHHMMH(m) {
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+}
+
+function VistaHorario({ horarios, esAdmin, onEditar, onCambiarEstado }) {
+  const [hovered, setHovered] = useState(null);
+
+  if (!horarios.length) return null;
+
+  const starts   = horarios.map(h => toMinH(h.hora_inicio));
+  const ends     = horarios.map(h => toMinH(h.hora_fin));
+  const rangoMin = Math.floor(Math.min(...starts) / 60) * 60;
+  const rangoMax = Math.ceil(Math.max(...ends) / 60) * 60;
+  const totalMin = rangoMax - rangoMin;
+  const totalPx  = totalMin * PX_H;
+
+  const horas   = Array.from({ length: totalMin / 60 + 1 }, (_, i) => rangoMin + i * 60);
+  const diasNom = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
+  const diasAbr = ["Lun", "Mar", "Mié", "Jue", "Vie"];
+
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+      {/* Encabezados de día */}
+      <div style={{ display: "flex", borderBottom: "2px solid #e5e7eb" }}>
+        <div style={{ width: 56, flexShrink: 0, borderRight: "1px solid #e5e7eb" }} />
+        {diasNom.map((d, i) => {
+          const n = horarios.filter(h => h.dia === d).length;
+          return (
+            <div key={d} style={{
+              flex: 1, padding: "10px 0", textAlign: "center",
+              background: "#f8fafc",
+              borderLeft: i > 0 ? "1px solid #e5e7eb" : "none",
+              fontWeight: 700, fontSize: "0.82rem", color: "#1e3a5f",
+              textTransform: "uppercase", letterSpacing: "0.04em",
+            }}>
+              {diasAbr[i]}
+              <span style={{ fontWeight: 400, marginLeft: 5, opacity: 0.55, fontSize: "0.72rem" }}>
+                ({n})
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Cuerpo: eje horario + columnas */}
+      <div style={{ display: "flex" }}>
+        {/* Etiquetas de hora */}
+        <div style={{ width: 56, flexShrink: 0, position: "relative", height: totalPx, borderRight: "1px solid #e5e7eb", background: "#fff" }}>
+          {horas.map(m => (
+            <div key={m} style={{
+              position: "absolute", top: (m - rangoMin) * PX_H - 7,
+              right: 8, fontSize: "0.7rem", color: "#9ca3af", fontWeight: 600, lineHeight: 1,
+            }}>
+              {minToHHMMH(m)}
+            </div>
+          ))}
+        </div>
+
+        {/* Columnas de días */}
+        {diasNom.map((d, di) => {
+          const diaBloques = horarios.filter(h => h.dia === d);
+          return (
+            <div key={d} style={{
+              flex: 1, position: "relative", height: totalPx,
+              borderLeft: di > 0 ? "1px solid #e5e7eb" : "none",
+              background: "#fafafa",
+            }}>
+              {/* Líneas de hora */}
+              {horas.map(m => (
+                <div key={m} style={{ position: "absolute", top: (m - rangoMin) * PX_H, left: 0, right: 0, height: 1, background: "#e5e7eb" }} />
+              ))}
+              {/* Líneas de media hora */}
+              {horas.slice(0, -1).map(m => (
+                <div key={`h${m}`} style={{ position: "absolute", top: (m + 30 - rangoMin) * PX_H, left: 0, right: 0, height: 1, background: "#f3f4f6" }} />
+              ))}
+
+              {diaBloques.length === 0 && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#e5e7eb", fontSize: "1.5rem" }}>
+                  —
+                </div>
+              )}
+
+              {diaBloques.map(h => {
+                const sMin  = toMinH(h.hora_inicio);
+                const eMin  = toMinH(h.hora_fin);
+                const top   = (sMin - rangoMin) * PX_H;
+                const ht    = Math.max((eMin - sMin) * PX_H - 3, 24);
+                const susp  = h.estado === "Suspendido";
+                const isHov = hovered === h.Horario_Asignatura_Id;
+
+                return (
+                  <div
+                    key={h.Horario_Asignatura_Id}
+                    onMouseEnter={() => setHovered(h.Horario_Asignatura_Id)}
+                    onMouseLeave={() => setHovered(null)}
+                    style={{
+                      position: "absolute", top, left: 4, right: 4, height: ht,
+                      background: susp ? "#fef9f9" : "#eff6ff",
+                      border: `1px solid ${susp ? "#fecaca" : "#93c5fd"}`,
+                      borderLeft: `3px solid ${susp ? "#ef4444" : "#1e40af"}`,
+                      borderRadius: 6, padding: "2px 5px 2px 7px",
+                      overflow: "hidden", cursor: esAdmin ? "pointer" : "default",
+                      opacity: susp ? 0.75 : 1,
+                      zIndex: isHov ? 10 : 1,
+                      boxShadow: isHov ? "0 3px 10px rgba(0,0,0,0.12)" : "none",
+                      transition: "box-shadow 0.15s",
+                    }}
+                  >
+                    <div style={{ display: "flex", height: "100%", justifyContent: "space-between" }}>
+                      <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }} onClick={() => esAdmin && onEditar(h)}>
+                        <div style={{ fontWeight: 700, fontSize: "0.7rem", color: susp ? "#991b1b" : "#1e40af", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden" }}>
+                          {h.hora_inicio?.slice(0, 5)}–{h.hora_fin?.slice(0, 5)}
+                        </div>
+                        {ht > 28 && (
+                          <div style={{ fontSize: "0.66rem", color: susp ? "#991b1b" : "#1e40af", opacity: 0.9, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {h.asignatura}
+                          </div>
+                        )}
+                        {ht > 48 && h.docente && (
+                          <div style={{ fontSize: "0.62rem", color: "#6b7280", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {h.docente}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Acciones al hover (solo Admin) */}
+                      {isHov && esAdmin && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 3, flexShrink: 0 }}>
+                          <button title="Editar"
+                            onClick={e => { e.stopPropagation(); onEditar(h); }}
+                            style={{ width: 18, height: 18, padding: 0, border: "none", borderRadius: 4, cursor: "pointer", background: "#1e40af", color: "#fff", fontSize: "0.55rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✏</button>
+                          <button
+                            title={susp ? "Activar" : "Suspender"}
+                            onClick={e => { e.stopPropagation(); onCambiarEstado(h.Horario_Asignatura_Id, h.estado); }}
+                            style={{ width: 18, height: 18, padding: 0, border: "none", borderRadius: 4, cursor: "pointer", background: susp ? "#166534" : "#dc2626", color: "#fff", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {susp ? "▶" : "⏸"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

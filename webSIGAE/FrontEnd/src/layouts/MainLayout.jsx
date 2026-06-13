@@ -6,9 +6,10 @@ function MainLayout() {
   const { usuario, rolActivo, logout } = useAuth();
   const navigate = useNavigate();
   const [mostrarModalLogout, setMostrarModalLogout] = useState(false);
+  const [registrarAbierto, setRegistrarAbierto] = useState(false);
 
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
   const esDocente = rolEfectivo === "Docente";
   const esApoderado = rolEfectivo === "Apoderado";
@@ -66,11 +67,46 @@ function MainLayout() {
               <>
                 <span className="menu-section">Administración</span>
                 <Link to="/usuarios">Gestión de Usuarios</Link>
-                {esSuperAdmin && <Link to="/registrar-admin">Registrar Admin</Link>}
-                <Link to="/registrar-docente">Registrar Docente</Link>
-                <Link to="/registrar-apoderado">Registrar Apoderado</Link>
+                {esSuperAdmin && <Link to="/gestion-roles">Gestión de Roles</Link>}
+
+                <div>
+                  <button
+                    onClick={() => setRegistrarAbierto(!registrarAbierto)}
+                    style={{
+                      width: "100%",
+                      background: "none",
+                      border: "none",
+                      color: "white",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      fontWeight: 500,
+                      fontSize: "inherit",
+                      textAlign: "left",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      transition: "0.2s",
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#1e293b"}
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}
+                  >
+                    Registrar Usuario
+                    <span style={{ fontSize: "0.75rem", transition: "transform 0.2s", display: "inline-block", transform: registrarAbierto ? "rotate(180deg)" : "rotate(0deg)" }}>▾</span>
+                  </button>
+
+                  {registrarAbierto && (
+                    <div style={{ display: "flex", flexDirection: "column", paddingLeft: "12px", borderLeft: "2px solid #2563eb", marginLeft: "12px" }}>
+                      {esSuperAdmin && <Link to="/registrar-admin">Registrar Admin</Link>}
+                      <Link to="/registrar-docente">Registrar Docente</Link>
+                      <Link to="/registrar-apoderado">Registrar Apoderado</Link>
+                      <Link to="/registrar-estudiante">Registrar Estudiante</Link>
+                    </div>
+                  )}
+                </div>
+
                 <Link to="/apoderados">Gestión de Apoderados</Link>
-                <Link to="/registrar-estudiante">Registrar Estudiante</Link>
+                <Link to="/plan-educativo">Plan Educativo</Link>
                 <Link to="/cursos">Cursos</Link>
                 <Link to="/horarios">Horarios</Link>
                 <Link to="/bloques">Bloques Horarios</Link>
@@ -81,6 +117,7 @@ function MainLayout() {
             {esDocente && (
               <>
                 <span className="menu-section">Docente</span>
+                <Link to="/plan-educativo">Plan Educativo</Link>
                 <Link to="/cursos">Mis Cursos</Link>
                 <Link to="/horarios">Mi Horario</Link>
                 <Link to="/citaciones">Citaciones</Link>
