@@ -37,6 +37,7 @@ import Cursos from "../pages/academic/Cursos";
 import Horarios from "../pages/academic/Horarios";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import PlanEducativo from "../pages/academic/PlanEducativo";
+import Asignaturas from "../pages/academic/Asignaturas";
 
 /* COMMUNICATION */
 
@@ -181,6 +182,15 @@ function AppRouter() {
           />
 
           {/* ACADEMIC */}
+
+          <Route
+            path="/asignaturas"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Asignaturas />
+              </RoleRoute>
+            }
+          />
 
           <Route
             path="/cursos"

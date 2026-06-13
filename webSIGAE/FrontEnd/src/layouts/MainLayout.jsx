@@ -107,6 +107,7 @@ function MainLayout() {
 
                 <Link to="/apoderados">Gestión de Apoderados</Link>
                 <Link to="/plan-educativo">Plan Educativo</Link>
+                <Link to="/asignaturas">Asignaturas</Link>
                 <Link to="/cursos">Cursos</Link>
                 <Link to="/horarios">Horarios</Link>
                 <Link to="/bloques">Bloques Horarios</Link>
