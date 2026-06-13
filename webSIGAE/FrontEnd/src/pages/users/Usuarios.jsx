@@ -14,7 +14,8 @@ function Usuarios() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("Todos");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
-  const [modalConfirm, setModalConfirm]   = useState(null); // usuario a desactivar/reactivar
+  const [modalConfirm, setModalConfirm]   = useState(null);
+  // { usuario, conEleccion: bool, accion: 'cuenta'|'rol', rolAQuitar: string|null, rolesActivos: string[] }
   const [loadingToggle, setLoadingToggle] = useState(false);
   // Modal roles
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
@@ -43,20 +44,52 @@ function Usuarios() {
   };
 
 const abrirConfirmToggle = (u) => {
-  setModalConfirm(u);
+  const rolesActivos = [
+    u.Es_Administrador && "Administrador",
+    u.Es_Docente       && "Docente",
+    u.Es_Apoderado     && "Apoderado",
+  ].filter(Boolean);
+
+  // Mostrar elección solo al desactivar (no al reactivar) cuando hay 2+ roles
+  const conEleccion = !!u.Usuario_Estado_Cuenta && rolesActivos.length > 1;
+
+  setModalConfirm({
+    usuario: u,
+    conEleccion,
+    accion: "cuenta",
+    rolAQuitar: rolesActivos[0] ?? null,
+    rolesActivos,
+  });
 };
 
-const confirmarToggle = async () => {
+const confirmarAccion = async () => {
   if (!modalConfirm) return;
+  const { usuario: u, accion, rolAQuitar } = modalConfirm;
   setLoadingToggle(true);
   try {
-    const res = await apiFetch(`/api/usuarios/${modalConfirm.Usuario_Id}/estado`, { method: "PUT" });
-    if (!res) return;
-    const data = await res.json();
-    if (!res.ok) {
-      alert(data.mensaje || "Error al cambiar estado");
+    if (accion === "cuenta") {
+      const res = await apiFetch(`/api/usuarios/${u.Usuario_Id}/estado`, { method: "PUT" });
+      if (!res) return;
+      const data = await res.json();
+      if (!res.ok) alert(data.mensaje || "Error al cambiar estado");
+      else cargarUsuarios();
     } else {
-      cargarUsuarios();
+      // Quitar un rol específico
+      const body = {
+        Es_Administrador: rolAQuitar === "Administrador" ? 0 : (u.Es_Administrador ? 1 : 0),
+        Es_Docente:       rolAQuitar === "Docente"       ? 0 : (u.Es_Docente       ? 1 : 0),
+        Es_Apoderado:     rolAQuitar === "Apoderado"     ? 0 : (u.Es_Apoderado     ? 1 : 0),
+        Administrador_Tipo: rolAQuitar === "Administrador" ? null : (u.Administrador_Tipo || null),
+      };
+      const res = await apiFetch(`/api/usuarios/${u.Usuario_Id}/roles`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res) return;
+      const data = await res.json();
+      if (!res.ok) alert(data.mensaje || "Error al quitar rol");
+      else cargarUsuarios();
     }
   } catch (error) {
     console.error(error);
@@ -322,57 +355,125 @@ const confirmarToggle = async () => {
           </div>
         </div>
       )}
-      {/* Modal confirmación desactivar/reactivar — CU 22/23/24/25 */}
-{modalConfirm && (
-  <div style={{
-    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001,
-  }}>
-    <div className="form-card" style={{ width: "420px", maxWidth: "95vw" }}>
-      <h2 style={{ marginBottom: "8px" }}>
-        {modalConfirm.Usuario_Estado_Cuenta ? "Desactivar cuenta" : "Reactivar cuenta"}
-      </h2>
-      <p style={{ color: "#64748b", marginBottom: "16px" }}>
-        <strong>{modalConfirm.Usuario_Nombre_Completo}</strong>
-      </p>
+      {/* Modal confirmación desactivar/reactivar / quitar rol — CU 22/23/24/25 */}
+{modalConfirm && (() => {
+  const { usuario: u, conEleccion, accion, rolAQuitar, rolesActivos } = modalConfirm;
+  const desactivando = !!u.Usuario_Estado_Cuenta;
 
-      {modalConfirm.Usuario_Estado_Cuenta ? (
-        <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
-          <li>El acceso del usuario quedará restringido.</li>
-          <li>Todas sus sesiones activas serán invalidadas.</li>
-          <li>La información histórica se conservará.</li>
-        </ul>
-      ) : (
-        <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
-          <li>El usuario podrá volver a iniciar sesión.</li>
-          <li>Sus permisos serán restaurados según su rol.</li>
-          <li>Las sesiones anteriores NO se restauran automáticamente.</li>
-        </ul>
-      )}
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001,
+    }}>
+      <div className="form-card" style={{ width: "460px", maxWidth: "95vw" }}>
 
-<div style={{ display: "flex", gap: "10px" }}>
-  <button
-    className={modalConfirm.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
-    onClick={confirmarToggle}
-    disabled={loadingToggle}
-  >
-    {loadingToggle
-      ? "Procesando..."
-      : modalConfirm.Usuario_Estado_Cuenta
-        ? "Confirmar desactivación"
-        : "Confirmar reactivación"}
-  </button>
-  <button
-    className="btn-roles"
-    onClick={() => setModalConfirm(null)}
-    disabled={loadingToggle}
-  >
-    Cancelar
-  </button>
-</div>
+        <h2 style={{ marginBottom: "8px" }}>
+          {desactivando ? "Gestionar cuenta" : "Reactivar cuenta"}
+        </h2>
+        <p style={{ color: "#64748b", marginBottom: "16px" }}>
+          <strong>{u.Usuario_Nombre_Completo}</strong>
+        </p>
+
+        {/* Selector de acción — solo para multi-rol al desactivar */}
+        {conEleccion && (
+          <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="accion-modal"
+                checked={accion === "cuenta"}
+                onChange={() => setModalConfirm({ ...modalConfirm, accion: "cuenta" })}
+                style={{ marginTop: "3px" }}
+              />
+              <span>
+                <strong>Desactivar cuenta completa</strong>
+                <br />
+                <small style={{ color: "#64748b" }}>
+                  Suspende todos los accesos del usuario. Sus sesiones activas serán invalidadas.
+                </small>
+              </span>
+            </label>
+
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="accion-modal"
+                checked={accion === "rol"}
+                onChange={() => setModalConfirm({ ...modalConfirm, accion: "rol" })}
+                style={{ marginTop: "3px" }}
+              />
+              <span>
+                <strong>Quitar un rol específico</strong>
+                <br />
+                <small style={{ color: "#64748b" }}>
+                  La cuenta permanece activa pero sin el rol seleccionado.
+                </small>
+              </span>
+            </label>
+
+            {accion === "rol" && (
+              <div style={{ marginLeft: "26px" }}>
+                <label style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "4px", display: "block" }}>
+                  Rol a quitar:
+                </label>
+                <select
+                  value={rolAQuitar}
+                  onChange={(e) => setModalConfirm({ ...modalConfirm, rolAQuitar: e.target.value })}
+                  style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", width: "100%" }}
+                >
+                  {rolesActivos.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Consecuencias — sin elección (caso simple) */}
+        {!conEleccion && (
+          desactivando ? (
+            <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+              <li>El acceso del usuario quedará restringido.</li>
+              <li>Todas sus sesiones activas serán invalidadas.</li>
+              <li>La información histórica se conservará.</li>
+            </ul>
+          ) : (
+            <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+              <li>El usuario podrá volver a iniciar sesión.</li>
+              <li>Sus permisos serán restaurados según su rol.</li>
+              <li>Las sesiones anteriores NO se restauran automáticamente.</li>
+            </ul>
+          )
+        )}
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            className={desactivando ? "btn-desactivar" : "btn-reactivar"}
+            onClick={confirmarAccion}
+            disabled={loadingToggle}
+          >
+            {loadingToggle
+              ? "Procesando..."
+              : accion === "rol"
+                ? `Quitar rol ${rolAQuitar}`
+                : desactivando
+                  ? "Confirmar desactivación"
+                  : "Confirmar reactivación"}
+          </button>
+          <button
+            className="btn-roles"
+            onClick={() => setModalConfirm(null)}
+            disabled={loadingToggle}
+          >
+            Cancelar
+          </button>
+        </div>
+
       </div>
     </div>
-)}
+  );
+})()}
     </div>
   );
 }
