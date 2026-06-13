@@ -102,7 +102,8 @@ const getAsignaturas = async (req, res) => {
 const getDocentes = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT Usuario_Id, Usuario_Nombre_Completo, Docente_Especialidad
+      `SELECT Usuario_Id, Usuario_Nombre_Completo, Docente_Especialidad,
+              Docente_Carga_Horaria_Maxima
        FROM usuario
        WHERE Es_Docente = 1 AND Usuario_Estado_Cuenta = 1
        ORDER BY Usuario_Nombre_Completo`
@@ -110,6 +111,98 @@ const getDocentes = async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error('Error en getDocentes:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── GET /api/horarios/docentes-disponibles  ── CU 56
+// Devuelve todos los docentes activos enriquecidos con:
+//   conflicto_horario, excede_carga, carga_actual, carga_nueva, disponible
+// El frontend calcula coincide_especialidad comparando el texto.
+const getDocentesDisponibles = async (req, res) => {
+  const { asignatura_id, bloque_id, dia, horario_id } = req.query;
+
+  if (!bloque_id || !dia) {
+    return res.status(400).json({ error: 'bloque_id y dia son obligatorios' });
+  }
+
+  try {
+    const [docentes] = await pool.execute(
+      `SELECT Usuario_Id, Usuario_Nombre_Completo, Docente_Especialidad,
+              Docente_Carga_Horaria_Maxima
+       FROM usuario
+       WHERE Es_Docente = 1 AND Usuario_Estado_Cuenta = 1
+       ORDER BY Usuario_Nombre_Completo`
+    );
+
+    if (docentes.length === 0) return res.json([]);
+
+    // Duración del bloque nuevo (en horas)
+    const [bloqueInfo] = await pool.execute(
+      `SELECT TIME_TO_SEC(TIMEDIFF(Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio)) / 3600
+         AS duracion_horas
+       FROM bloque_horario WHERE Bloque_Horario_Id = ?`,
+      [bloque_id]
+    );
+    const duracionNueva = bloqueInfo.length > 0 ? Number(bloqueInfo[0].duracion_horas) : 0;
+
+    const userIds    = docentes.map(d => d.Usuario_Id);
+    const phList     = userIds.map(() => '?').join(',');
+    const excludeId  = horario_id ? parseInt(horario_id, 10) : null;
+
+    // Docentes con conflicto en ese día+bloque
+    let conflictoQuery =
+      `SELECT DISTINCT ha.Usuario_Id
+       FROM horario_asignatura ha
+       WHERE ha.Usuario_Id IN (${phList})
+         AND ha.Bloque_Horario_Id = ?
+         AND ha.Horario_Asignatura_Dia_Semana = ?
+         AND ha.Horario_Asignatura_Estado = 'Activo'`;
+    const conflictoParams = [...userIds, bloque_id, dia];
+    if (excludeId) { conflictoQuery += ' AND ha.Horario_Asignatura_Id != ?'; conflictoParams.push(excludeId); }
+
+    const [conflictos] = await pool.execute(conflictoQuery, conflictoParams);
+    const conflictoSet = new Set(conflictos.map(c => c.Usuario_Id));
+
+    // Carga horaria semanal actual de cada docente
+    let cargaQuery =
+      `SELECT ha.Usuario_Id,
+              COALESCE(SUM(
+                TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+              ), 0) AS horas_actuales
+       FROM horario_asignatura ha
+       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+       WHERE ha.Usuario_Id IN (${phList})
+         AND ha.Horario_Asignatura_Estado = 'Activo'`;
+    const cargaParams = [...userIds];
+    if (excludeId) { cargaQuery += ' AND ha.Horario_Asignatura_Id != ?'; cargaParams.push(excludeId); }
+    cargaQuery += ' GROUP BY ha.Usuario_Id';
+
+    const [cargas] = await pool.execute(cargaQuery, cargaParams);
+    const cargaMap = Object.fromEntries(cargas.map(c => [c.Usuario_Id, Number(c.horas_actuales)]));
+
+    const resultado = docentes.map(d => {
+      const cargaActual   = Math.round((cargaMap[d.Usuario_Id] || 0) * 100) / 100;
+      const cargaMaxima   = d.Docente_Carga_Horaria_Maxima ?? null;
+      const conflicto     = conflictoSet.has(d.Usuario_Id);
+      const excedeCarga   = cargaMaxima !== null && (cargaActual + duracionNueva) > cargaMaxima;
+
+      return {
+        Usuario_Id:              d.Usuario_Id,
+        Usuario_Nombre_Completo: d.Usuario_Nombre_Completo,
+        Docente_Especialidad:    d.Docente_Especialidad,
+        Docente_Carga_Horaria_Maxima: cargaMaxima,
+        carga_actual:   cargaActual,
+        carga_nueva:    Math.round((cargaActual + duracionNueva) * 100) / 100,
+        conflicto_horario: conflicto,
+        excede_carga:      excedeCarga,
+        disponible:        !conflicto && !excedeCarga,
+      };
+    });
+
+    res.json(resultado);
+  } catch (error) {
+    console.error('Error en getDocentesDisponibles:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -149,6 +242,37 @@ const createHorario = async (req, res) => {
       );
       if (conflicto.length > 0) {
         return res.status(409).json({ error: 'El docente ya tiene una clase asignada en ese día y bloque horario' });
+      }
+
+      // Verificar carga horaria máxima
+      const [[docente]] = await pool.execute(
+        'SELECT Docente_Carga_Horaria_Maxima FROM usuario WHERE Usuario_Id = ? AND Es_Docente = 1',
+        [Usuario_Id]
+      );
+      if (docente?.Docente_Carga_Horaria_Maxima != null) {
+        const [[bloqueDur]] = await pool.execute(
+          `SELECT TIME_TO_SEC(TIMEDIFF(Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio)) / 3600
+             AS duracion FROM bloque_horario WHERE Bloque_Horario_Id = ?`,
+          [Bloque_Horario_Id]
+        );
+        const [[cargaRow]] = await pool.execute(
+          `SELECT COALESCE(SUM(
+             TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+           ), 0) AS horas_actuales
+           FROM horario_asignatura ha
+           JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+           WHERE ha.Usuario_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'`,
+          [Usuario_Id]
+        );
+        const horasActuales = Number(cargaRow.horas_actuales);
+        const duracion      = Number(bloqueDur?.duracion || 0);
+        const maxHoras      = Number(docente.Docente_Carga_Horaria_Maxima);
+        if ((horasActuales + duracion) > maxHoras) {
+          return res.status(422).json({
+            error: `El docente excedería su carga horaria máxima de ${maxHoras}h semanales `
+                 + `(actual: ${horasActuales.toFixed(1)}h, este bloque añade: ${duracion.toFixed(1)}h)`,
+          });
+        }
       }
     }
 
@@ -217,6 +341,38 @@ const updateHorario = async (req, res) => {
       if (conflictoDocente.length > 0) {
         return res.status(409).json({ error: 'El docente ya tiene una clase asignada en ese día y bloque horario' });
       }
+
+      // Verificar carga horaria máxima (excluyendo el registro editado)
+      const [[docente]] = await pool.execute(
+        'SELECT Docente_Carga_Horaria_Maxima FROM usuario WHERE Usuario_Id = ? AND Es_Docente = 1',
+        [Usuario_Id]
+      );
+      if (docente?.Docente_Carga_Horaria_Maxima != null) {
+        const [[bloqueDur]] = await pool.execute(
+          `SELECT TIME_TO_SEC(TIMEDIFF(Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio)) / 3600
+             AS duracion FROM bloque_horario WHERE Bloque_Horario_Id = ?`,
+          [Bloque_Horario_Id]
+        );
+        const [[cargaRow]] = await pool.execute(
+          `SELECT COALESCE(SUM(
+             TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+           ), 0) AS horas_actuales
+           FROM horario_asignatura ha
+           JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+           WHERE ha.Usuario_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'
+             AND ha.Horario_Asignatura_Id != ?`,
+          [Usuario_Id, id]
+        );
+        const horasActuales = Number(cargaRow.horas_actuales);
+        const duracion      = Number(bloqueDur?.duracion || 0);
+        const maxHoras      = Number(docente.Docente_Carga_Horaria_Maxima);
+        if ((horasActuales + duracion) > maxHoras) {
+          return res.status(422).json({
+            error: `El docente excedería su carga horaria máxima de ${maxHoras}h semanales `
+                 + `(actual: ${horasActuales.toFixed(1)}h, este bloque añade: ${duracion.toFixed(1)}h)`,
+          });
+        }
+      }
     }
 
     await pool.execute(
@@ -277,4 +433,8 @@ const cambiarEstado = async (req, res) => {
   }
 };
 
-module.exports = { getHorarios, getCursos, getBloques, getAsignaturas, getDocentes, createHorario, updateHorario, cambiarEstado };
+module.exports = {
+  getHorarios, getCursos, getBloques, getAsignaturas,
+  getDocentes, getDocentesDisponibles,
+  createHorario, updateHorario, cambiarEstado,
+};
