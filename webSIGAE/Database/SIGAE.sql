@@ -57,6 +57,7 @@ DROP TABLE IF EXISTS `asignatura`;
 CREATE TABLE `asignatura` (
   `Asignatura_Id` int unsigned NOT NULL AUTO_INCREMENT,
   `Asignatura_Nombre` varchar(100) NOT NULL,
+  `Asignatura_Descripcion` text DEFAULT NULL,
   `Asignatura_Prioridad_Academica` varchar(50) NOT NULL,
   PRIMARY KEY (`Asignatura_Id`),
   UNIQUE KEY `Asignatura_Nombre_UNIQUE` (`Asignatura_Nombre`)

@@ -288,6 +288,13 @@ const updateRoles = async (req, res) => {
         Administrador_Tipo
     } = req.body;
 
+    // Exclusividad: Admin/SuperAdmin no puede coexistir con Docente o Apoderado
+    if (Es_Administrador && (Es_Docente || Es_Apoderado)) {
+        return res.status(400).json({
+            mensaje: 'Un usuario con rol Administrador no puede tener otros roles simultáneamente'
+        });
+    }
+
     try {
 
         const [usuario] = await db.query(
@@ -422,6 +429,16 @@ const asignarRol = async (req, res) => {
       return res.status(403).json({ mensaje: 'Solo un Super Administrador puede asignar el rol Administrador' });
     }
 
+    // Exclusividad de roles: Admin no puede convivir con Docente/Apoderado
+    if ((rol === 'Docente' || rol === 'Apoderado') && usuario.Es_Administrador) {
+      return res.status(400).json({
+        mensaje: 'Un usuario Administrador no puede recibir otros roles. Desactiva primero el rol de Administrador desde Gestión de Roles.'
+      });
+    }
+    // Al asignar Admin a un usuario con roles Docente/Apoderado, solo Super Admin puede hacerlo
+    // y se eliminarán esos roles automáticamente (conversión)
+    const convirtiendo = rol === 'Administrador' && (usuario.Es_Docente || usuario.Es_Apoderado);
+
     // Validar datos específicos según rol
     if (rol === 'Docente') {
       if (!datosFila.Docente_Correo_Institucional)
@@ -488,6 +505,10 @@ const asignarRol = async (req, res) => {
         'Administrador_Tipo = ?',
         'Administrador_Correo_Institucional = ?'
       );
+      // Si el usuario tenía roles Docente/Apoderado, se eliminan (conversión exclusiva)
+      if (convirtiendo) {
+        setCampos.push('Es_Docente = 0', 'Es_Apoderado = 0');
+      }
       setValores.push(
         datosFila.Administrador_Tipo || 'Administrador Normal',
         datosFila.Administrador_Correo_Institucional
@@ -510,7 +531,10 @@ const asignarRol = async (req, res) => {
 
     const [actualizado] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
     const { Usuario_Contraseña: pwd, ...usuarioSinPwd } = actualizado[0];
-    res.json({ mensaje: `Rol ${rol} asignado correctamente`, usuario: usuarioSinPwd });
+    const mensajeRespuesta = convirtiendo
+      ? `Rol ${rol} asignado. Los roles anteriores fueron eliminados por exclusividad.`
+      : `Rol ${rol} asignado correctamente`;
+    res.json({ mensaje: mensajeRespuesta, usuario: usuarioSinPwd });
 
   } catch (error) {
     console.error(error);

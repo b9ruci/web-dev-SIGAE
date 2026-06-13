@@ -72,7 +72,6 @@ export default function Horarios() {
   const [cursos, setCursos] = useState([]);
   const [bloques, setBloques] = useState([]);
   const [asignaturas, setAsignaturas] = useState([]);
-  const [docentes, setDocentes] = useState([]);
 
   /* ── Estado de la vista ────────────────────────────────────── */
   const [cursoSeleccionado, setCursoSeleccionado] = useState("");
@@ -99,27 +98,20 @@ export default function Horarios() {
     if (esApoderado) return;
     const cargar = async () => {
       try {
-        const promises = [
-          fetch(`${API}/horarios/cursos`, { headers: authHeaders() }),
-          fetch(`${API}/horarios/bloques`, { headers: authHeaders() }),
+        const [rC, rB, rA] = await Promise.all([
+          fetch(`${API}/horarios/cursos`,      { headers: authHeaders() }),
+          fetch(`${API}/horarios/bloques`,     { headers: authHeaders() }),
           fetch(`${API}/horarios/asignaturas`, { headers: authHeaders() }),
-        ];
-        if (esAdmin) {
-          promises.push(
-            fetch(`${API}/horarios/docentes`, { headers: authHeaders() })
-          );
-        }
-        const [rC, rB, rA, rD] = await Promise.all(promises);
+        ]);
         setCursos(await rC.json());
         setBloques(await rB.json());
         setAsignaturas(await rA.json());
-        if (rD) setDocentes(await rD.json());
       } catch {
         setError("Error al cargar datos de configuración.");
       }
     };
     cargar();
-  }, [esAdmin, esApoderado]);
+  }, [esApoderado]);
 
   /* ── Carga de horarios ─────────────────────────────────────── */
   const cargarHorarios = useCallback(async (cursoId) => {
@@ -549,10 +541,10 @@ export default function Horarios() {
       {esAdmin && modalAbierto && (
         <ModalForm
           modoEdicion={modoEdicion}
+          idEditando={idEditando}
           form={form}
           bloques={bloques}
           asignaturas={asignaturas}
-          docentes={docentes}
           cursos={cursos}
           cursoSeleccionado={cursoSeleccionado}
           guardando={guardando}
@@ -651,10 +643,59 @@ function PermisosLeyenda({ esAdmin, esDocente }) {
 }
 
 function ModalForm({
-  modoEdicion, form, bloques, asignaturas, docentes, cursos,
+  modoEdicion, idEditando, form, bloques, asignaturas, cursos,
   cursoSeleccionado, guardando, errorModal,
   onChange, onSubmit, onClose,
 }) {
+  const [docentesInfo, setDocentesInfo]     = useState([]);
+  const [cargandoDoc, setCargandoDoc]       = useState(false);
+
+  const { Asignatura_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana, Usuario_Id } = form;
+  const camposListos = Asignatura_Id && Bloque_Horario_Id && Horario_Asignatura_Dia_Semana;
+
+  /* Carga enriched docentes cada vez que cambian los tres campos clave */
+  useEffect(() => {
+    if (!camposListos) { setDocentesInfo([]); return; }
+
+    setCargandoDoc(true);
+    const params = new URLSearchParams({
+      asignatura_id: Asignatura_Id,
+      bloque_id:     Bloque_Horario_Id,
+      dia:           Horario_Asignatura_Dia_Semana,
+    });
+    if (modoEdicion && idEditando) params.append('horario_id', idEditando);
+
+    fetch(`/api/horarios/docentes-disponibles?${params}`, { headers: authHeaders() })
+      .then(r => r.json())
+      .then(data => {
+        const asig     = asignaturas.find(a => a.Asignatura_Id === Number(Asignatura_Id));
+        const asigLow  = (asig?.Asignatura_Nombre || '').toLowerCase();
+
+        const enriched = data.map(d => {
+          const espLow   = (d.Docente_Especialidad || '').toLowerCase();
+          const coincide = espLow.length > 0 &&
+            (asigLow.includes(espLow) || espLow.includes(asigLow));
+          return { ...d, coincide_especialidad: coincide };
+        });
+
+        /* Orden: sugeridos → disponibles → no disponibles */
+        enriched.sort((a, b) => {
+          const sA = (a.disponible ? 10 : 0) + (a.coincide_especialidad ? 5 : 0);
+          const sB = (b.disponible ? 10 : 0) + (b.coincide_especialidad ? 5 : 0);
+          return sB - sA || a.Usuario_Nombre_Completo.localeCompare(b.Usuario_Nombre_Completo);
+        });
+        setDocentesInfo(enriched);
+      })
+      .catch(() => setDocentesInfo([]))
+      .finally(() => setCargandoDoc(false));
+  }, [Asignatura_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana, modoEdicion, idEditando]);
+
+  const docSel       = docentesInfo.find(d => d.Usuario_Id === Number(Usuario_Id));
+  const sugeridos    = docentesInfo.filter(d => d.disponible && d.coincide_especialidad);
+  const disponibles  = docentesInfo.filter(d => d.disponible && !d.coincide_especialidad);
+  const noDisp       = docentesInfo.filter(d => !d.disponible);
+  const nDisp        = docentesInfo.filter(d => d.disponible).length;
+
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -664,96 +705,133 @@ function ModalForm({
 
         <form onSubmit={onSubmit}>
           <label style={styles.labelModal}>Día *</label>
-          <select
-            name="Horario_Asignatura_Dia_Semana"
-            value={form.Horario_Asignatura_Dia_Semana}
-            onChange={onChange}
-            style={styles.inputModal}
-            required
-          >
+          <select name="Horario_Asignatura_Dia_Semana" value={form.Horario_Asignatura_Dia_Semana}
+            onChange={onChange} style={styles.inputModal} required>
             <option value="">— Selecciona —</option>
-            {["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"].map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
+            {["Lunes","Martes","Miércoles","Jueves","Viernes"].map(d =>
+              <option key={d} value={d}>{d}</option>)}
           </select>
 
           <label style={styles.labelModal}>Bloque horario *</label>
-          <select
-            name="Bloque_Horario_Id"
-            value={form.Bloque_Horario_Id}
-            onChange={onChange}
-            style={styles.inputModal}
-            required
-          >
+          <select name="Bloque_Horario_Id" value={form.Bloque_Horario_Id}
+            onChange={onChange} style={styles.inputModal} required>
             <option value="">— Selecciona —</option>
-            {bloques.map((b) => (
+            {bloques.map(b => (
               <option key={b.Bloque_Horario_Id} value={b.Bloque_Horario_Id}>
-                {b.Bloque_Horario_Hora_Inicio?.slice(0, 5)} –{" "}
-                {b.Bloque_Horario_Hora_Fin?.slice(0, 5)} ({b.Bloque_Horario_Jornada})
+                {b.Bloque_Horario_Hora_Inicio?.slice(0,5)} – {b.Bloque_Horario_Hora_Fin?.slice(0,5)} ({b.Bloque_Horario_Jornada})
               </option>
             ))}
           </select>
 
           <label style={styles.labelModal}>Asignatura *</label>
-          <select
-            name="Asignatura_Id"
-            value={form.Asignatura_Id}
-            onChange={onChange}
-            style={styles.inputModal}
-            required
-          >
+          <select name="Asignatura_Id" value={form.Asignatura_Id}
+            onChange={onChange} style={styles.inputModal} required>
             <option value="">— Selecciona —</option>
-            {asignaturas.map((a) => (
-              <option key={a.Asignatura_Id} value={a.Asignatura_Id}>
-                {a.Asignatura_Nombre}
-              </option>
-            ))}
+            {asignaturas.map(a =>
+              <option key={a.Asignatura_Id} value={a.Asignatura_Id}>{a.Asignatura_Nombre}</option>)}
           </select>
 
-          <label style={styles.labelModal}>Docente (CU57)</label>
-          <select
-            name="Usuario_Id"
-            value={form.Usuario_Id}
-            onChange={onChange}
-            style={styles.inputModal}
-          >
+          {/* ── Selector inteligente de docente ── */}
+          <label style={styles.labelModal}>
+            Docente
+            {camposListos && (
+              <span style={{ marginLeft: 6, fontSize: "0.78rem", fontWeight: 400, color: "#64748b" }}>
+                {cargandoDoc
+                  ? "(cargando…)"
+                  : `(${nDisp} disponible${nDisp !== 1 ? "s" : ""})`}
+              </span>
+            )}
+          </label>
+
+          {!camposListos && (
+            <p style={{ fontSize: "0.82rem", color: "#94a3b8", margin: "0 0 0.5rem", fontStyle: "italic" }}>
+              Selecciona día, bloque y asignatura para ver docentes disponibles.
+            </p>
+          )}
+
+          <select name="Usuario_Id" value={form.Usuario_Id}
+            onChange={onChange} style={styles.inputModal} disabled={cargandoDoc}>
             <option value="">— Sin asignar —</option>
-            {docentes.map((d) => (
-              <option key={d.Usuario_Id} value={d.Usuario_Id}>
-                {d.Usuario_Nombre_Completo}
-                {d.Docente_Especialidad ? ` — ${d.Docente_Especialidad}` : ""}
-              </option>
-            ))}
+            {camposListos && docentesInfo.length > 0 ? (
+              <>
+                {sugeridos.length > 0 && (
+                  <optgroup label="⭐ Recomendados — especialidad coincide">
+                    {sugeridos.map(d => (
+                      <option key={d.Usuario_Id} value={d.Usuario_Id}>
+                        {d.Usuario_Nombre_Completo} — {d.Docente_Especialidad}
+                        {d.Docente_Carga_Horaria_Maxima != null
+                          ? ` (${d.carga_actual}h / ${d.Docente_Carga_Horaria_Maxima}h)`
+                          : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {disponibles.length > 0 && (
+                  <optgroup label="✓ Disponibles">
+                    {disponibles.map(d => (
+                      <option key={d.Usuario_Id} value={d.Usuario_Id}>
+                        {d.Usuario_Nombre_Completo}
+                        {d.Docente_Especialidad ? ` — ${d.Docente_Especialidad}` : ""}
+                        {d.Docente_Carga_Horaria_Maxima != null
+                          ? ` (${d.carga_actual}h / ${d.Docente_Carga_Horaria_Maxima}h)`
+                          : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {noDisp.length > 0 && (
+                  <optgroup label="✗ No disponibles">
+                    {noDisp.map(d => (
+                      <option key={d.Usuario_Id} value={d.Usuario_Id} disabled>
+                        {d.Usuario_Nombre_Completo} —{" "}
+                        {d.conflicto_horario
+                          ? "conflicto de horario"
+                          : `carga máxima (${d.carga_actual}h / ${d.Docente_Carga_Horaria_Maxima}h)`}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </>
+            ) : null}
           </select>
+
+          {/* Info contextual del docente seleccionado */}
+          {docSel && (
+            <div style={{
+              marginTop: "0.4rem", padding: "0.5rem 0.75rem", borderRadius: "6px",
+              fontSize: "0.82rem",
+              background: docSel.coincide_especialidad ? "#f0fdf4" : "#fffbeb",
+              border: `1px solid ${docSel.coincide_especialidad ? "#bbf7d0" : "#fde68a"}`,
+              color:  docSel.coincide_especialidad ? "#15803d" : "#92400e",
+            }}>
+              {docSel.coincide_especialidad
+                ? `✓ Especialidad "${docSel.Docente_Especialidad}" coincide con la asignatura.`
+                : docSel.Docente_Especialidad
+                  ? `⚠ Especialidad "${docSel.Docente_Especialidad}" no coincide con la asignatura seleccionada.`
+                  : "ℹ El docente no tiene especialidad registrada."}
+              {docSel.Docente_Carga_Horaria_Maxima != null && (
+                <span style={{ marginLeft: 8, color: "#64748b" }}>
+                  Carga: {docSel.carga_nueva}h / {docSel.Docente_Carga_Horaria_Maxima}h semana.
+                </span>
+              )}
+            </div>
+          )}
 
           {!cursoSeleccionado && (
             <>
               <label style={styles.labelModal}>Curso *</label>
-              <select
-                name="Curso_Id"
-                value={form.Curso_Id}
-                onChange={onChange}
-                style={styles.inputModal}
-                required
-              >
+              <select name="Curso_Id" value={form.Curso_Id}
+                onChange={onChange} style={styles.inputModal} required>
                 <option value="">— Selecciona —</option>
-                {cursos.map((c) => (
-                  <option key={c.Curso_Id} value={c.Curso_Id}>
-                    {c.Curso_Nombre}
-                  </option>
-                ))}
+                {cursos.map(c =>
+                  <option key={c.Curso_Id} value={c.Curso_Id}>{c.Curso_Nombre}</option>)}
               </select>
             </>
           )}
 
           <label style={styles.labelModal}>Estado *</label>
-          <select
-            name="Horario_Asignatura_Estado"
-            value={form.Horario_Asignatura_Estado}
-            onChange={onChange}
-            style={styles.inputModal}
-            required
-          >
+          <select name="Horario_Asignatura_Estado" value={form.Horario_Asignatura_Estado}
+            onChange={onChange} style={styles.inputModal} required>
             <option value="Activo">Activo</option>
             <option value="Suspendido">Suspendido</option>
           </select>
@@ -765,12 +843,7 @@ function ModalForm({
           )}
 
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem", justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={styles.btnCancelar}
-              disabled={guardando}
-            >
+            <button type="button" onClick={onClose} style={styles.btnCancelar} disabled={guardando}>
               Cancelar
             </button>
             <button type="submit" className="btn-primary" disabled={guardando}>

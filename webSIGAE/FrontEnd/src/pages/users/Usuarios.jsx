@@ -17,14 +17,6 @@ function Usuarios() {
   const [modalConfirm, setModalConfirm]   = useState(null);
   // { usuario, conEleccion: bool, accion: 'cuenta'|'rol', rolAQuitar: string|null, rolesActivos: string[] }
   const [loadingToggle, setLoadingToggle] = useState(false);
-  // Modal roles
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
-  const [roles, setRoles] = useState({
-    Es_Administrador: false,
-    Es_Docente: false,
-    Es_Apoderado: false,
-    Administrador_Tipo: "Administrador Normal",
-  });
 
   useEffect(() => {
     cargarUsuarios();
@@ -50,8 +42,8 @@ const abrirConfirmToggle = (u) => {
     u.Es_Apoderado     && "Apoderado",
   ].filter(Boolean);
 
-  // Mostrar elección solo al desactivar (no al reactivar) cuando hay 2+ roles
-  const conEleccion = !!u.Usuario_Estado_Cuenta && rolesActivos.length > 1;
+  // Al desactivar siempre mostrar elección: cuenta completa o solo un rol (CU 21/22)
+  const conEleccion = !!u.Usuario_Estado_Cuenta && rolesActivos.length >= 1;
 
   setModalConfirm({
     usuario: u,
@@ -98,39 +90,6 @@ const confirmarAccion = async () => {
     setModalConfirm(null);
   }
 };
-
-  const abrirRoles = (u) => {
-    setUsuarioSeleccionado(u);
-    setRoles({
-      Es_Administrador: !!u.Es_Administrador,
-      Es_Docente: !!u.Es_Docente,
-      Es_Apoderado: !!u.Es_Apoderado,
-      Administrador_Tipo: u.Administrador_Tipo || "Administrador Normal",
-    });
-  };
-
-  const guardarRoles = async () => {
-    try {
-      const body = {
-        Es_Administrador: roles.Es_Administrador ? 1 : 0,
-        Es_Docente: roles.Es_Docente ? 1 : 0,
-        Es_Apoderado: roles.Es_Apoderado ? 1 : 0,
-        Administrador_Tipo: roles.Es_Administrador ? roles.Administrador_Tipo : null,
-      };
-      const res = await apiFetch(`/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res) return;
-      if (res.ok) {
-        setUsuarioSeleccionado(null);
-        cargarUsuarios();
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
 
   const getCorreoPrincipal = (u) => {
     return u.Administrador_Correo_Institucional || u.Docente_Correo_Institucional || u.Apoderado_Correo_Natural || "—";
@@ -278,15 +237,7 @@ const confirmarAccion = async () => {
   >
     {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
   </button>
-)}                        
-                      {esSuperAdmin && (
-                        <button
-                          className="btn-roles"
-                          onClick={() => abrirRoles(u)}
-                        >
-                          Gestionar Roles
-                          </button>
-                      )}
+)}
                     </div>
                   </td>
                 </tr>
@@ -296,66 +247,7 @@ const confirmarAccion = async () => {
         </table>
       )}
 
-      {/* Modal gestión de roles */}
-      {usuarioSeleccionado && (
-        <div
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-          }}
-        >
-          <div className="form-card" style={{ width: "420px", maxWidth: "95vw" }}>
-            <h2 style={{ marginBottom: "20px" }}>
-              Gestionar Roles: {usuarioSeleccionado.Usuario_Nombre_Completo}
-            </h2>
-            <div className="roles-grid">
-              <div className="rol-item">
-                <input
-                  type="checkbox"
-                  id="chk-admin"
-                  checked={roles.Es_Administrador}
-                  onChange={(e) => setRoles({ ...roles, Es_Administrador: e.target.checked })}
-                />
-                <label htmlFor="chk-admin">Administrador</label>
-              </div>
-              {roles.Es_Administrador && (
-                <select
-                  className="rol-tipo-select"
-                  value={roles.Administrador_Tipo}
-                  onChange={(e) => setRoles({ ...roles, Administrador_Tipo: e.target.value })}
-                >
-                  <option value="Administrador Normal">Administrador Normal</option>
-                  <option value="Super Admin">Super Admin</option>
-                </select>
-              )}
-              <div className="rol-item">
-                <input
-                  type="checkbox"
-                  id="chk-docente"
-                  checked={roles.Es_Docente}
-                  onChange={(e) => setRoles({ ...roles, Es_Docente: e.target.checked })}
-                />
-                <label htmlFor="chk-docente">Docente</label>
-              </div>
-              <div className="rol-item">
-                <input
-                  type="checkbox"
-                  id="chk-apoderado"
-                  checked={roles.Es_Apoderado}
-                  onChange={(e) => setRoles({ ...roles, Es_Apoderado: e.target.checked })}
-                />
-                <label htmlFor="chk-apoderado">Apoderado</label>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button className="btn-primario" onClick={guardarRoles}>
-                Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Modal confirmación desactivar/reactivar / quitar rol — CU 22/23/24/25 */}
+      {/* Modal confirmación desactivar/reactivar / quitar rol — CU 21/22 */}
 {modalConfirm && (() => {
   const { usuario: u, conEleccion, accion, rolAQuitar, rolesActivos } = modalConfirm;
   const desactivando = !!u.Usuario_Estado_Cuenta;
@@ -412,19 +304,21 @@ const confirmarAccion = async () => {
             </label>
 
             {accion === "rol" && (
-              <div style={{ marginLeft: "26px" }}>
-                <label style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "4px", display: "block" }}>
-                  Rol a quitar:
-                </label>
-                <select
-                  value={rolAQuitar}
-                  onChange={(e) => setModalConfirm({ ...modalConfirm, rolAQuitar: e.target.value })}
-                  style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", width: "100%" }}
+              <div style={{
+                marginLeft: "26px", padding: "12px 14px",
+                background: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe",
+              }}>
+                <p style={{ margin: "0 0 10px", color: "#1d4ed8", fontSize: "0.88rem" }}>
+                  La gestión de roles individuales se realiza desde el módulo de{" "}
+                  <strong>Gestión de Roles</strong>.
+                </p>
+                <button
+                  className="btn-roles"
+                  style={{ fontSize: "0.85rem" }}
+                  onClick={() => { setModalConfirm(null); navigate("/gestion-roles"); }}
                 >
-                  {rolesActivos.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                  Ir a Gestión de Roles →
+                </button>
               </div>
             )}
           </div>
@@ -448,19 +342,19 @@ const confirmarAccion = async () => {
         )}
 
         <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            className={desactivando ? "btn-desactivar" : "btn-reactivar"}
-            onClick={confirmarAccion}
-            disabled={loadingToggle}
-          >
-            {loadingToggle
-              ? "Procesando..."
-              : accion === "rol"
-                ? `Quitar rol ${rolAQuitar}`
+          {accion !== "rol" && (
+            <button
+              className={desactivando ? "btn-desactivar" : "btn-reactivar"}
+              onClick={confirmarAccion}
+              disabled={loadingToggle}
+            >
+              {loadingToggle
+                ? "Procesando..."
                 : desactivando
                   ? "Confirmar desactivación"
                   : "Confirmar reactivación"}
-          </button>
+            </button>
+          )}
           <button
             className="btn-roles"
             onClick={() => setModalConfirm(null)}

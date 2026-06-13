@@ -313,7 +313,9 @@ const getNivelesSinPlan = async (req, res) => {
 const getAsignaturas = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT Asignatura_Id, Asignatura_Nombre, Asignatura_Prioridad_Academica FROM asignatura ORDER BY Asignatura_Nombre'
+      `SELECT Asignatura_Id, Asignatura_Nombre, Asignatura_Descripcion,
+              Asignatura_Prioridad_Academica
+       FROM asignatura ORDER BY Asignatura_Nombre`
     );
     res.json(rows);
   } catch (err) {
@@ -322,4 +324,96 @@ const getAsignaturas = async (req, res) => {
   }
 };
 
-module.exports = { getPlanes, getPlanById, crearPlan, clonarPlan, getNivelesSinPlan, getAsignaturas };
+// ── POST /api/planes/asignaturas  ── CU 47
+const crearAsignatura = async (req, res) => {
+  const { nombre, descripcion, prioridad } = req.body;
+
+  if (!nombre?.trim() || !prioridad) {
+    return res.status(400).json({ error: 'El nombre y la prioridad académica son obligatorios' });
+  }
+  if (!['Alta', 'Media', 'Baja'].includes(prioridad)) {
+    return res.status(400).json({ error: 'La prioridad debe ser Alta, Media o Baja' });
+  }
+
+  const nombreTrim = nombre.trim();
+
+  try {
+    const [dup] = await pool.execute(
+      'SELECT Asignatura_Id FROM asignatura WHERE LOWER(Asignatura_Nombre) = LOWER(?)',
+      [nombreTrim]
+    );
+    if (dup.length > 0) {
+      return res.status(409).json({ error: `Ya existe una asignatura con el nombre "${nombreTrim}"` });
+    }
+
+    const [result] = await pool.execute(
+      `INSERT INTO asignatura (Asignatura_Nombre, Asignatura_Descripcion, Asignatura_Prioridad_Academica)
+       VALUES (?, ?, ?)`,
+      [nombreTrim, descripcion?.trim() || null, prioridad]
+    );
+
+    res.status(201).json({
+      mensaje: `Asignatura "${nombreTrim}" registrada correctamente`,
+      asignatura_id: result.insertId,
+    });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: `Ya existe una asignatura con el nombre "${nombreTrim}"` });
+    }
+    console.error('crearAsignatura:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── PUT /api/planes/asignaturas/:id  ── CU 47
+const editarAsignatura = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, descripcion, prioridad } = req.body;
+
+  if (!nombre?.trim() || !prioridad) {
+    return res.status(400).json({ error: 'El nombre y la prioridad académica son obligatorios' });
+  }
+  if (!['Alta', 'Media', 'Baja'].includes(prioridad)) {
+    return res.status(400).json({ error: 'La prioridad debe ser Alta, Media o Baja' });
+  }
+
+  const nombreTrim = nombre.trim();
+
+  try {
+    const [asig] = await pool.execute(
+      'SELECT Asignatura_Id FROM asignatura WHERE Asignatura_Id = ?',
+      [id]
+    );
+    if (asig.length === 0) {
+      return res.status(404).json({ error: 'Asignatura no encontrada' });
+    }
+
+    const [dup] = await pool.execute(
+      'SELECT Asignatura_Id FROM asignatura WHERE LOWER(Asignatura_Nombre) = LOWER(?) AND Asignatura_Id != ?',
+      [nombreTrim, id]
+    );
+    if (dup.length > 0) {
+      return res.status(409).json({ error: `Ya existe una asignatura con el nombre "${nombreTrim}"` });
+    }
+
+    await pool.execute(
+      `UPDATE asignatura
+       SET Asignatura_Nombre = ?, Asignatura_Descripcion = ?, Asignatura_Prioridad_Academica = ?
+       WHERE Asignatura_Id = ?`,
+      [nombreTrim, descripcion?.trim() || null, prioridad, id]
+    );
+
+    res.json({ mensaje: `Asignatura "${nombreTrim}" actualizada correctamente` });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ error: `Ya existe una asignatura con el nombre "${nombreTrim}"` });
+    }
+    console.error('editarAsignatura:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+module.exports = {
+  getPlanes, getPlanById, crearPlan, clonarPlan, getNivelesSinPlan,
+  getAsignaturas, crearAsignatura, editarAsignatura,
+};
