@@ -8,7 +8,7 @@ function MainLayout() {
   const [mostrarModalLogout, setMostrarModalLogout] = useState(false);
 
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
   const esDocente = rolEfectivo === "Docente";
   const esApoderado = rolEfectivo === "Apoderado";
@@ -71,6 +71,8 @@ function MainLayout() {
                 <Link to="/registrar-apoderado">Registrar Apoderado</Link>
                 <Link to="/apoderados">Gestión de Apoderados</Link>
                 <Link to="/registrar-estudiante">Registrar Estudiante</Link>
+                {esSuperAdmin && <Link to="/gestion-roles">Gestión de Roles</Link>}
+                <Link to="/plan-educativo">Plan Educativo</Link>
                 <Link to="/cursos">Cursos</Link>
                 <Link to="/horarios">Horarios</Link>
                 <Link to="/bloques">Bloques Horarios</Link>
@@ -81,6 +83,7 @@ function MainLayout() {
             {esDocente && (
               <>
                 <span className="menu-section">Docente</span>
+                <Link to="/plan-educativo">Plan Educativo</Link>
                 <Link to="/cursos">Mis Cursos</Link>
                 <Link to="/horarios">Mi Horario</Link>
                 <Link to="/citaciones">Citaciones</Link>
