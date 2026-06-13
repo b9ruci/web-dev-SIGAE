@@ -387,7 +387,7 @@ function TabBloques() {
                 background: vista === "calendario" ? "#1e3a5f" : "#f9fafb",
                 color: vista === "calendario" ? "#fff" : "#6b7280",
                 fontSize: "0.82rem", fontWeight: 500 }}
-            >📅 Calendario</button>
+            >📅 Semana</button>
             <button
               onClick={() => setVista("lista")}
               style={{ padding: "0.35rem 0.75rem", border: "none", borderLeft: "1px solid #e5e7eb",
@@ -421,7 +421,7 @@ function TabBloques() {
           </div>
 
           {vista === "calendario" ? (
-            <VistaCalendario
+            <VistaCalendarioBloques
               bloques={bloques}
               onEditar={abrirEditar}
               onEliminar={handleEliminar}
@@ -991,52 +991,46 @@ function minToHHMM(m) {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
-function VistaCalendario({ bloques, onEditar, onEliminar, eliminando }) {
-  const [hovered, setHovered] = useState(null);
+function VistaCalendarioBloques({ bloques, onEditar, onEliminar, eliminando }) {
+  const [hovered, setHovered] = useState(null); // `${id}-${dayIdx}`
 
   if (!bloques.length) return null;
 
-  const starts  = bloques.map(b => toMin(b.Bloque_Horario_Hora_Inicio));
-  const ends    = bloques.map(b => toMin(b.Bloque_Horario_Hora_Fin));
+  const starts   = bloques.map(b => toMin(b.Bloque_Horario_Hora_Inicio));
+  const ends     = bloques.map(b => toMin(b.Bloque_Horario_Hora_Fin));
   const rangoMin = Math.floor(Math.min(...starts) / 60) * 60;
-  const rangoMax = Math.ceil(Math.max(...ends)   / 60) * 60;
+  const rangoMax = Math.ceil(Math.max(...ends) / 60) * 60;
   const totalMin = rangoMax - rangoMin;
   const totalPx  = totalMin * PX_POR_MIN;
 
-  const horas = Array.from({ length: totalMin / 60 + 1 }, (_, i) => rangoMin + i * 60);
+  const horas   = Array.from({ length: totalMin / 60 + 1 }, (_, i) => rangoMin + i * 60);
+  const diasAbr = ["Lun", "Mar", "Mié", "Jue", "Vie"];
 
   return (
     <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
-      {/* Encabezado de columnas */}
+      {/* Encabezados de día */}
       <div style={{ display: "flex", borderBottom: "2px solid #e5e7eb" }}>
         <div style={{ width: 56, flexShrink: 0, borderRight: "1px solid #e5e7eb" }} />
-        {["Mañana", "Tarde"].map((j, ji) => {
-          const n = bloques.filter(b => b.Bloque_Horario_Jornada === j).length;
-          return (
-            <div key={j} style={{
-              flex: 1, padding: "10px 0", textAlign: "center",
-              background: j === "Mañana" ? "#eff6ff" : "#faf5ff",
-              borderLeft: ji > 0 ? "1px solid #e5e7eb" : "none",
-              fontWeight: 700, fontSize: "0.88rem",
-              color: j === "Mañana" ? "#1e40af" : "#7c3aed",
-            }}>
-              {j === "Mañana" ? "☀" : "🌙"} {j}
-              <span style={{ fontWeight: 400, marginLeft: 6, opacity: 0.65, fontSize: "0.78rem" }}>
-                {n} {n === 1 ? "bloque" : "bloques"}
-              </span>
-            </div>
-          );
-        })}
+        {diasAbr.map((d, i) => (
+          <div key={d} style={{
+            flex: 1, padding: "10px 0", textAlign: "center",
+            background: "#f8fafc",
+            borderLeft: i > 0 ? "1px solid #e5e7eb" : "none",
+            fontWeight: 700, fontSize: "0.82rem", color: "#1e3a5f",
+            textTransform: "uppercase", letterSpacing: "0.05em",
+          }}>
+            {d}
+          </div>
+        ))}
       </div>
 
-      {/* Cuerpo: etiquetas de hora + columnas de jornada */}
+      {/* Cuerpo: eje horario + 5 columnas */}
       <div style={{ display: "flex" }}>
         {/* Etiquetas de hora */}
         <div style={{ width: 56, flexShrink: 0, position: "relative", height: totalPx, borderRight: "1px solid #e5e7eb", background: "#fff" }}>
           {horas.map(m => (
             <div key={m} style={{
-              position: "absolute",
-              top: (m - rangoMin) * PX_POR_MIN - 7,
+              position: "absolute", top: (m - rangoMin) * PX_POR_MIN - 7,
               right: 8, fontSize: "0.7rem", color: "#9ca3af", fontWeight: 600, lineHeight: 1,
             }}>
               {minToHHMM(m)}
@@ -1044,112 +1038,75 @@ function VistaCalendario({ bloques, onEditar, onEliminar, eliminando }) {
           ))}
         </div>
 
-        {/* Columnas por jornada */}
-        {["Mañana", "Tarde"].map((j, ji) => {
-          const jornadaBloques = bloques.filter(b => b.Bloque_Horario_Jornada === j);
-          return (
-            <div key={j} style={{
-              flex: 1, position: "relative", height: totalPx,
-              borderLeft: ji > 0 ? "1px solid #e5e7eb" : "none",
-              background: "#fafafa",
-            }}>
-              {/* Líneas de hora llena */}
-              {horas.map(m => (
-                <div key={m} style={{
-                  position: "absolute", top: (m - rangoMin) * PX_POR_MIN,
-                  left: 0, right: 0, height: 1, background: "#e5e7eb",
-                }} />
-              ))}
-              {/* Líneas de media hora (más suaves) */}
-              {horas.slice(0, -1).map(m => (
-                <div key={`h${m}`} style={{
-                  position: "absolute", top: (m + 30 - rangoMin) * PX_POR_MIN,
-                  left: 0, right: 0, height: 1, background: "#f3f4f6",
-                }} />
-              ))}
+        {/* Columnas de días (mismos bloques en cada una — plantilla diaria) */}
+        {diasAbr.map((d, di) => (
+          <div key={d} style={{
+            flex: 1, position: "relative", height: totalPx,
+            borderLeft: di > 0 ? "1px solid #e5e7eb" : "none",
+            background: "#fafafa",
+          }}>
+            {/* Líneas de hora */}
+            {horas.map(m => (
+              <div key={m} style={{ position: "absolute", top: (m - rangoMin) * PX_POR_MIN, left: 0, right: 0, height: 1, background: "#e5e7eb" }} />
+            ))}
+            {/* Líneas de media hora */}
+            {horas.slice(0, -1).map(m => (
+              <div key={`h${m}`} style={{ position: "absolute", top: (m + 30 - rangoMin) * PX_POR_MIN, left: 0, right: 0, height: 1, background: "#f3f4f6" }} />
+            ))}
 
-              {jornadaBloques.length === 0 && (
-                <div style={{
-                  position: "absolute", inset: 0,
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  color: "#d1d5db", fontSize: "0.8rem", fontStyle: "italic", gap: 4,
-                }}>
-                  <span style={{ fontSize: "1.5rem" }}>—</span>
-                  Sin bloques
-                </div>
-              )}
+            {bloques.map(b => {
+              const sMin   = toMin(b.Bloque_Horario_Hora_Inicio);
+              const eMin   = toMin(b.Bloque_Horario_Hora_Fin);
+              const top    = (sMin - rangoMin) * PX_POR_MIN;
+              const h      = Math.max((eMin - sMin) * PX_POR_MIN - 3, 22);
+              const col    = TIPO_COLORES[b.Bloque_Horario_Tipo] || TIPO_COLORES["Clase"];
+              const dur    = eMin - sMin;
+              const hovKey = `${b.Bloque_Horario_Id}-${di}`;
+              const isHov  = hovered === hovKey;
 
-              {/* Bloques posicionados */}
-              {jornadaBloques.map(b => {
-                const sMin  = toMin(b.Bloque_Horario_Hora_Inicio);
-                const eMin  = toMin(b.Bloque_Horario_Hora_Fin);
-                const top   = (sMin - rangoMin) * PX_POR_MIN;
-                const h     = Math.max((eMin - sMin) * PX_POR_MIN - 3, 22);
-                const col   = TIPO_COLORES[b.Bloque_Horario_Tipo] || TIPO_COLORES["Clase"];
-                const dur   = eMin - sMin;
-                const isHov = hovered === b.Bloque_Horario_Id;
-
-                return (
-                  <div
-                    key={b.Bloque_Horario_Id}
-                    onMouseEnter={() => setHovered(b.Bloque_Horario_Id)}
-                    onMouseLeave={() => setHovered(null)}
-                    style={{
-                      position: "absolute", top, left: 5, right: 5, height: h,
-                      background: col.bg,
-                      border: `1px solid ${col.borde}`,
-                      borderLeft: `3px solid ${col.acento}`,
-                      borderRadius: 6, padding: "2px 5px 2px 6px",
-                      overflow: "hidden", cursor: "pointer",
-                      zIndex: isHov ? 10 : 1,
-                      boxShadow: isHov ? "0 3px 10px rgba(0,0,0,0.12)" : "none",
-                      transition: "box-shadow 0.15s",
-                    }}
-                  >
-                    <div style={{ display: "flex", height: "100%", justifyContent: "space-between" }}>
-                      {/* Texto del bloque */}
-                      <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }} onClick={() => onEditar(b)}>
-                        <div style={{ fontWeight: 700, fontSize: "0.72rem", color: col.acento, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden" }}>
-                          {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)}
-                        </div>
-                        {h > 32 && (
-                          <div style={{ fontSize: "0.68rem", color: col.acento, opacity: 0.8, lineHeight: 1.3 }}>
-                            {col.icono} {b.Bloque_Horario_Tipo} · {dur} min
-                          </div>
-                        )}
+              return (
+                <div
+                  key={b.Bloque_Horario_Id}
+                  onMouseEnter={() => setHovered(hovKey)}
+                  onMouseLeave={() => setHovered(null)}
+                  style={{
+                    position: "absolute", top, left: 5, right: 5, height: h,
+                    background: col.bg,
+                    border: `1px solid ${col.borde}`,
+                    borderLeft: `3px solid ${col.acento}`,
+                    borderRadius: 6, padding: "2px 5px 2px 6px",
+                    overflow: "hidden", cursor: "pointer",
+                    zIndex: isHov ? 10 : 1,
+                    boxShadow: isHov ? "0 3px 10px rgba(0,0,0,0.12)" : "none",
+                    transition: "box-shadow 0.15s",
+                  }}
+                >
+                  <div style={{ display: "flex", height: "100%", justifyContent: "space-between" }}>
+                    <div style={{ flex: 1, overflow: "hidden", minWidth: 0 }} onClick={() => onEditar(b)}>
+                      <div style={{ fontWeight: 700, fontSize: "0.7rem", color: col.acento, lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden" }}>
+                        {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)}
                       </div>
-
-                      {/* Botones de acción (al hacer hover) */}
-                      {isHov && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 3, flexShrink: 0 }}>
-                          <button
-                            title="Editar"
-                            onClick={e => { e.stopPropagation(); onEditar(b); }}
-                            style={{
-                              width: 18, height: 18, padding: 0, border: "none", borderRadius: 4,
-                              cursor: "pointer", background: col.acento, color: "#fff",
-                              fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center",
-                            }}
-                          >✏</button>
-                          <button
-                            title="Eliminar"
-                            disabled={eliminando === b.Bloque_Horario_Id}
-                            onClick={e => { e.stopPropagation(); if (window.confirm("¿Eliminar este bloque?")) onEliminar(b.Bloque_Horario_Id); }}
-                            style={{
-                              width: 18, height: 18, padding: 0, border: "none", borderRadius: 4,
-                              cursor: "pointer", background: "#dc2626", color: "#fff",
-                              fontSize: "0.65rem", display: "flex", alignItems: "center", justifyContent: "center",
-                            }}
-                          >×</button>
+                      {h > 32 && (
+                        <div style={{ fontSize: "0.65rem", color: col.acento, opacity: 0.8 }}>
+                          {col.icono} {b.Bloque_Horario_Tipo} · {dur} min
                         </div>
                       )}
                     </div>
+                    {isHov && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 3, flexShrink: 0 }}>
+                        <button title="Editar" onClick={e => { e.stopPropagation(); onEditar(b); }}
+                          style={{ width: 18, height: 18, padding: 0, border: "none", borderRadius: 4, cursor: "pointer", background: col.acento, color: "#fff", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✏</button>
+                        <button title="Eliminar" disabled={eliminando === b.Bloque_Horario_Id}
+                          onClick={e => { e.stopPropagation(); if (window.confirm("¿Eliminar este bloque?")) onEliminar(b.Bloque_Horario_Id); }}
+                          style={{ width: 18, height: 18, padding: 0, border: "none", borderRadius: 4, cursor: "pointer", background: "#dc2626", color: "#fff", fontSize: "0.65rem", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          );
-        })}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );
