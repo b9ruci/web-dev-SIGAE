@@ -3,6 +3,7 @@
 // no tiene login. Es solo una ficha con información académica.
 
 const db = require('../config/db');
+const { validarRut } = require('../middleware/validation');
 
 // Obtener todos los estudiantes
 const getEstudiantes = async (req, res) => {
@@ -42,6 +43,10 @@ const createEstudiante = async (req, res) => {
 
   if (!Estudiante_Nombre_Completo || !Estudiante_RUT || !Curso_Id || !Estudiante_Estado_Academico) {
     return res.status(400).json({ mensaje: 'Faltan campos obligatorios (nombre, RUT, curso, estado académico)' });
+  }
+
+  if (!validarRut(Estudiante_RUT)) {
+    return res.status(400).json({ mensaje: 'RUT de estudiante inválido (verifique el dígito verificador)' });
   }
 
   try {

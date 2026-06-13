@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { validarCorreoInstitucional, validarCorreo, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
 
 function FormEditarUsuario({ datos, onGuardado }) {
   const [form, setForm] = useState({
@@ -11,18 +12,50 @@ function FormEditarUsuario({ datos, onGuardado }) {
     Apoderado_Direccion:   datos.Apoderado_Direccion   || "",
     Apoderado_Correo_Natural: datos.Apoderado_Correo_Natural || "",
   });
+  const [errores, setErrores] = useState({});
   const [msgExito, setMsgExito] = useState("");
   const [msgError, setMsgError] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  const validarCampo = (name, value) => {
+    if (!value) return "";
+    switch (name) {
+      case "Administrador_Correo_Institucional":
+      case "Docente_Correo_Institucional":
+        return !validarCorreoInstitucional(value)
+          ? `El correo debe pertenecer al dominio ${DOMINIO_INSTITUCIONAL}`
+          : "";
+      case "Apoderado_Correo_Natural":
+        return !validarCorreo(value)
+          ? "Ingrese un correo electrónico válido"
+          : "";
+      default:
+        return "";
+    }
+  };
+
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm({ ...form, [name]: value });
+    setErrores({ ...errores, [name]: validarCampo(name, value) });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMsgExito("");
     setMsgError("");
+
+    const nuevosErrores = {};
+    Object.keys(form).forEach((name) => {
+      const msg = validarCampo(name, form[name]);
+      if (msg) nuevosErrores[name] = msg;
+    });
+
+    if (Object.keys(nuevosErrores).length > 0) {
+      setErrores(nuevosErrores);
+      return;
+    }
+
     setEnviando(true);
     try {
       const token = localStorage.getItem("token");
@@ -62,7 +95,16 @@ function FormEditarUsuario({ datos, onGuardado }) {
       {datos.Es_Administrador && (
         <div className="campo-pwd">
           <label>Correo Institucional (Administrador)</label>
-          <input name="Administrador_Correo_Institucional" value={form.Administrador_Correo_Institucional} onChange={handleChange} />
+          <input
+            name="Administrador_Correo_Institucional"
+            value={form.Administrador_Correo_Institucional}
+            onChange={handleChange}
+            className={errores.Administrador_Correo_Institucional ? "input-invalid" : ""}
+            placeholder={`nombre${DOMINIO_INSTITUCIONAL}`}
+          />
+          {errores.Administrador_Correo_Institucional && (
+            <span className="input-error-msg">{errores.Administrador_Correo_Institucional}</span>
+          )}
         </div>
       )}
 
@@ -70,7 +112,16 @@ function FormEditarUsuario({ datos, onGuardado }) {
         <>
           <div className="campo-pwd">
             <label>Correo Institucional (Docente)</label>
-            <input name="Docente_Correo_Institucional" value={form.Docente_Correo_Institucional} onChange={handleChange} />
+            <input
+              name="Docente_Correo_Institucional"
+              value={form.Docente_Correo_Institucional}
+              onChange={handleChange}
+              className={errores.Docente_Correo_Institucional ? "input-invalid" : ""}
+              placeholder={`nombre${DOMINIO_INSTITUCIONAL}`}
+            />
+            {errores.Docente_Correo_Institucional && (
+              <span className="input-error-msg">{errores.Docente_Correo_Institucional}</span>
+            )}
           </div>
           <div className="campo-pwd">
             <label>Especialidad</label>
@@ -78,7 +129,7 @@ function FormEditarUsuario({ datos, onGuardado }) {
           </div>
           <div className="campo-pwd">
             <label>Carga Horaria Máxima (hrs)</label>
-            <input type="number" name="Docente_Carga_Horaria_Maxima" value={form.Docente_Carga_Horaria_Maxima} onChange={handleChange} />
+            <input type="number" name="Docente_Carga_Horaria_Maxima" value={form.Docente_Carga_Horaria_Maxima} onChange={handleChange} min="1" max="44" />
           </div>
         </>
       )}
@@ -87,7 +138,15 @@ function FormEditarUsuario({ datos, onGuardado }) {
         <>
           <div className="campo-pwd">
             <label>Correo Personal (Apoderado)</label>
-            <input name="Apoderado_Correo_Natural" value={form.Apoderado_Correo_Natural} onChange={handleChange} />
+            <input
+              name="Apoderado_Correo_Natural"
+              value={form.Apoderado_Correo_Natural}
+              onChange={handleChange}
+              className={errores.Apoderado_Correo_Natural ? "input-invalid" : ""}
+            />
+            {errores.Apoderado_Correo_Natural && (
+              <span className="input-error-msg">{errores.Apoderado_Correo_Natural}</span>
+            )}
           </div>
           <div className="campo-pwd">
             <label>Dirección</label>

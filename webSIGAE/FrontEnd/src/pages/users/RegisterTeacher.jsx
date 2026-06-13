@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarDocente } from "../../services/api";
+import { validarRut, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
 
 
 function RegisterTeacher() {
@@ -20,18 +21,34 @@ function RegisterTeacher() {
   });
 
 
+  const [errores, setErrores] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
 
+  const validarCampo = (name, value) => {
+    switch (name) {
+      case "rut":
+        return value && !validarRut(value)
+          ? "RUT inválido. Formato esperado: 12345678-9"
+          : "";
+      case "correo":
+        return value && !validarCorreoInstitucional(value)
+          ? `El correo debe pertenecer al dominio ${DOMINIO_INSTITUCIONAL}`
+          : "";
+      case "cargaHoraria":
+        return value && (isNaN(value) || Number(value) <= 0 || Number(value) > 44)
+          ? "La carga horaria debe ser un número entre 1 y 44 horas"
+          : "";
+      default:
+        return "";
+    }
+  };
 
   const handleChange = (e) => {
-
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    setErrores({ ...errores, [name]: validarCampo(name, value) });
   };
 
 
@@ -39,6 +56,17 @@ function RegisterTeacher() {
   const handleSubmit = async (e) => {
 
     e.preventDefault();
+
+    const nuevosErrores = {
+      rut: validarCampo("rut", formData.rut),
+      correo: validarCampo("correo", formData.correo),
+      cargaHoraria: validarCampo("cargaHoraria", formData.cargaHoraria),
+    };
+
+    if (Object.values(nuevosErrores).some((msg) => msg)) {
+      setErrores(nuevosErrores);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -135,25 +163,33 @@ function RegisterTeacher() {
 
 
 
-          <input
-            type="text"
-            name="rut"
-            placeholder="RUT"
-            value={formData.rut}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="text"
+              name="rut"
+              placeholder="RUT (ej: 12345678-9)"
+              value={formData.rut}
+              onChange={handleChange}
+              className={errores.rut ? "input-invalid" : ""}
+              required
+            />
+            {errores.rut && <span className="input-error-msg">{errores.rut}</span>}
+          </div>
 
 
 
-          <input
-            type="email"
-            name="correo"
-            placeholder="Correo institucional"
-            value={formData.correo}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="text"
+              name="correo"
+              placeholder={`Correo institucional (ej: nombre${DOMINIO_INSTITUCIONAL})`}
+              value={formData.correo}
+              onChange={handleChange}
+              className={errores.correo ? "input-invalid" : ""}
+              required
+            />
+            {errores.correo && <span className="input-error-msg">{errores.correo}</span>}
+          </div>
 
 
 
@@ -190,14 +226,20 @@ function RegisterTeacher() {
 
 
 
-          <input
-            type="number"
-            name="cargaHoraria"
-            placeholder="Carga horaria máxima"
-            value={formData.cargaHoraria}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="number"
+              name="cargaHoraria"
+              placeholder="Carga horaria máxima (hrs)"
+              value={formData.cargaHoraria}
+              onChange={handleChange}
+              min="1"
+              max="44"
+              className={errores.cargaHoraria ? "input-invalid" : ""}
+              required
+            />
+            {errores.cargaHoraria && <span className="input-error-msg">{errores.cargaHoraria}</span>}
+          </div>
 
 
 

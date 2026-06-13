@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarApoderado } from "../../services/api";
+import { validarRut, validarCorreo } from "../../utils/validaciones";
 
 
 function RegisterGuardian() {
@@ -23,25 +24,30 @@ function RegisterGuardian() {
   });
 
 
-
+  const [errores, setErrores] = useState({});
   const [loading,setLoading] = useState(false);
-
   const [error,setError] = useState(null);
 
 
+  const validarCampo = (name, value) => {
+    switch (name) {
+      case "rut":
+        return value && !validarRut(value)
+          ? "RUT inválido. Formato esperado: 12345678-9"
+          : "";
+      case "correo":
+        return value && !validarCorreo(value)
+          ? "Ingrese un correo electrónico válido"
+          : "";
+      default:
+        return "";
+    }
+  };
 
-
-  const handleChange = (e)=>{
-
-
-    setFormData({
-
-      ...formData,
-      [e.target.name]:e.target.value
-
-    });
-
-
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    setErrores({ ...errores, [name]: validarCampo(name, value) });
   };
 
 
@@ -52,6 +58,15 @@ function RegisterGuardian() {
 
     e.preventDefault();
 
+    const nuevosErrores = {
+      rut: validarCampo("rut", formData.rut),
+      correo: validarCampo("correo", formData.correo),
+    };
+
+    if (Object.values(nuevosErrores).some((msg) => msg)) {
+      setErrores(nuevosErrores);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -166,25 +181,33 @@ function RegisterGuardian() {
 
 
 
-          <input
-            type="text"
-            name="rut"
-            placeholder="RUT"
-            value={formData.rut}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="text"
+              name="rut"
+              placeholder="RUT (ej: 12345678-9)"
+              value={formData.rut}
+              onChange={handleChange}
+              className={errores.rut ? "input-invalid" : ""}
+              required
+            />
+            {errores.rut && <span className="input-error-msg">{errores.rut}</span>}
+          </div>
 
 
 
-          <input
-            type="email"
-            name="correo"
-            placeholder="Correo electrónico"
-            value={formData.correo}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="email"
+              name="correo"
+              placeholder="Correo electrónico"
+              value={formData.correo}
+              onChange={handleChange}
+              className={errores.correo ? "input-invalid" : ""}
+              required
+            />
+            {errores.correo && <span className="input-error-msg">{errores.correo}</span>}
+          </div>
 
 
 

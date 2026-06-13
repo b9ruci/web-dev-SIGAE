@@ -10,12 +10,14 @@ const {
   verifyPuedeCrearRol,
 } = require('../middleware/authMiddleware');
 
+const { validateCrearUsuario } = require('../middleware/validation');
+
 // Cualquier usuario autenticado puede leer su propio perfil
 router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
 router.get('/:id', verifyToken, usuarioController.getUsuarioById);
 
 // Solo Administrador puede crear, modificar estado o eliminar usuarios
-router.post('/', verifyToken, verifyAdmin, verifyPuedeCrearRol, usuarioController.createUsuario);
+router.post('/', verifyToken, verifyAdmin, verifyPuedeCrearRol, validateCrearUsuario, usuarioController.createUsuario);
 router.put('/:id',       verifyToken, verifyAdmin, usuarioController.updateUsuario);
 router.put('/:id/estado', verifyToken, verifyAdmin, usuarioController.toggleEstado);
 router.delete('/:id',    verifyToken, verifyAdmin, usuarioController.deleteUsuario);

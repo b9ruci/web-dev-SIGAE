@@ -1,6 +1,7 @@
 // controllers/usuarioController.js
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
+const { validarCorreoInstitucional } = require('../middleware/validation');
 
 // Obtener todos los usuarios
 const getUsuarios = async (req, res) => {
@@ -69,8 +70,12 @@ const createUsuario = async (req, res) => {
   // Validar correo según rol
   if (Es_Docente && !Docente_Correo_Institucional)
     return res.status(400).json({ mensaje: 'El correo institucional del docente es obligatorio' });
+  if (Es_Docente && !validarCorreoInstitucional(Docente_Correo_Institucional))
+    return res.status(400).json({ mensaje: 'El correo institucional del docente debe pertenecer al dominio @jacquescousteau.edu' });
   if (Es_Administrador && !Administrador_Correo_Institucional)
     return res.status(400).json({ mensaje: 'El correo institucional del administrador es obligatorio' });
+  if (Es_Administrador && !validarCorreoInstitucional(Administrador_Correo_Institucional))
+    return res.status(400).json({ mensaje: 'El correo institucional del administrador debe pertenecer al dominio @jacquescousteau.edu' });
   if (Es_Apoderado && !Apoderado_Correo_Natural)
     return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
 
@@ -242,6 +247,14 @@ const updateUsuario = async (req, res) => {
     const datosActualizar = { ...req.body };
     delete datosActualizar.Usuario_Id;
     const { Usuario_Contraseña, ...otrosDatos } = datosActualizar;
+
+    // Validar dominio de correos institucionales si se están actualizando
+    if (otrosDatos.Docente_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Docente_Correo_Institucional)) {
+      return res.status(400).json({ mensaje: 'El correo institucional del docente debe pertenecer al dominio @jacquescousteau.edu' });
+    }
+    if (otrosDatos.Administrador_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Administrador_Correo_Institucional)) {
+      return res.status(400).json({ mensaje: 'El correo institucional del administrador debe pertenecer al dominio @jacquescousteau.edu' });
+    }
 
     let hash = null;
     if (Usuario_Contraseña) hash = await bcrypt.hash(Usuario_Contraseña, 10);
