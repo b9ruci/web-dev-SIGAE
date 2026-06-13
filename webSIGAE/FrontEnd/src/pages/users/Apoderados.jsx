@@ -10,7 +10,7 @@ function Apoderados() {
   const { usuario } = useAuth();
   const esAdmin =
     usuario?.roles?.includes("Administrador") ||
-    usuario?.administradorTipo === "SuperAdmin";
+    usuario?.administradorTipo === "Super Admin";
 
   const [apoderados, setApoderados]           = useState([]);
   const [loading, setLoading]                 = useState(true);

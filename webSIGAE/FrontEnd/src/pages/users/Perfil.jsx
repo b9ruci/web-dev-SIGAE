@@ -53,7 +53,7 @@ function Perfil() {
 
   const getBadgeRol = (rol) => {
     if (rol === "Administrador") {
-      if (datos?.Administrador_Tipo === "SuperAdmin") {
+      if (datos?.Administrador_Tipo === "Super Admin") {
         return <span key="superadmin" className="badge-rol badge-superadmin">Super Administrador</span>;
       }
       return <span key="admin" className="badge-rol badge-admin">Administrador</span>;
@@ -130,10 +130,10 @@ function Perfil() {
   const puedeEditar = (() => {
     if (esPerfilPropio) return false;
     if (!datos) return false;
-    const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+    const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
     const esAdmin = (usuario?.roles || []).includes("Administrador");
-    const objetivoEsSuperAdmin = datos.Es_Administrador && datos.Administrador_Tipo === "SuperAdmin";
-    const objetivoEsAdmin = datos.Es_Administrador && datos.Administrador_Tipo !== "SuperAdmin";
+    const objetivoEsSuperAdmin = datos.Es_Administrador && datos.Administrador_Tipo === "Super Admin";
+    const objetivoEsAdmin = datos.Es_Administrador && datos.Administrador_Tipo !== "Super Admin";
     if (objetivoEsSuperAdmin) return false;
     if (objetivoEsAdmin) return esSuperAdmin;
     return esSuperAdmin || esAdmin;

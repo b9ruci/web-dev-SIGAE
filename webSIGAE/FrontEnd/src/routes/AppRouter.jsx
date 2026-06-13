@@ -176,11 +176,6 @@ function AppRouter() {
             }
           />
 
-          <Route
-            path="/perfil"
-            element={<Perfil />}
-          />
-
           {/* ACADEMIC */}
 
           <Route

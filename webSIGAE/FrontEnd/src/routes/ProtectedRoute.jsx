@@ -31,11 +31,7 @@ export function RoleRoute({ children, roles = [], superAdminOnly = false }) {
 
   const tieneAcceso =
     esSuperAdmin ||
-    roles.some(
-      (r) =>
-        rolEfectivo === r ||
-        usuario?.roles?.includes(r)
-    );
+    roles.some((r) => rolEfectivo === r);
 
   if (!tieneAcceso) {
     return <Navigate to="/dashboard" replace />;

@@ -1,19 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-
-function validarRut(rutCompleto) {
-  if (!/^\d{7,8}-[\dkK]$/.test(rutCompleto)) return false;
-  const [cuerpo, dvIngresado] = rutCompleto.split("-");
-  let suma = 0;
-  let multiplo = 2;
-  for (let i = cuerpo.length - 1; i >= 0; i--) {
-    suma += parseInt(cuerpo[i]) * multiplo;
-    multiplo = multiplo === 7 ? 2 : multiplo + 1;
-  }
-  const dvEsperado = 11 - (suma % 11);
-  const dv = dvEsperado === 11 ? "0" : dvEsperado === 10 ? "k" : String(dvEsperado);
-  return dv === dvIngresado.toLowerCase();
-}
+import { validarRut, normalizarRut } from "../../utils/validaciones";
 
 // Pasos: "rut" → "seleccionar" (si hay múltiples correos) → "enviado"
 function ForgotPassword() {
@@ -39,7 +26,8 @@ function ForgotPassword() {
 
   const handleSubmitRut = async (e) => {
     e.preventDefault();
-    if (!validarRut(rut)) {
+    const rutNormalizado = normalizarRut(rut);
+    if (!validarRut(rutNormalizado)) {
       setRutError("RUT inválido");
       return;
     }
@@ -50,7 +38,7 @@ function ForgotPassword() {
       const res = await fetch("/api/auth/check-recovery-emails", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rut }),
+        body: JSON.stringify({ rut: rutNormalizado }),
       });
       const data = await res.json();
 
@@ -84,9 +72,10 @@ function ForgotPassword() {
     setLoading(true);
     setError("");
     try {
+      const rutNormalizado = normalizarRut(rut);
       const body = enmascarado
-        ? { rut, correoEnmascarado: enmascarado }
-        : { rut };
+        ? { rut: rutNormalizado, correoEnmascarado: enmascarado }
+        : { rut: rutNormalizado };
 
       const res = await fetch("/api/auth/forgot-password", {
         method: "POST",

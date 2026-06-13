@@ -54,7 +54,7 @@ function ImpactoChip({ impacto }) {
 export default function BloquesHorarios() {
   const { rolActivo, usuario } = useAuth();
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
 
   const [tab, setTab] = useState("parametros");
