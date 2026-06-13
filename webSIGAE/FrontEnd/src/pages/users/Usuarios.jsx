@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 function Usuarios() {
   const { usuario } = useAuth();
@@ -13,7 +12,8 @@ function Usuarios() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("Todos");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
-
+  const [modalConfirm, setModalConfirm]   = useState(null); // usuario a desactivar/reactivar
+  const [loadingToggle, setLoadingToggle] = useState(false);
   // Modal roles
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
   const [roles, setRoles] = useState({
@@ -42,18 +42,32 @@ function Usuarios() {
     }
   };
 
-  const toggleEstado = async (id) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/usuarios/${id}/estado`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) cargarUsuarios();
-    } catch (error) {
-      console.error(error);
+const abrirConfirmToggle = (u) => {
+  setModalConfirm(u);
+};
+
+const confirmarToggle = async () => {
+  if (!modalConfirm) return;
+  setLoadingToggle(true);
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`/api/usuarios/${modalConfirm.Usuario_Id}/estado`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.mensaje || "Error al cambiar estado");
+    } else {
+      cargarUsuarios();
     }
-  };
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoadingToggle(false);
+    setModalConfirm(null);
+  }
+};
 
   const abrirRoles = (u) => {
     setUsuarioSeleccionado(u);
@@ -228,21 +242,16 @@ function Usuarios() {
                       </td>
                   <td>
                     <div className="acciones-grupo">
-                      {!esMismoUsuario && !esSuperAdminFila && (
-                        <button
-                          className={u.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
-                          onClick={() => toggleEstado(u.Usuario_Id)}
-                        >
-                          {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
-                        </button>
-                      )}
-                        <button
-                          className="btn-roles"
-                          onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}
-                        >
-                          Ver Perfil
-                        </button>
-                        
+{!esMismoUsuario &&
+ !esSuperAdminFila &&
+ !(u.Es_Administrador && !esSuperAdmin) && (
+  <button
+    className={u.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
+    onClick={() => abrirConfirmToggle(u)}
+  >
+    {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
+  </button>
+)}                        
                       {esSuperAdmin && (
                         <button
                           className="btn-roles"
@@ -315,17 +324,61 @@ function Usuarios() {
               <button className="btn-primario" onClick={guardarRoles}>
                 Guardar
               </button>
-              <button
-                className="btn-desactivar"
-                style={{ alignSelf: "flex-start" }}
-                onClick={() => setUsuarioSeleccionado(null)}
-              >
-                Cancelar
-              </button>
             </div>
           </div>
         </div>
       )}
+      {/* Modal confirmación desactivar/reactivar — CU 22/23/24/25 */}
+{modalConfirm && (
+  <div style={{
+    position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+    display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001,
+  }}>
+    <div className="form-card" style={{ width: "420px", maxWidth: "95vw" }}>
+      <h2 style={{ marginBottom: "8px" }}>
+        {modalConfirm.Usuario_Estado_Cuenta ? "Desactivar cuenta" : "Reactivar cuenta"}
+      </h2>
+      <p style={{ color: "#64748b", marginBottom: "16px" }}>
+        <strong>{modalConfirm.Usuario_Nombre_Completo}</strong>
+      </p>
+
+      {modalConfirm.Usuario_Estado_Cuenta ? (
+        <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+          <li>El acceso del usuario quedará restringido.</li>
+          <li>Todas sus sesiones activas serán invalidadas.</li>
+          <li>La información histórica se conservará.</li>
+        </ul>
+      ) : (
+        <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+          <li>El usuario podrá volver a iniciar sesión.</li>
+          <li>Sus permisos serán restaurados según su rol.</li>
+          <li>Las sesiones anteriores NO se restauran automáticamente.</li>
+        </ul>
+      )}
+
+<div style={{ display: "flex", gap: "10px" }}>
+  <button
+    className={modalConfirm.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
+    onClick={confirmarToggle}
+    disabled={loadingToggle}
+  >
+    {loadingToggle
+      ? "Procesando..."
+      : modalConfirm.Usuario_Estado_Cuenta
+        ? "Confirmar desactivación"
+        : "Confirmar reactivación"}
+  </button>
+  <button
+    className="btn-roles"
+    onClick={() => setModalConfirm(null)}
+    disabled={loadingToggle}
+  >
+    Cancelar
+  </button>
+</div>
+      </div>
+    </div>
+)}
     </div>
   );
 }

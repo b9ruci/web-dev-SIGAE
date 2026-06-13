@@ -168,7 +168,11 @@ function AppRouter() {
 
           <Route
             path="/apoderados"
-            element={<Apoderados />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Apoderados />
+              </RoleRoute>
+            }
           />
 
           <Route

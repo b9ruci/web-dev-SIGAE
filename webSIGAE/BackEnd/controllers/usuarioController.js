@@ -344,31 +344,50 @@ const updateRoles = async (req, res) => {
 
 const toggleEstado = async (req, res) => {
   const { id } = req.params;
-  const solicitante = req.user;
+  const actorId   = req.user.id;
+  const actorTipo = req.user.administradorTipo;
 
-  // No puede desactivarse a sí mismo
-  if (String(solicitante.id) === String(id)) {
+  // Excepción 3 del CU: actor no puede desactivarse a sí mismo
+  if (parseInt(id) === actorId) {
     return res.status(403).json({ mensaje: 'No puedes desactivar tu propia cuenta' });
   }
 
   try {
     const [rows] = await db.query(
-      'SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?',
+      `SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo
+       FROM usuario WHERE Usuario_Id = ?`,
       [id]
     );
-    if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    if (rows.length === 0)
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
-    const objetivo = rows[0];
+    const u = rows[0];
 
-    // No puede desactivar a otro SuperAdministrador
-    if (objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'SuperAdmin') {
-      return res.status(403).json({ mensaje: 'No puedes desactivar a un SuperAdministrador' });
+    // CU 23: solo SuperAdmin puede tocar cuentas de administrador
+    if (u.Es_Administrador && actorTipo !== 'SuperAdmin') {
+      return res.status(403).json({
+        mensaje: 'Solo un SuperAdmin puede desactivar o reactivar cuentas de administrador'
+      });
     }
 
-    const nuevoEstado = objetivo.Usuario_Estado_Cuenta ? 0 : 1;
-    await db.query('UPDATE usuario SET Usuario_Estado_Cuenta = ? WHERE Usuario_Id = ?', [nuevoEstado, id]);
-    res.json({ mensaje: 'Estado actualizado', estado: nuevoEstado });
+    const nuevoEstado = u.Usuario_Estado_Cuenta ? 0 : 1;
 
+    await db.query(
+      'UPDATE usuario SET Usuario_Estado_Cuenta = ? WHERE Usuario_Id = ?',
+      [nuevoEstado, id]
+    );
+
+    // CU 22: al desactivar, invalida todas las sesiones activas del usuario
+    if (nuevoEstado === 0) {
+      await db.query(
+        `UPDATE sesion
+         SET Sesion_Estado = 0, Sesion_Fecha_Expiracion = NOW()
+         WHERE Usuario_Id = ? AND Sesion_Estado = 1`,
+        [id]
+      );
+    }
+
+    res.json({ mensaje: 'Estado actualizado', estado: nuevoEstado });
   } catch (e) {
     console.error(e);
     res.status(500).json({ mensaje: 'Error al actualizar estado' });

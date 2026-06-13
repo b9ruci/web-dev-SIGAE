@@ -42,7 +42,7 @@ function Sidebar() {
           Mi Perfil
         </Link>
         
-        usuario?.roles?.includes("Administrador") && (
+        {usuario?.roles?.includes("Administrador") && (
           <>
             <Link to="/usuarios">
               Usuarios
@@ -67,6 +67,10 @@ function Sidebar() {
             <Link to="/registrar-estudiante">
               Registrar Estudiante
             </Link>
+            
+            <Link to="/apoderados">
+            Asignar Est. a Apoderados
+            </Link>
 
             <Link to="/plan-educativo">
               Plan Educativo
@@ -88,7 +92,7 @@ function Sidebar() {
               Reportes
             </Link>
           </>
-        )
+        )}
 
         {rolActivo === "Docente" && (
           <>
