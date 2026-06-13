@@ -201,6 +201,24 @@ function AppRouter() {
           />
 
           <Route
+            path="/bloques-horarios"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <BloquesHorarios />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/plan-educativo"
+            element={
+              <RoleRoute roles={["Administrador", "Docente"]}>
+                <PlanEducativo />
+              </RoleRoute>
+            }
+          />
+
+          <Route
             path="/reportes"
             element={
               <RoleRoute roles={["Administrador"]}>
