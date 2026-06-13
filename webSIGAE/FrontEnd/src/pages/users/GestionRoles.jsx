@@ -264,12 +264,15 @@ function GestionRoles() {
     finally { setLoadingGestion(false); setModalGestion(null); }
   };
 
-  /* Roles que aún puede recibir este usuario */
+  /* Roles que aún puede recibir este usuario (con exclusividad Admin) */
+  const esAdminUser = !!seleccionado?.Es_Administrador;
   const rolesDisponibles = seleccionado
     ? [
-        !seleccionado.Es_Docente   && "Docente",
-        !seleccionado.Es_Apoderado && "Apoderado",
-        esSuperAdmin && !seleccionado.Es_Administrador && "Administrador",
+        // Docente/Apoderado solo si el usuario NO es Admin
+        !esAdminUser && !seleccionado.Es_Docente   && "Docente",
+        !esAdminUser && !seleccionado.Es_Apoderado && "Apoderado",
+        // Administrador: solo Super Admin puede asignarlo y solo si el usuario no es ya Admin
+        esSuperAdmin && !esAdminUser && "Administrador",
       ].filter(Boolean)
     : [];
 
@@ -465,6 +468,23 @@ function GestionRoles() {
                   <CamposApoderado datos={datosRol} errores={errores} onChange={handleDatosChange} />
                 )}
 
+                {/* Aviso de conversión cuando Super Admin asigna Admin a usuario con otros roles */}
+                {rolNuevo === "Administrador" && (seleccionado.Es_Docente || seleccionado.Es_Apoderado) && (
+                  <div style={{
+                    background: "#fffbeb", border: "1px solid #fbbf24",
+                    borderRadius: "8px", padding: "12px 14px", marginTop: "16px",
+                  }}>
+                    <p style={{ margin: 0, color: "#92400e", fontSize: "0.88rem" }}>
+                      <strong>Conversión de rol:</strong> Al asignar el rol Administrador se eliminarán
+                      automáticamente los roles de{" "}
+                      <strong>
+                        {[seleccionado.Es_Docente && "Docente", seleccionado.Es_Apoderado && "Apoderado"]
+                          .filter(Boolean).join(" y ")}
+                      </strong>. Esta acción es exclusiva del Super Administrador.
+                    </p>
+                  </div>
+                )}
+
                 {rolNuevo && (
                   <button
                     type="submit"
@@ -478,7 +498,9 @@ function GestionRoles() {
               </form>
             ) : (
               <p style={{ color: "#64748b", fontStyle: "italic", textAlign: "center", padding: "16px 0" }}>
-                Este usuario ya tiene todos los roles disponibles.
+                {esAdminUser
+                  ? "Los usuarios Administrador no pueden recibir roles adicionales."
+                  : "Este usuario ya tiene todos los roles disponibles."}
               </p>
             )}
 
