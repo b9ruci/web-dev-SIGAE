@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../../services/api";
+import { normalizarTexto } from "../../utils/validaciones";
 
 function Usuarios() {
   const { usuario } = useAuth();
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const navigate = useNavigate();
 
   const [usuarios, setUsuarios] = useState([]);
@@ -105,7 +106,7 @@ const confirmarToggle = async () => {
   const getBadgesRoles = (u) => {
     const badges = [];
     if (u.Es_Administrador) {
-      if (u.Administrador_Tipo === "SuperAdmin") {
+      if (u.Administrador_Tipo === "Super Admin") {
         badges.push(<span key="sa" className="badge-rol badge-superadmin">Super Admin</span>);
       } else {
         badges.push(<span key="adm" className="badge-rol badge-admin">Administrador</span>);
@@ -117,14 +118,14 @@ const confirmarToggle = async () => {
   };
 
   const usuariosFiltrados = usuarios.filter((u) => {
-    const textoBusqueda = busqueda.toLowerCase();
+    const textoBusqueda = normalizarTexto(busqueda);
     const coincideTexto =
-  !busqueda ||
-  u.Usuario_Nombre_Completo?.toLowerCase().includes(textoBusqueda) ||
-  u.Usuario_RUT?.toLowerCase().includes(textoBusqueda) ||
-  u.Administrador_Correo_Institucional?.toLowerCase().includes(textoBusqueda) ||
-  u.Docente_Correo_Institucional?.toLowerCase().includes(textoBusqueda) ||
-  u.Apoderado_Correo_Natural?.toLowerCase().includes(textoBusqueda);
+      !busqueda ||
+      normalizarTexto(u.Usuario_Nombre_Completo ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Usuario_RUT ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Administrador_Correo_Institucional ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Docente_Correo_Institucional ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Apoderado_Correo_Natural ?? "").includes(textoBusqueda);
 
     const coincideRol =
       filtroRol === "Todos" ||
@@ -205,7 +206,7 @@ const confirmarToggle = async () => {
           <tbody>
             {usuariosFiltrados.map((u, idx) => {
               const esMismoUsuario = u.Usuario_Id === usuario?.id;
-              const esSuperAdminFila = u.Administrador_Tipo === "SuperAdmin";
+              const esSuperAdminFila = u.Administrador_Tipo === "Super Admin";
 
               return (
                 <tr key={u.Usuario_Id}>
@@ -291,7 +292,7 @@ const confirmarToggle = async () => {
                   onChange={(e) => setRoles({ ...roles, Administrador_Tipo: e.target.value })}
                 >
                   <option value="Administrador Normal">Administrador Normal</option>
-                  <option value="SuperAdmin">SuperAdmin</option>
+                  <option value="Super Admin">Super Admin</option>
                 </select>
               )}
               <div className="rol-item">

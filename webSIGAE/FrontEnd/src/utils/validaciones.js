@@ -1,8 +1,23 @@
 const DOMINIO_INSTITUCIONAL = "@jacquescousteau.edu";
 
+// Elimina espacios y puntos del RUT (acepta "12.345.678-9 " → "12345678-9")
+export function normalizarRut(rut) {
+  return rut.replace(/[\s.]/g, "");
+}
+
+// Quita tildes, pasa a minúsculas y recorta espacios extremos
+export function normalizarTexto(texto) {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 export function validarRut(rutCompleto) {
-  if (!/^\d{7,8}-[\dkK]$/.test(rutCompleto)) return false;
-  const [cuerpo, dvIngresado] = rutCompleto.split("-");
+  const rut = normalizarRut(rutCompleto);
+  if (!/^\d{7,8}-[\dkK]$/.test(rut)) return false;
+  const [cuerpo, dvIngresado] = rut.split("-");
   let suma = 0;
   let multiplo = 2;
   for (let i = cuerpo.length - 1; i >= 0; i--) {
@@ -15,11 +30,11 @@ export function validarRut(rutCompleto) {
 }
 
 export function validarCorreoInstitucional(correo) {
-  return correo.toLowerCase().endsWith(DOMINIO_INSTITUCIONAL);
+  return correo.trim().toLowerCase().endsWith(DOMINIO_INSTITUCIONAL);
 }
 
 export function validarCorreo(correo) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim());
 }
 
 export { DOMINIO_INSTITUCIONAL };

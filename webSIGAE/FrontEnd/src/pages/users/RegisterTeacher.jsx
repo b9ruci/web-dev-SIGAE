@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarDocente } from "../../services/api";
-import { validarRut, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
+import { validarRut, normalizarRut, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
 
 
 function RegisterTeacher() {
@@ -47,8 +47,9 @@ function RegisterTeacher() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    setErrores({ ...errores, [name]: validarCampo(name, value) });
+    const valorNorm = name === "rut" ? normalizarRut(value) : value;
+    setFormData({ ...formData, [name]: valorNorm });
+    setErrores({ ...errores, [name]: validarCampo(name, valorNorm) });
   };
 
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarEstudiante } from "../../services/api";
-import { validarRut } from "../../utils/validaciones";
+import { validarRut, normalizarRut } from "../../utils/validaciones";
 
 function RegisterStudent() {
   const navigate = useNavigate();
@@ -36,8 +36,9 @@ function RegisterStudent() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    setErrores({ ...errores, [name]: validarCampo(name, value) });
+    const valorNorm = name === "rut" ? normalizarRut(value) : value;
+    setFormData({ ...formData, [name]: valorNorm });
+    setErrores({ ...errores, [name]: validarCampo(name, valorNorm) });
   };
 
   const handleSubmit = async (e) => {

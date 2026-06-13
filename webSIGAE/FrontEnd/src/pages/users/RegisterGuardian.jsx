@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarApoderado } from "../../services/api";
-import { validarRut, validarCorreo } from "../../utils/validaciones";
+import { validarRut, normalizarRut, validarCorreo } from "../../utils/validaciones";
 
 
 function RegisterGuardian() {
@@ -46,8 +46,9 @@ function RegisterGuardian() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    setErrores({ ...errores, [name]: validarCampo(name, value) });
+    const valorNorm = name === "rut" ? normalizarRut(value) : value;
+    setFormData({ ...formData, [name]: valorNorm });
+    setErrores({ ...errores, [name]: validarCampo(name, valorNorm) });
   };
 
 
