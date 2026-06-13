@@ -152,6 +152,10 @@ function GestionRoles() {
   const [loadingEnvio, setLoadingEnvio]         = useState(false);
   const [msgExito, setMsgExito]                 = useState("");
   const [msgError, setMsgError]                 = useState("");
+  // Gestión de roles activos (CU 21/22/23/24)
+  const [modalGestion, setModalGestion]         = useState(null); // { tipo: 'desactivar-rol'|'reactivar-cuenta', rol?: string }
+  const [loadingGestion, setLoadingGestion]     = useState(false);
+  const [msgGestion, setMsgGestion]             = useState({ tipo: "", texto: "" });
 
   /* Carga inicial */
   useEffect(() => {
@@ -200,6 +204,64 @@ function GestionRoles() {
     setErrores({});
     setMsgExito("");
     setMsgError("");
+    setMsgGestion({ tipo: "", texto: "" });
+    setModalGestion(null);
+  };
+
+  const refreshSeleccionado = async () => {
+    try {
+      const res = await apiFetch("/api/usuarios");
+      if (!res) return;
+      const data = await res.json();
+      const lista = Array.isArray(data) ? data : [];
+      setUsuarios(lista);
+      if (seleccionado) {
+        const actualizado = lista.find(u => u.Usuario_Id === seleccionado.Usuario_Id);
+        if (actualizado) setSeleccionado(actualizado);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const confirmarGestion = async () => {
+    if (!modalGestion || !seleccionado) return;
+    setLoadingGestion(true);
+    setMsgGestion({ tipo: "", texto: "" });
+    try {
+      if (modalGestion.tipo === "desactivar-rol") {
+        const { rol } = modalGestion;
+        const body = {
+          Es_Administrador: rol === "Administrador" ? 0 : (seleccionado.Es_Administrador ? 1 : 0),
+          Es_Docente:       rol === "Docente"       ? 0 : (seleccionado.Es_Docente       ? 1 : 0),
+          Es_Apoderado:     rol === "Apoderado"     ? 0 : (seleccionado.Es_Apoderado     ? 1 : 0),
+          Administrador_Tipo: rol === "Administrador" ? null : (seleccionado.Administrador_Tipo || null),
+        };
+        const res = await apiFetch(`/api/usuarios/${seleccionado.Usuario_Id}/roles`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res) return;
+        const data = await res.json();
+        if (!res.ok) {
+          setMsgGestion({ tipo: "error", texto: data.mensaje || "Error al desactivar el rol" });
+        } else {
+          setMsgGestion({ tipo: "exito", texto: `Rol ${rol} desactivado correctamente.` });
+          setRolNuevo("");
+          await refreshSeleccionado();
+        }
+      } else if (modalGestion.tipo === "reactivar-cuenta") {
+        const res = await apiFetch(`/api/usuarios/${seleccionado.Usuario_Id}/estado`, { method: "PUT" });
+        if (!res) return;
+        const data = await res.json();
+        if (!res.ok) {
+          setMsgGestion({ tipo: "error", texto: data.mensaje || "Error al reactivar la cuenta" });
+        } else {
+          setMsgGestion({ tipo: "exito", texto: "Cuenta reactivada correctamente." });
+          await refreshSeleccionado();
+        }
+      }
+    } catch { setMsgGestion({ tipo: "error", texto: "Error de conexión al servidor" }); }
+    finally { setLoadingGestion(false); setModalGestion(null); }
   };
 
   /* Roles que aún puede recibir este usuario */
@@ -419,10 +481,154 @@ function GestionRoles() {
                 Este usuario ya tiene todos los roles disponibles.
               </p>
             )}
+
+            {/* ── Panel gestión de roles activos (CU 21/22/23/24) ── */}
+            {(() => {
+              const rolesActivos = [
+                seleccionado.Es_Administrador && "Administrador",
+                seleccionado.Es_Docente       && "Docente",
+                seleccionado.Es_Apoderado     && "Apoderado",
+              ].filter(Boolean);
+
+              if (rolesActivos.length === 0 && seleccionado.Usuario_Estado_Cuenta) return null;
+
+              return (
+                <div style={{ marginTop: "32px", borderTop: "1px solid #e2e8f0", paddingTop: "24px" }}>
+                  <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "4px", color: "#1e293b" }}>
+                    Gestión de roles y cuenta
+                  </h3>
+                  <p style={{ color: "#64748b", fontSize: "0.88rem", marginBottom: "16px" }}>
+                    Desactiva un rol específico o reactiva la cuenta si está inactiva.
+                  </p>
+
+                  {/* Mensajes de resultado */}
+                  {msgGestion.texto && (
+                    <div
+                      className={msgGestion.tipo === "exito" ? "msg-exito" : "msg-error-form"}
+                      style={{ marginBottom: "16px" }}
+                    >
+                      {msgGestion.texto}
+                    </div>
+                  )}
+
+                  {/* Roles activos desactivables */}
+                  {rolesActivos.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "16px" }}>
+                      {rolesActivos.map(rol => {
+                        const puedeGestionar = rol !== "Administrador" || esSuperAdmin;
+                        if (!puedeGestionar) return null;
+                        return (
+                          <div key={rol} style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "10px 16px", border: "1px solid #e2e8f0", borderRadius: "8px",
+                            background: "#f8fafc",
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <span className={`badge-rol badge-${rol.toLowerCase()}`}>{rol}</span>
+                              <span style={{ fontSize: "0.85rem", color: "#16a34a", fontWeight: 500 }}>Activo</span>
+                            </div>
+                            <button
+                              className="btn-desactivar"
+                              style={{ fontSize: "0.82rem", padding: "5px 12px" }}
+                              onClick={() => {
+                                setMsgGestion({ tipo: "", texto: "" });
+                                setModalGestion({ tipo: "desactivar-rol", rol });
+                              }}
+                            >
+                              Desactivar
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Reactivar cuenta inactiva */}
+                  {!seleccionado.Usuario_Estado_Cuenta && (
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "10px 16px", border: "1px solid #fca5a5", borderRadius: "8px",
+                      background: "#fff1f2",
+                    }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: "#991b1b", fontSize: "0.9rem" }}>
+                          Cuenta desactivada
+                        </span>
+                        <p style={{ margin: "2px 0 0", fontSize: "0.82rem", color: "#b91c1c" }}>
+                          El usuario no puede iniciar sesión.
+                        </p>
+                      </div>
+                      <button
+                        className="btn-reactivar"
+                        style={{ fontSize: "0.82rem", padding: "5px 12px" }}
+                        onClick={() => {
+                          setMsgGestion({ tipo: "", texto: "" });
+                          setModalGestion({ tipo: "reactivar-cuenta" });
+                        }}
+                      >
+                        Reactivar cuenta
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
       </div>
+
+      {/* Modal confirmación gestión de roles/cuenta (CU 21/22/23/24) */}
+      {modalGestion && seleccionado && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+        }}>
+          <div className="form-card" style={{ width: "460px", maxWidth: "95vw" }}>
+            {modalGestion.tipo === "desactivar-rol" ? (
+              <>
+                <h2 style={{ marginBottom: "8px" }}>Desactivar rol {modalGestion.rol}</h2>
+                <p style={{ color: "#64748b", marginBottom: "16px" }}>
+                  <strong>{seleccionado.Usuario_Nombre_Completo}</strong>
+                </p>
+                <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+                  <li>El usuario perderá el acceso asociado al rol <strong>{modalGestion.rol}</strong>.</li>
+                  <li>Su cuenta y otros roles permanecerán activos.</li>
+                  <li>La información histórica se conservará.</li>
+                </ul>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button className="btn-desactivar" onClick={confirmarGestion} disabled={loadingGestion}>
+                    {loadingGestion ? "Procesando..." : `Desactivar rol ${modalGestion.rol}`}
+                  </button>
+                  <button className="btn-roles" onClick={() => setModalGestion(null)} disabled={loadingGestion}>
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 style={{ marginBottom: "8px" }}>Reactivar cuenta</h2>
+                <p style={{ color: "#64748b", marginBottom: "16px" }}>
+                  <strong>{seleccionado.Usuario_Nombre_Completo}</strong>
+                </p>
+                <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+                  <li>El usuario podrá volver a iniciar sesión.</li>
+                  <li>Sus permisos serán restaurados según sus roles asignados.</li>
+                  <li>Las sesiones anteriores no se restauran automáticamente.</li>
+                </ul>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button className="btn-reactivar" onClick={confirmarGestion} disabled={loadingGestion}>
+                    {loadingGestion ? "Procesando..." : "Confirmar reactivación"}
+                  </button>
+                  <button className="btn-roles" onClick={() => setModalGestion(null)} disabled={loadingGestion}>
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
