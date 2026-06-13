@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
+import { apiFetch } from "../../services/api";
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -21,22 +22,22 @@ function Perfil() {
 
   useEffect(() => {
     if (!idObjetivo) return;
-    const token = localStorage.getItem("token");
-    fetch(`/api/usuarios/${idObjetivo}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    apiFetch(`/api/usuarios/${idObjetivo}`)
+      .then((r) => {
+        if (!r || !r.ok) throw new Error(`HTTP ${r?.status}`);
+        return r.json();
+      })
       .then((data) => setDatos(data))
       .catch(console.error)
       .finally(() => setCargando(false));
   }, [idObjetivo]);
 
   const recargarDatos = () => {
-    const token = localStorage.getItem("token");
-    fetch(`/api/usuarios/${idObjetivo}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    apiFetch(`/api/usuarios/${idObjetivo}`)
+      .then((r) => {
+        if (!r || !r.ok) throw new Error(`HTTP ${r?.status}`);
+        return r.json();
+      })
       .then((data) => setDatos(data))
       .catch(console.error);
   };
@@ -121,6 +122,7 @@ function Perfil() {
   };
 
   if (cargando) return <div className="perfil-container"><p>Cargando perfil...</p></div>;
+  if (!datos) return <div className="perfil-container"><p>No se pudo cargar el perfil.</p></div>;
 
   const roles = getRoles();
   const correos = getCorreos();

@@ -22,6 +22,19 @@ const verifyToken = async (req, res, next) => {
       process.env.JWT_SECRET
     );
 
+    // Verificar que la sesión siga activa en BD (cubre cuentas desactivadas y logouts)
+    const [rows] = await pool.execute(
+      `SELECT Sesion_Estado FROM sesion WHERE Sesion_Token_Acceso = ? LIMIT 1`,
+      [token]
+    );
+
+    if (rows.length === 0 || rows[0].Sesion_Estado === 0) {
+      return res.status(401).json({
+        error: 'Sesión inválida o cerrada',
+        codigo: 'SESION_INACTIVA'
+      });
+    }
+
     req.user = decoded;
     req.token = token;
 

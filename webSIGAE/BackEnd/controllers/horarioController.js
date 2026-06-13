@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const getHorarios = async (req, res) => {
   try {
     const { curso_id } = req.query;
-    const { userId, roles } = req.user;
+    const { id: userId, roles } = req.user;
     const esDocente = roles.includes('Docente') && !roles.includes('Administrador');
 
     let query = `

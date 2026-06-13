@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../../services/api";
 
 function Usuarios() {
   const { usuario } = useAuth();
@@ -29,10 +30,8 @@ function Usuarios() {
 
   const cargarUsuarios = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/usuarios", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch("/api/usuarios");
+      if (!res) return;
       const data = await res.json();
       setUsuarios(data);
     } catch (error) {
@@ -50,11 +49,8 @@ const confirmarToggle = async () => {
   if (!modalConfirm) return;
   setLoadingToggle(true);
   try {
-    const token = localStorage.getItem("token");
-    const res = await fetch(`/api/usuarios/${modalConfirm.Usuario_Id}/estado`, {
-      method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await apiFetch(`/api/usuarios/${modalConfirm.Usuario_Id}/estado`, { method: "PUT" });
+    if (!res) return;
     const data = await res.json();
     if (!res.ok) {
       alert(data.mensaje || "Error al cambiar estado");
@@ -81,21 +77,18 @@ const confirmarToggle = async () => {
 
   const guardarRoles = async () => {
     try {
-      const token = localStorage.getItem("token");
       const body = {
         Es_Administrador: roles.Es_Administrador ? 1 : 0,
         Es_Docente: roles.Es_Docente ? 1 : 0,
         Es_Apoderado: roles.Es_Apoderado ? 1 : 0,
         Administrador_Tipo: roles.Es_Administrador ? roles.Administrador_Tipo : null,
       };
-      const res = await fetch(`/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`, {
+      const res = await apiFetch(`/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (!res) return;
       if (res.ok) {
         setUsuarioSeleccionado(null);
         cargarUsuarios();
@@ -234,7 +227,7 @@ const confirmarToggle = async () => {
                     <button
                     className="btn-roles"
                     onClick={() =>
-                      navigate(`/perfil-usuario/${u.Usuario_Id}`)
+                      navigate(`/perfil/${u.Usuario_Id}`)
                     }
                     >
                       Ver Perfil
