@@ -133,7 +133,7 @@ function AppRouter() {
           <Route
             path="/registrar-admin"
             element={
-              <RoleRoute roles={["Administrador"]}>
+              <RoleRoute superAdminOnly={true}>
                 <RegisterAdmin />
               </RoleRoute>
             }
