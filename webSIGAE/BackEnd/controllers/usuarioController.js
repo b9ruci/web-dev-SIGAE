@@ -80,74 +80,59 @@ const createUsuario = async (req, res) => {
     return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
 
   try {
-    
+
     // Verificar si existe usuario con ese RUT
-const [existeRUT] = await db.query(
-  `SELECT
-      Usuario_Id,
-      Es_Administrador,
-      Es_Docente,
-      Es_Apoderado
-   FROM usuario
-   WHERE Usuario_RUT = ?`,
-  [Usuario_RUT]
-);
+    const [existeRUT] = await db.query(
+      `SELECT
+          Usuario_Id,
+          Es_Administrador,
+          Es_Docente,
+          Es_Apoderado
+       FROM usuario
+       WHERE Usuario_RUT = ?`,
+      [Usuario_RUT]
+    );
 
-if (existeRUT.length > 0) {
+    if (existeRUT.length > 0) {
 
-  const usuario = existeRUT[0];
+      const usuario = existeRUT[0];
 
-  if (Es_Docente) {
+      if (Es_Docente) {
+        if (usuario.Es_Docente) {
+          return res.status(400).json({ mensaje: 'El usuario ya posee el rol Docente' });
+        }
+        return res.status(409).json({
+          requiereAsignacionRol: true,
+          usuarioId: usuario.Usuario_Id,
+          rol: 'Docente',
+          mensaje: 'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+        });
+      }
 
-    if (usuario.Es_Docente) {
-      return res.status(400).json({
-        mensaje: 'El usuario ya posee el rol Docente'
-      });
+      if (Es_Apoderado) {
+        if (usuario.Es_Apoderado) {
+          return res.status(400).json({ mensaje: 'El usuario ya posee el rol Apoderado' });
+        }
+        return res.status(409).json({
+          requiereAsignacionRol: true,
+          usuarioId: usuario.Usuario_Id,
+          rol: 'Apoderado',
+          mensaje: 'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+        });
+      }
+
+      if (Es_Administrador) {
+        if (usuario.Es_Administrador) {
+          return res.status(400).json({ mensaje: 'El usuario ya posee el rol Administrador' });
+        }
+        return res.status(409).json({
+          requiereAsignacionRol: true,
+          usuarioId: usuario.Usuario_Id,
+          rol: 'Administrador',
+          mensaje: 'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+        });
+      }
     }
-
-    return res.status(409).json({
-      requiereAsignacionRol: true,
-      usuarioId: usuario.Usuario_Id,
-      rol: 'Docente',
-      mensaje:
-        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
-    });
-  }
-
-  if (Es_Apoderado) {
-
-    if (usuario.Es_Apoderado) {
-      return res.status(400).json({
-        mensaje: 'El usuario ya posee el rol Apoderado'
-      });
-    }
-
-    return res.status(409).json({
-      requiereAsignacionRol: true,
-      usuarioId: usuario.Usuario_Id,
-      rol: 'Apoderado',
-      mensaje:
-        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
-    });
-  }
-
-  if (Es_Administrador) {
-
-    if (usuario.Es_Administrador) {
-      return res.status(400).json({
-        mensaje: 'El usuario ya posee el rol Administrador'
-      });
-    }
-
-    return res.status(409).json({
-      requiereAsignacionRol: true,
-      usuarioId: usuario.Usuario_Id,
-      rol: 'Administrador',
-      mensaje:
-        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
-    });
-  }
-}
 
     // Verificar correo duplicado según rol
     if (Es_Docente) {
@@ -226,19 +211,19 @@ const updateUsuario = async (req, res) => {
     if (existe.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
     const objetivo = existe[0];
-    const esSuperAdmin = solicitante.administradorTipo === 'SuperAdmin';
+    const esSuperAdmin = solicitante.administradorTipo === 'Super Admin';
     const esAdmin = (solicitante.roles || []).includes('Administrador');
 
     // SuperAdmin puede editar Admin, Docente y Apoderado (no a otros SuperAdmin)
     // Admin puede editar solo Docente y Apoderado
-    const objetivoEsSuperAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'SuperAdmin';
-    const objetivoEsAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo !== 'SuperAdmin';
+    const objetivoEsSuperAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'Super Admin';
+    const objetivoEsAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo !== 'Super Admin';
 
     if (objetivoEsSuperAdmin) {
-      return res.status(403).json({ mensaje: 'No tienes permiso para editar a un SuperAdministrador' });
+      return res.status(403).json({ mensaje: 'No tienes permiso para editar a un Super Administrador' });
     }
     if (objetivoEsAdmin && !esSuperAdmin) {
-      return res.status(403).json({ mensaje: 'Solo un SuperAdministrador puede editar a un Administrador' });
+      return res.status(403).json({ mensaje: 'Solo un Super Administrador puede editar a un Administrador' });
     }
     if (!esSuperAdmin && !esAdmin) {
       return res.status(403).json({ mensaje: 'No tienes permiso para editar usuarios' });
@@ -376,10 +361,10 @@ const toggleEstado = async (req, res) => {
 
     const u = rows[0];
 
-    // CU 23: solo SuperAdmin puede tocar cuentas de administrador
-    if (u.Es_Administrador && actorTipo !== 'SuperAdmin') {
+    // CU 23: solo Super Admin puede tocar cuentas de administrador
+    if (u.Es_Administrador && actorTipo !== 'Super Admin') {
       return res.status(403).json({
-        mensaje: 'Solo un SuperAdmin puede desactivar o reactivar cuentas de administrador'
+        mensaje: 'Solo un Super Administrador puede desactivar o reactivar cuentas de administrador'
       });
     }
 
