@@ -31,7 +31,6 @@ app.use('/api/horarios',    horarioRoutes);
 app.use('/api/bloques',     bloquesRoutes);
 app.use('/api/dashboard',   dashboardRoutes);
 app.use('/api/planes',      planRoutes);
-app.use('/api/planes',      planRoutes);
 
 // 404
 app.use((req, res) => {

@@ -203,16 +203,27 @@ const updateBloque = async (req, res) => {
 const deleteBloque = async (req, res) => {
   const { id } = req.params;
   try {
-    const [enUso] = await pool.execute(
+    const [enHorario] = await pool.execute(
       `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ? LIMIT 1`, [id]
     );
-    if (enUso.length > 0) {
+    if (enHorario.length > 0) {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está asignado a un horario de curso' });
     }
+
+    const [enEvento] = await pool.execute(
+      `SELECT Afecta_Id FROM afecta WHERE Bloque_Horario_Id = ? LIMIT 1`, [id]
+    );
+    if (enEvento.length > 0) {
+      return res.status(409).json({ error: 'No se puede eliminar: el bloque está asociado a un evento institucional' });
+    }
+
     const [result] = await pool.execute(`DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?`, [id]);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Bloque no encontrado' });
     res.json({ mensaje: 'Bloque eliminado correctamente' });
   } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(409).json({ error: 'No se puede eliminar: el bloque está referenciado por otros registros' });
+    }
     console.error('deleteBloque:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }

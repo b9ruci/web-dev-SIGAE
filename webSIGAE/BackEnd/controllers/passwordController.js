@@ -255,10 +255,7 @@ const validateResetToken = async (req, res) => {
     return res.status(400).json({ valid: false, error: 'Token requerido' });
   }
 
-  console.log('[validateResetToken] token recibido (primeros 10 chars):', token.substring(0, 10));
-
   try {
-    // Buscar sin filtrar por estado primero — para identificar exactamente por qué falla
     const [todas] = await pool.execute(
       `SELECT Solicitud_Recuperacion_Estado, Solicitud_Recuperacion_Fecha_Expiracion
        FROM solicitud_recuperacion
@@ -267,25 +264,22 @@ const validateResetToken = async (req, res) => {
     );
 
     if (todas.length === 0) {
-      console.log('[validateResetToken] Token no encontrado en BD');
       return res.json({ valid: false, error: 'El enlace no es válido o ya fue utilizado' });
     }
 
     const solicitud = todas[0];
-    console.log('[validateResetToken] Estado en BD:', solicitud.Solicitud_Recuperacion_Estado);
 
     if (solicitud.Solicitud_Recuperacion_Estado !== 'En Proceso') {
       return res.json({ valid: false, error: `El enlace ya fue ${solicitud.Solicitud_Recuperacion_Estado === 'Utilizado' ? 'utilizado' : 'expirado'}. Solicita uno nuevo.` });
     }
 
     if (new Date() > new Date(solicitud.Solicitud_Recuperacion_Fecha_Expiracion)) {
-      console.log('[validateResetToken] Token expirado. Expiración:', solicitud.Solicitud_Recuperacion_Fecha_Expiracion);
       return res.json({ valid: false, error: 'El enlace ha expirado (30 min). Solicita uno nuevo.' });
     }
 
     res.json({ valid: true });
   } catch (error) {
-    console.error('[validateResetToken] Error:', error.message);
+    console.error('Error en validateResetToken:', error);
     res.status(500).json({ valid: false, error: 'Error interno del servidor' });
   }
 };
@@ -295,6 +289,9 @@ const cambiarContrasena = async (req, res) => {
   const { usuarioId, contrasenaActual, nuevaContrasena } = req.body;
   if (!usuarioId || !contrasenaActual || !nuevaContrasena)
     return res.status(400).json({ error: 'Todos los campos son requeridos' });
+
+  if (parseInt(usuarioId) !== req.user.id)
+    return res.status(403).json({ error: 'No puedes cambiar la contraseña de otro usuario' });
 
   const errorFortaleza = validarFortalezaContrasena(nuevaContrasena);
   if (errorFortaleza) return res.status(400).json({ error: errorFortaleza });

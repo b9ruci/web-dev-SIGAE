@@ -8,7 +8,7 @@ const {
   cambiarContrasena,
 } = require('../controllers/passwordController');
 const { validateLogin } = require('../middleware/validation');
-const { loginLimiter } = require('../middleware/rateLimiter');
+const { loginLimiter, recoveryLimiter } = require('../middleware/rateLimiter');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -18,9 +18,9 @@ router.post('/login', loginLimiter, validateLogin, login);
 router.post('/logout', logout);
 
 // Recuperación de contraseña
-router.post('/check-recovery-emails', checkRecoveryEmails);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+router.post('/check-recovery-emails', recoveryLimiter, checkRecoveryEmails);
+router.post('/forgot-password', recoveryLimiter, forgotPassword);
+router.post('/reset-password', recoveryLimiter, resetPassword);
 router.get('/validate-reset-token', validateResetToken);
 
 // Cambio de contraseña con sesión activa

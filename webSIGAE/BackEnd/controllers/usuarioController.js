@@ -229,9 +229,26 @@ const updateUsuario = async (req, res) => {
       return res.status(403).json({ mensaje: 'No tienes permiso para editar usuarios' });
     }
 
+    const CAMPOS_EDITABLES_USUARIO = new Set([
+      'Usuario_Telefono',
+      'Usuario_Nombre_Completo',
+      'Usuario_Foto_Perfil',
+      'Usuario_Estado_Cuenta',
+      'Docente_Carga_Horaria_Maxima',
+      'Docente_Especialidad',
+      'Docente_Correo_Institucional',
+      'Administrador_Correo_Institucional',
+      'Apoderado_Direccion',
+      'Apoderado_Correo_Natural',
+    ]);
+
     const datosActualizar = { ...req.body };
     delete datosActualizar.Usuario_Id;
-    const { Usuario_Contraseña, ...otrosDatos } = datosActualizar;
+    const { Usuario_Contraseña, ...camposRaw } = datosActualizar;
+
+    const otrosDatos = Object.fromEntries(
+      Object.entries(camposRaw).filter(([k]) => CAMPOS_EDITABLES_USUARIO.has(k))
+    );
 
     // Validar dominio de correos institucionales si se están actualizando
     if (otrosDatos.Docente_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Docente_Correo_Institucional)) {
@@ -542,6 +559,53 @@ const asignarRol = async (req, res) => {
   }
 };
 
+// Buscar usuario existente por RUT o nombre (CU 25)
+const buscarUsuario = async (req, res) => {
+  const { rut, nombre } = req.body;
+  const solicitante = req.user;
+
+  if (!rut && !nombre) {
+    return res.status(400).json({ mensaje: 'Debe ingresar al menos un criterio de búsqueda (RUT o nombre)' });
+  }
+
+  try {
+    const conditions = [];
+    const params     = [];
+
+    if (rut) {
+      conditions.push('Usuario_RUT LIKE ?');
+      params.push(`%${rut}%`);
+    }
+    if (nombre) {
+      conditions.push('Usuario_Nombre_Completo LIKE ?');
+      params.push(`%${nombre}%`);
+    }
+
+    const [rows] = await db.query(
+      `SELECT Usuario_Id, Usuario_RUT, Usuario_Nombre_Completo, Usuario_Estado_Cuenta,
+              Es_Administrador, Administrador_Tipo, Administrador_Correo_Institucional,
+              Es_Docente, Docente_Correo_Institucional, Docente_Especialidad,
+              Es_Apoderado, Apoderado_Correo_Natural
+       FROM usuario
+       WHERE ${conditions.join(' OR ')}
+       ORDER BY Usuario_Nombre_Completo
+       LIMIT 20`,
+      params
+    );
+
+    // Admin normal no puede ver ni gestionar Super Admins
+    const esSuperAdmin = solicitante.administradorTipo === 'Super Admin';
+    const resultado = esSuperAdmin
+      ? rows
+      : rows.filter(u => !(u.Es_Administrador && u.Administrador_Tipo === 'Super Admin'));
+
+    res.json(resultado);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al buscar usuario' });
+  }
+};
+
 module.exports = {
   getUsuarios,
   getUsuarioById,
@@ -551,4 +615,5 @@ module.exports = {
   updateRoles,
   toggleEstado,
   asignarRol,
+  buscarUsuario,
 };

@@ -12,6 +12,9 @@ const {
 
 const { validateCrearUsuario } = require('../middleware/validation');
 
+// Búsqueda de usuario existente (CU 25) — debe estar ANTES de /:id
+router.post('/buscar', verifyToken, verifyAdmin, usuarioController.buscarUsuario);
+
 // Cualquier usuario autenticado puede leer su propio perfil
 router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
 router.get('/:id', verifyToken, usuarioController.getUsuarioById);

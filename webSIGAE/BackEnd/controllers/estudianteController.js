@@ -93,11 +93,27 @@ const createEstudiante = async (req, res) => {
   }
 };
 
+const CAMPOS_EDITABLES_ESTUDIANTE = new Set([
+  'Estudiante_Nombre_Completo',
+  'Estudiante_RUT',
+  'Curso_Id',
+  'Estudiante_Estado_Academico',
+  'Apoderado_Usuario_Id',
+]);
+
 // Actualizar ficha estudiantil
 const updateEstudiante = async (req, res) => {
   const { id } = req.params;
-  const datos = req.body;
+  const datos = { ...req.body };
   delete datos.Estudiante_Id;
+
+  const datosFiltrados = Object.fromEntries(
+    Object.entries(datos).filter(([k]) => CAMPOS_EDITABLES_ESTUDIANTE.has(k))
+  );
+
+  if (Object.keys(datosFiltrados).length === 0) {
+    return res.status(400).json({ mensaje: 'No hay campos válidos para actualizar' });
+  }
 
   try {
     const [existe] = await db.query('SELECT Estudiante_Id FROM estudiante WHERE Estudiante_Id = ?', [id]);
@@ -105,12 +121,8 @@ const updateEstudiante = async (req, res) => {
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
 
-    const campos  = Object.keys(datos).map(c => `${c} = ?`);
-    const valores = [...Object.values(datos), id];
-
-    if (campos.length === 0) {
-      return res.status(400).json({ mensaje: 'No hay campos para actualizar' });
-    }
+    const campos  = Object.keys(datosFiltrados).map(c => `${c} = ?`);
+    const valores = [...Object.values(datosFiltrados), id];
 
     await db.query(
       `UPDATE estudiante SET ${campos.join(', ')} WHERE Estudiante_Id = ?`,
@@ -175,31 +187,29 @@ const asignarApoderado = async (req, res) => {
     });
   }
 
+  const conn = await db.getConnection();
   try {
-    // Verificar que el apoderado existe y está activo
-    const [apoderado] = await db.query(
+    const [apoderado] = await conn.query(
       `SELECT Usuario_Id, Usuario_Nombre_Completo, Es_Apoderado, Usuario_Estado_Cuenta
-       FROM usuario
-       WHERE Usuario_Id = ?`,
+       FROM usuario WHERE Usuario_Id = ?`,
       [apoderadoId]
     );
 
-    if (apoderado.length === 0) {
+    if (apoderado.length === 0)
       return res.status(404).json({ mensaje: 'Apoderado no encontrado' });
-    }
-    if (!apoderado[0].Es_Apoderado) {
+    if (!apoderado[0].Es_Apoderado)
       return res.status(400).json({ mensaje: 'El usuario seleccionado no tiene rol de apoderado' });
-    }
-    if (!apoderado[0].Usuario_Estado_Cuenta) {
+    if (!apoderado[0].Usuario_Estado_Cuenta)
       return res.status(400).json({ mensaje: 'El apoderado seleccionado está inactivo' });
-    }
 
-    const asignados   = [];
-    const omitidos    = [];
+    await conn.beginTransaction();
+
+    const asignados     = [];
+    const omitidos      = [];
     const noEncontrados = [];
 
     for (const estudianteId of estudianteIds) {
-      const [estudiante] = await db.query(
+      const [estudiante] = await conn.query(
         'SELECT Estudiante_Id, Estudiante_Nombre_Completo, Apoderado_Usuario_Id FROM estudiante WHERE Estudiante_Id = ?',
         [estudianteId]
       );
@@ -209,19 +219,19 @@ const asignarApoderado = async (req, res) => {
         continue;
       }
 
-      // Si ya tiene este mismo apoderado, omitir
       if (estudiante[0].Apoderado_Usuario_Id === apoderadoId) {
         omitidos.push(estudiante[0].Estudiante_Nombre_Completo);
         continue;
       }
 
-      await db.query(
+      await conn.query(
         'UPDATE estudiante SET Apoderado_Usuario_Id = ? WHERE Estudiante_Id = ?',
         [apoderadoId, estudianteId]
       );
       asignados.push(estudiante[0].Estudiante_Nombre_Completo);
     }
 
+    await conn.commit();
     res.json({
       mensaje      : 'Proceso completado',
       asignados    : asignados.length,
@@ -230,8 +240,11 @@ const asignarApoderado = async (req, res) => {
       detalle      : { asignados, omitidos, noEncontrados },
     });
   } catch (error) {
+    await conn.rollback().catch(() => {});
     console.error(error);
     res.status(500).json({ mensaje: 'Error al asignar apoderado' });
+  } finally {
+    conn.release();
   }
 };
 
