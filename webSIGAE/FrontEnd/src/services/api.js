@@ -12,15 +12,40 @@ function authHeaders() {
   };
 }
 
+function clearSessionAndRedirect() {
+  localStorage.removeItem('usuario');
+  localStorage.removeItem('token');
+  localStorage.removeItem('rolActivo');
+  window.location.href = '/session-expired';
+}
+
+export async function apiFetch(url, options = {}) {
+  const token = getToken();
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.headers || {}),
+    },
+  });
+
+  if (res.status === 401) {
+    const data = await res.json().catch(() => ({}));
+    if (data.codigo === 'TOKEN_EXPIRADO' || data.codigo === 'SESION_INACTIVA') {
+      clearSessionAndRedirect();
+      return null;
+    }
+  }
+
+  return res;
+}
+
 async function handleResponse(res) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    // CU 13: token expirado → limpiar sesión y redirigir
-    if (res.status === 401 && data.codigo === 'TOKEN_EXPIRADO') {
-      localStorage.removeItem('usuario');
-      localStorage.removeItem('token');
-      localStorage.removeItem('rolActivo');
-      window.location.href = '/session-expired';
+    // CU 13: token expirado o sesión invalidada → limpiar y redirigir
+    if (res.status === 401 && (data.codigo === 'TOKEN_EXPIRADO' || data.codigo === 'SESION_INACTIVA')) {
+      clearSessionAndRedirect();
       return;
     }
     const error = new Error(
@@ -143,5 +168,23 @@ export async function asignarApoderado({ apoderadoId, estudianteIds }) {
     headers: authHeaders(),
     body   : JSON.stringify({ apoderadoId, estudianteIds }),
   });
+  return handleResponse(res);
+}
+// Buscar usuario existente por RUT, nombre o correo
+export async function buscarUsuarioExistente({ rut, nombre, correo }) {
+
+  const res = await fetch(
+    `${BASE_URL}/usuarios/buscar`,
+    {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        rut,
+        nombre,
+        correo
+      })
+    }
+  );
+
   return handleResponse(res);
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarEstudiante } from "../../services/api";
+import { validarRut, normalizarRut } from "../../utils/validaciones";
 
 function RegisterStudent() {
   const navigate = useNavigate();
@@ -13,10 +14,10 @@ function RegisterStudent() {
   });
 
   const [cursos, setCursos]   = useState([]);
+  const [errores, setErrores] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
 
-  // Carga los cursos reales desde la BD al montar el componente
   useEffect(() => {
     fetch("/api/cursos", {
       headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -26,12 +27,32 @@ function RegisterStudent() {
       .catch(() => setCursos([]));
   }, []);
 
+  const validarCampo = (name, value) => {
+    if (name === "rut" && value && !validarRut(value)) {
+      return "RUT inválido. Formato esperado: 12345678-9";
+    }
+    return "";
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const valorNorm = name === "rut" ? normalizarRut(value) : value;
+    setFormData({ ...formData, [name]: valorNorm });
+    setErrores({ ...errores, [name]: validarCampo(name, valorNorm) });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const nuevosErrores = {
+      rut: validarCampo("rut", formData.rut),
+    };
+
+    if (Object.values(nuevosErrores).some((msg) => msg)) {
+      setErrores(nuevosErrores);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -62,16 +83,19 @@ function RegisterStudent() {
             required
           />
 
-          <input
-            type="text"
-            name="rut"
-            placeholder="RUT"
-            value={formData.rut}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="text"
+              name="rut"
+              placeholder="RUT (ej: 12345678-9)"
+              value={formData.rut}
+              onChange={handleChange}
+              className={errores.rut ? "input-invalid" : ""}
+              required
+            />
+            {errores.rut && <span className="input-error-msg">{errores.rut}</span>}
+          </div>
 
-          {/* Los cursos vienen de /api/cursos con Curso_Id y Curso_Nombre */}
           <select
             name="curso"
             value={formData.curso}

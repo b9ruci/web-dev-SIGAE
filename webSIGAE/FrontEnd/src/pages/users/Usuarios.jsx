@@ -1,18 +1,22 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../../services/api";
+import { normalizarTexto } from "../../utils/validaciones";
 
 function Usuarios() {
   const { usuario } = useAuth();
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const navigate = useNavigate();
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
 
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("Todos");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
-
+  const [modalConfirm, setModalConfirm]   = useState(null);
+  // { usuario, conEleccion: bool, accion: 'cuenta'|'rol', rolAQuitar: string|null, rolesActivos: string[] }
+  const [loadingToggle, setLoadingToggle] = useState(false);
   // Modal roles
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
   const [roles, setRoles] = useState({
@@ -28,10 +32,8 @@ function Usuarios() {
 
   const cargarUsuarios = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch("/api/usuarios", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch("/api/usuarios");
+      if (!res) return;
       const data = await res.json();
       setUsuarios(data);
     } catch (error) {
@@ -41,18 +43,61 @@ function Usuarios() {
     }
   };
 
-  const toggleEstado = async (id) => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`/api/usuarios/${id}/estado`, {
+const abrirConfirmToggle = (u) => {
+  const rolesActivos = [
+    u.Es_Administrador && "Administrador",
+    u.Es_Docente       && "Docente",
+    u.Es_Apoderado     && "Apoderado",
+  ].filter(Boolean);
+
+  // Mostrar elección solo al desactivar (no al reactivar) cuando hay 2+ roles
+  const conEleccion = !!u.Usuario_Estado_Cuenta && rolesActivos.length > 1;
+
+  setModalConfirm({
+    usuario: u,
+    conEleccion,
+    accion: "cuenta",
+    rolAQuitar: rolesActivos[0] ?? null,
+    rolesActivos,
+  });
+};
+
+const confirmarAccion = async () => {
+  if (!modalConfirm) return;
+  const { usuario: u, accion, rolAQuitar } = modalConfirm;
+  setLoadingToggle(true);
+  try {
+    if (accion === "cuenta") {
+      const res = await apiFetch(`/api/usuarios/${u.Usuario_Id}/estado`, { method: "PUT" });
+      if (!res) return;
+      const data = await res.json();
+      if (!res.ok) alert(data.mensaje || "Error al cambiar estado");
+      else cargarUsuarios();
+    } else {
+      // Quitar un rol específico
+      const body = {
+        Es_Administrador: rolAQuitar === "Administrador" ? 0 : (u.Es_Administrador ? 1 : 0),
+        Es_Docente:       rolAQuitar === "Docente"       ? 0 : (u.Es_Docente       ? 1 : 0),
+        Es_Apoderado:     rolAQuitar === "Apoderado"     ? 0 : (u.Es_Apoderado     ? 1 : 0),
+        Administrador_Tipo: rolAQuitar === "Administrador" ? null : (u.Administrador_Tipo || null),
+      };
+      const res = await apiFetch(`/api/usuarios/${u.Usuario_Id}/roles`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
-      if (res.ok) cargarUsuarios();
-    } catch (error) {
-      console.error(error);
+      if (!res) return;
+      const data = await res.json();
+      if (!res.ok) alert(data.mensaje || "Error al quitar rol");
+      else cargarUsuarios();
     }
-  };
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoadingToggle(false);
+    setModalConfirm(null);
+  }
+};
 
   const abrirRoles = (u) => {
     setUsuarioSeleccionado(u);
@@ -66,21 +111,18 @@ function Usuarios() {
 
   const guardarRoles = async () => {
     try {
-      const token = localStorage.getItem("token");
       const body = {
         Es_Administrador: roles.Es_Administrador ? 1 : 0,
         Es_Docente: roles.Es_Docente ? 1 : 0,
         Es_Apoderado: roles.Es_Apoderado ? 1 : 0,
         Administrador_Tipo: roles.Es_Administrador ? roles.Administrador_Tipo : null,
       };
-      const res = await fetch(`/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`, {
+      const res = await apiFetch(`/api/usuarios/${usuarioSeleccionado.Usuario_Id}/roles`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (!res) return;
       if (res.ok) {
         setUsuarioSeleccionado(null);
         cargarUsuarios();
@@ -97,7 +139,7 @@ function Usuarios() {
   const getBadgesRoles = (u) => {
     const badges = [];
     if (u.Es_Administrador) {
-      if (u.Administrador_Tipo === "SuperAdmin") {
+      if (u.Administrador_Tipo === "Super Admin") {
         badges.push(<span key="sa" className="badge-rol badge-superadmin">Super Admin</span>);
       } else {
         badges.push(<span key="adm" className="badge-rol badge-admin">Administrador</span>);
@@ -109,11 +151,14 @@ function Usuarios() {
   };
 
   const usuariosFiltrados = usuarios.filter((u) => {
-    const textoBusqueda = busqueda.toLowerCase();
+    const textoBusqueda = normalizarTexto(busqueda);
     const coincideTexto =
       !busqueda ||
-      u.Usuario_Nombre_Completo?.toLowerCase().includes(textoBusqueda) ||
-      u.Usuario_RUT?.toLowerCase().includes(textoBusqueda);
+      normalizarTexto(u.Usuario_Nombre_Completo ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Usuario_RUT ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Administrador_Correo_Institucional ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Docente_Correo_Institucional ?? "").includes(textoBusqueda) ||
+      normalizarTexto(u.Apoderado_Correo_Natural ?? "").includes(textoBusqueda);
 
     const coincideRol =
       filtroRol === "Todos" ||
@@ -149,7 +194,7 @@ function Usuarios() {
         <input
           type="text"
           className="usuarios-search"
-          placeholder="Buscar por nombre o RUT..."
+          placeholder="Buscar por nombre, RUT o correo..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
@@ -187,13 +232,14 @@ function Usuarios() {
               <th>Roles</th>
               <th>Correo</th>
               <th>Estado</th>
+              <th>Perfil</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {usuariosFiltrados.map((u, idx) => {
               const esMismoUsuario = u.Usuario_Id === usuario?.id;
-              const esSuperAdminFila = u.Administrador_Tipo === "SuperAdmin";
+              const esSuperAdminFila = u.Administrador_Tipo === "Super Admin";
 
               return (
                 <tr key={u.Usuario_Id}>
@@ -212,28 +258,34 @@ function Usuarios() {
                       : <span className="badge-inactivo">Inactivo</span>}
                   </td>
                   <td>
-                    <div className="acciones-grupo">
-                      {!esMismoUsuario && !esSuperAdminFila && (
-                        <button
-                          className={u.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
-                          onClick={() => toggleEstado(u.Usuario_Id)}
-                        >
-                          {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
-                        </button>
-                      )}
-                      <button
-                        className="btn-roles"
-                        onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}
-                      >
-                        Ver Perfil
+                    <button
+                    className="btn-roles"
+                    onClick={() =>
+                      navigate(`/perfil/${u.Usuario_Id}`)
+                    }
+                    >
+                      Ver Perfil
                       </button>
+                      </td>
+                  <td>
+                    <div className="acciones-grupo">
+{!esMismoUsuario &&
+ !esSuperAdminFila &&
+ !(u.Es_Administrador && !esSuperAdmin) && (
+  <button
+    className={u.Usuario_Estado_Cuenta ? "btn-desactivar" : "btn-reactivar"}
+    onClick={() => abrirConfirmToggle(u)}
+  >
+    {u.Usuario_Estado_Cuenta ? "Desactivar" : "Reactivar"}
+  </button>
+)}                        
                       {esSuperAdmin && (
                         <button
                           className="btn-roles"
                           onClick={() => abrirRoles(u)}
                         >
                           Gestionar Roles
-                        </button>
+                          </button>
                       )}
                     </div>
                   </td>
@@ -273,7 +325,7 @@ function Usuarios() {
                   onChange={(e) => setRoles({ ...roles, Administrador_Tipo: e.target.value })}
                 >
                   <option value="Administrador Normal">Administrador Normal</option>
-                  <option value="SuperAdmin">SuperAdmin</option>
+                  <option value="Super Admin">Super Admin</option>
                 </select>
               )}
               <div className="rol-item">
@@ -299,17 +351,129 @@ function Usuarios() {
               <button className="btn-primario" onClick={guardarRoles}>
                 Guardar
               </button>
-              <button
-                className="btn-desactivar"
-                style={{ alignSelf: "flex-start" }}
-                onClick={() => setUsuarioSeleccionado(null)}
-              >
-                Cancelar
-              </button>
             </div>
           </div>
         </div>
       )}
+      {/* Modal confirmación desactivar/reactivar / quitar rol — CU 22/23/24/25 */}
+{modalConfirm && (() => {
+  const { usuario: u, conEleccion, accion, rolAQuitar, rolesActivos } = modalConfirm;
+  const desactivando = !!u.Usuario_Estado_Cuenta;
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1001,
+    }}>
+      <div className="form-card" style={{ width: "460px", maxWidth: "95vw" }}>
+
+        <h2 style={{ marginBottom: "8px" }}>
+          {desactivando ? "Gestionar cuenta" : "Reactivar cuenta"}
+        </h2>
+        <p style={{ color: "#64748b", marginBottom: "16px" }}>
+          <strong>{u.Usuario_Nombre_Completo}</strong>
+        </p>
+
+        {/* Selector de acción — solo para multi-rol al desactivar */}
+        {conEleccion && (
+          <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="accion-modal"
+                checked={accion === "cuenta"}
+                onChange={() => setModalConfirm({ ...modalConfirm, accion: "cuenta" })}
+                style={{ marginTop: "3px" }}
+              />
+              <span>
+                <strong>Desactivar cuenta completa</strong>
+                <br />
+                <small style={{ color: "#64748b" }}>
+                  Suspende todos los accesos del usuario. Sus sesiones activas serán invalidadas.
+                </small>
+              </span>
+            </label>
+
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer" }}>
+              <input
+                type="radio"
+                name="accion-modal"
+                checked={accion === "rol"}
+                onChange={() => setModalConfirm({ ...modalConfirm, accion: "rol" })}
+                style={{ marginTop: "3px" }}
+              />
+              <span>
+                <strong>Quitar un rol específico</strong>
+                <br />
+                <small style={{ color: "#64748b" }}>
+                  La cuenta permanece activa pero sin el rol seleccionado.
+                </small>
+              </span>
+            </label>
+
+            {accion === "rol" && (
+              <div style={{ marginLeft: "26px" }}>
+                <label style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "4px", display: "block" }}>
+                  Rol a quitar:
+                </label>
+                <select
+                  value={rolAQuitar}
+                  onChange={(e) => setModalConfirm({ ...modalConfirm, rolAQuitar: e.target.value })}
+                  style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #cbd5e1", width: "100%" }}
+                >
+                  {rolesActivos.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Consecuencias — sin elección (caso simple) */}
+        {!conEleccion && (
+          desactivando ? (
+            <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+              <li>El acceso del usuario quedará restringido.</li>
+              <li>Todas sus sesiones activas serán invalidadas.</li>
+              <li>La información histórica se conservará.</li>
+            </ul>
+          ) : (
+            <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
+              <li>El usuario podrá volver a iniciar sesión.</li>
+              <li>Sus permisos serán restaurados según su rol.</li>
+              <li>Las sesiones anteriores NO se restauran automáticamente.</li>
+            </ul>
+          )
+        )}
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            className={desactivando ? "btn-desactivar" : "btn-reactivar"}
+            onClick={confirmarAccion}
+            disabled={loadingToggle}
+          >
+            {loadingToggle
+              ? "Procesando..."
+              : accion === "rol"
+                ? `Quitar rol ${rolAQuitar}`
+                : desactivando
+                  ? "Confirmar desactivación"
+                  : "Confirmar reactivación"}
+          </button>
+          <button
+            className="btn-roles"
+            onClick={() => setModalConfirm(null)}
+            disabled={loadingToggle}
+          >
+            Cancelar
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+})()}
     </div>
   );
 }

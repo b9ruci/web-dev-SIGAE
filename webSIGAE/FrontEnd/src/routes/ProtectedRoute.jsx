@@ -22,7 +22,7 @@ export function RoleRoute({ children, roles = [] }) {
   }
 
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
-  const esSuperAdmin = usuario?.administradorTipo === "SuperAdmin";
+  const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
 
   const tieneAcceso =
     esSuperAdmin ||

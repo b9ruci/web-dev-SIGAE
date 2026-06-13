@@ -36,6 +36,7 @@ import Perfil from "../pages/users/Perfil";
 import Cursos from "../pages/academic/Cursos";
 import Horarios from "../pages/academic/Horarios";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
+import PlanEducativo from "../pages/academic/PlanEducativo";
 
 /* COMMUNICATION */
 
@@ -78,8 +79,15 @@ function AppRouter() {
 
           {/* Accesibles por todos los roles autenticados */}
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/perfil"    element={<Perfil />} />
-
+          <Route path="/perfil"     element={<Perfil />} />
+          <Route
+            path="/perfil/:id"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+              <Perfil />
+              </RoleRoute>
+            }
+        />
           {/* Accesibles por Docente y Apoderado */}
           <Route path="/citaciones" element={<Citaciones />} />
           <Route path="/mensajes"   element={<Mensajes />} />
@@ -106,13 +114,21 @@ function AppRouter() {
           
           <Route
           path="/gestion-roles"
-          element={<GestionRoles />}
+          element={
+          <RoleRoute roles={["Administrador"]}>
+            <GestionRoles />
+            </RoleRoute>
+          }
           />
 
-          <Route
-            path="/gestion-roles"
-            element={<GestionRoles />}
-          />
+<Route
+  path="/gestion-roles/:id"
+  element={
+    <RoleRoute roles={["Administrador"]}>
+      <GestionRoles />
+    </RoleRoute>
+  }
+/>
 
           <Route
             path="/registrar-admin"
@@ -152,7 +168,11 @@ function AppRouter() {
 
           <Route
             path="/apoderados"
-            element={<Apoderados />}
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Apoderados />
+              </RoleRoute>
+            }
           />
 
           <Route
@@ -176,6 +196,24 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Administrador"]}>
                 <BloquesHorarios />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/bloques-horarios"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <BloquesHorarios />
+              </RoleRoute>
+            }
+          />
+
+          <Route
+            path="/plan-educativo"
+            element={
+              <RoleRoute roles={["Administrador", "Docente"]}>
+                <PlanEducativo />
               </RoleRoute>
             }
           />

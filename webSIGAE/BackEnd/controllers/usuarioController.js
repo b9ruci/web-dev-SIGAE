@@ -1,6 +1,7 @@
 // controllers/usuarioController.js
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
+const { validarCorreoInstitucional } = require('../middleware/validation');
 
 // Obtener todos los usuarios
 const getUsuarios = async (req, res) => {
@@ -17,6 +18,15 @@ const getUsuarios = async (req, res) => {
 // Obtener un usuario por ID
 const getUsuarioById = async (req, res) => {
   const { id } = req.params;
+  const solicitante = req.user;
+
+  const esPropioUsuario = String(solicitante.id) === String(id);
+  const esAdmin = (solicitante.roles || []).includes('Administrador');
+
+  if (!esPropioUsuario && !esAdmin) {
+    return res.status(403).json({ mensaje: 'No tienes permiso para ver este perfil' });
+  }
+
   try {
     const [rows] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
@@ -60,80 +70,69 @@ const createUsuario = async (req, res) => {
   // Validar correo según rol
   if (Es_Docente && !Docente_Correo_Institucional)
     return res.status(400).json({ mensaje: 'El correo institucional del docente es obligatorio' });
+  if (Es_Docente && !validarCorreoInstitucional(Docente_Correo_Institucional))
+    return res.status(400).json({ mensaje: 'El correo institucional del docente debe pertenecer al dominio @jacquescousteau.edu' });
   if (Es_Administrador && !Administrador_Correo_Institucional)
     return res.status(400).json({ mensaje: 'El correo institucional del administrador es obligatorio' });
+  if (Es_Administrador && !validarCorreoInstitucional(Administrador_Correo_Institucional))
+    return res.status(400).json({ mensaje: 'El correo institucional del administrador debe pertenecer al dominio @jacquescousteau.edu' });
   if (Es_Apoderado && !Apoderado_Correo_Natural)
     return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
 
   try {
-    
+
     // Verificar si existe usuario con ese RUT
-const [existeRUT] = await db.query(
-  `SELECT
-      Usuario_Id,
-      Es_Administrador,
-      Es_Docente,
-      Es_Apoderado
-   FROM usuario
-   WHERE Usuario_RUT = ?`,
-  [Usuario_RUT]
-);
+    const [existeRUT] = await db.query(
+      `SELECT
+          Usuario_Id,
+          Es_Administrador,
+          Es_Docente,
+          Es_Apoderado
+       FROM usuario
+       WHERE Usuario_RUT = ?`,
+      [Usuario_RUT]
+    );
 
-if (existeRUT.length > 0) {
+    if (existeRUT.length > 0) {
 
-  const usuario = existeRUT[0];
+      const usuario = existeRUT[0];
 
-  if (Es_Docente) {
+      if (Es_Docente) {
+        if (usuario.Es_Docente) {
+          return res.status(400).json({ mensaje: 'El usuario ya posee el rol Docente' });
+        }
+        return res.status(409).json({
+          requiereAsignacionRol: true,
+          usuarioId: usuario.Usuario_Id,
+          rol: 'Docente',
+          mensaje: 'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+        });
+      }
 
-    if (usuario.Es_Docente) {
-      return res.status(400).json({
-        mensaje: 'El usuario ya posee el rol Docente'
-      });
+      if (Es_Apoderado) {
+        if (usuario.Es_Apoderado) {
+          return res.status(400).json({ mensaje: 'El usuario ya posee el rol Apoderado' });
+        }
+        return res.status(409).json({
+          requiereAsignacionRol: true,
+          usuarioId: usuario.Usuario_Id,
+          rol: 'Apoderado',
+          mensaje: 'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+        });
+      }
+
+      if (Es_Administrador) {
+        if (usuario.Es_Administrador) {
+          return res.status(400).json({ mensaje: 'El usuario ya posee el rol Administrador' });
+        }
+        return res.status(409).json({
+          requiereAsignacionRol: true,
+          usuarioId: usuario.Usuario_Id,
+          rol: 'Administrador',
+          mensaje: 'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
+        });
+      }
     }
-
-    return res.status(409).json({
-      requiereAsignacionRol: true,
-      usuarioId: usuario.Usuario_Id,
-      rol: 'Docente',
-      mensaje:
-        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
-    });
-  }
-
-  if (Es_Apoderado) {
-
-    if (usuario.Es_Apoderado) {
-      return res.status(400).json({
-        mensaje: 'El usuario ya posee el rol Apoderado'
-      });
-    }
-
-    return res.status(409).json({
-      requiereAsignacionRol: true,
-      usuarioId: usuario.Usuario_Id,
-      rol: 'Apoderado',
-      mensaje:
-        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
-    });
-  }
-
-  if (Es_Administrador) {
-
-    if (usuario.Es_Administrador) {
-      return res.status(400).json({
-        mensaje: 'El usuario ya posee el rol Administrador'
-      });
-    }
-
-    return res.status(409).json({
-      requiereAsignacionRol: true,
-      usuarioId: usuario.Usuario_Id,
-      rol: 'Administrador',
-      mensaje:
-        'El usuario ya existe. Debe asignar el rol desde Gestión de Roles.'
-    });
-  }
-}
 
     // Verificar correo duplicado según rol
     if (Es_Docente) {
@@ -203,14 +202,44 @@ if (existeRUT.length > 0) {
 // Actualizar usuario
 const updateUsuario = async (req, res) => {
   const { id } = req.params;
-  const datosActualizar = { ...req.body };
-  delete datosActualizar.Usuario_Id;
-
-  const { Usuario_Contraseña, ...otrosDatos } = datosActualizar;
+  const solicitante = req.user;
 
   try {
-    const [existe] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
+    const [existe] = await db.query(
+      'SELECT Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]
+    );
     if (existe.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
+    const objetivo = existe[0];
+    const esSuperAdmin = solicitante.administradorTipo === 'Super Admin';
+    const esAdmin = (solicitante.roles || []).includes('Administrador');
+
+    // SuperAdmin puede editar Admin, Docente y Apoderado (no a otros SuperAdmin)
+    // Admin puede editar solo Docente y Apoderado
+    const objetivoEsSuperAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'Super Admin';
+    const objetivoEsAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo !== 'Super Admin';
+
+    if (objetivoEsSuperAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para editar a un Super Administrador' });
+    }
+    if (objetivoEsAdmin && !esSuperAdmin) {
+      return res.status(403).json({ mensaje: 'Solo un Super Administrador puede editar a un Administrador' });
+    }
+    if (!esSuperAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para editar usuarios' });
+    }
+
+    const datosActualizar = { ...req.body };
+    delete datosActualizar.Usuario_Id;
+    const { Usuario_Contraseña, ...otrosDatos } = datosActualizar;
+
+    // Validar dominio de correos institucionales si se están actualizando
+    if (otrosDatos.Docente_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Docente_Correo_Institucional)) {
+      return res.status(400).json({ mensaje: 'El correo institucional del docente debe pertenecer al dominio @jacquescousteau.edu' });
+    }
+    if (otrosDatos.Administrador_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Administrador_Correo_Institucional)) {
+      return res.status(400).json({ mensaje: 'El correo institucional del administrador debe pertenecer al dominio @jacquescousteau.edu' });
+    }
 
     let hash = null;
     if (Usuario_Contraseña) hash = await bcrypt.hash(Usuario_Contraseña, 10);
@@ -310,18 +339,182 @@ const updateRoles = async (req, res) => {
     }
 
 };
+
 const toggleEstado = async (req, res) => {
   const { id } = req.params;
+  const actorId   = req.user.id;
+  const actorTipo = req.user.administradorTipo;
+
+  // Excepción 3 del CU: actor no puede desactivarse a sí mismo
+  if (parseInt(id) === actorId) {
+    return res.status(403).json({ mensaje: 'No puedes desactivar tu propia cuenta' });
+  }
+
   try {
-    const [rows] = await db.query('SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]);
-    if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    const [rows] = await db.query(
+      `SELECT Usuario_Estado_Cuenta, Es_Administrador, Administrador_Tipo
+       FROM usuario WHERE Usuario_Id = ?`,
+      [id]
+    );
+    if (rows.length === 0)
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
     const u = rows[0];
+
+    // CU 23: solo Super Admin puede tocar cuentas de administrador
+    if (u.Es_Administrador && actorTipo !== 'Super Admin') {
+      return res.status(403).json({
+        mensaje: 'Solo un Super Administrador puede desactivar o reactivar cuentas de administrador'
+      });
+    }
+
     const nuevoEstado = u.Usuario_Estado_Cuenta ? 0 : 1;
-    await db.query('UPDATE usuario SET Usuario_Estado_Cuenta = ? WHERE Usuario_Id = ?', [nuevoEstado, id]);
+
+    await db.query(
+      'UPDATE usuario SET Usuario_Estado_Cuenta = ? WHERE Usuario_Id = ?',
+      [nuevoEstado, id]
+    );
+
+    // CU 22: al desactivar, invalida todas las sesiones activas del usuario
+    if (nuevoEstado === 0) {
+      await db.query(
+        `UPDATE sesion
+         SET Sesion_Estado = 0, Sesion_Fecha_Expiracion = NOW()
+         WHERE Usuario_Id = ? AND Sesion_Estado = 1`,
+        [id]
+      );
+    }
+
     res.json({ mensaje: 'Estado actualizado', estado: nuevoEstado });
   } catch (e) {
     console.error(e);
     res.status(500).json({ mensaje: 'Error al actualizar estado' });
+  }
+};
+
+// Asignar un nuevo rol a un usuario existente, con sus datos específicos
+const asignarRol = async (req, res) => {
+  const { id } = req.params;
+  const solicitante = req.user;
+  const { rol, ...datosFila } = req.body;
+
+  const rolesValidos = ['Administrador', 'Docente', 'Apoderado'];
+  if (!rol || !rolesValidos.includes(rol)) {
+    return res.status(400).json({ mensaje: 'Rol inválido. Debe ser Administrador, Docente o Apoderado' });
+  }
+
+  try {
+    const [rows] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
+    if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+
+    const usuario = rows[0];
+
+    // Verificar que el usuario no tenga ya ese rol
+    if (rol === 'Administrador' && usuario.Es_Administrador)
+      return res.status(400).json({ mensaje: 'El usuario ya tiene el rol Administrador' });
+    if (rol === 'Docente' && usuario.Es_Docente)
+      return res.status(400).json({ mensaje: 'El usuario ya tiene el rol Docente' });
+    if (rol === 'Apoderado' && usuario.Es_Apoderado)
+      return res.status(400).json({ mensaje: 'El usuario ya tiene el rol Apoderado' });
+
+    // Solo Super Admin puede asignar el rol Administrador
+    if (rol === 'Administrador' && solicitante.administradorTipo !== 'Super Admin') {
+      return res.status(403).json({ mensaje: 'Solo un Super Administrador puede asignar el rol Administrador' });
+    }
+
+    // Validar datos específicos según rol
+    if (rol === 'Docente') {
+      if (!datosFila.Docente_Correo_Institucional)
+        return res.status(400).json({ mensaje: 'El correo institucional del docente es obligatorio' });
+      if (!validarCorreoInstitucional(datosFila.Docente_Correo_Institucional))
+        return res.status(400).json({ mensaje: 'El correo institucional debe pertenecer al dominio @jacquescousteau.edu' });
+      if (!datosFila.Docente_Especialidad)
+        return res.status(400).json({ mensaje: 'La especialidad es obligatoria' });
+      if (!datosFila.Docente_Carga_Horaria_Maxima)
+        return res.status(400).json({ mensaje: 'La carga horaria máxima es obligatoria' });
+      const [dup] = await db.query(
+        'SELECT Usuario_Id FROM usuario WHERE Docente_Correo_Institucional = ?',
+        [datosFila.Docente_Correo_Institucional]
+      );
+      if (dup.length > 0)
+        return res.status(400).json({ mensaje: 'Ya existe un docente con ese correo institucional' });
+    }
+
+    if (rol === 'Administrador') {
+      if (!datosFila.Administrador_Correo_Institucional)
+        return res.status(400).json({ mensaje: 'El correo institucional del administrador es obligatorio' });
+      if (!validarCorreoInstitucional(datosFila.Administrador_Correo_Institucional))
+        return res.status(400).json({ mensaje: 'El correo institucional debe pertenecer al dominio @jacquescousteau.edu' });
+      const [dup] = await db.query(
+        'SELECT Usuario_Id FROM usuario WHERE Administrador_Correo_Institucional = ?',
+        [datosFila.Administrador_Correo_Institucional]
+      );
+      if (dup.length > 0)
+        return res.status(400).json({ mensaje: 'Ya existe un administrador con ese correo institucional' });
+    }
+
+    if (rol === 'Apoderado') {
+      if (!datosFila.Apoderado_Correo_Natural)
+        return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
+      if (!datosFila.Apoderado_Direccion)
+        return res.status(400).json({ mensaje: 'La dirección es obligatoria' });
+      const [dup] = await db.query(
+        'SELECT Usuario_Id FROM usuario WHERE Apoderado_Correo_Natural = ?',
+        [datosFila.Apoderado_Correo_Natural]
+      );
+      if (dup.length > 0)
+        return res.status(400).json({ mensaje: 'Ya existe un apoderado con ese correo' });
+    }
+
+    // Construir SET dinámico con el flag del rol + datos específicos
+    const setCampos = [];
+    const setValores = [];
+
+    if (rol === 'Docente') {
+      setCampos.push('Es_Docente = 1',
+        'Docente_Correo_Institucional = ?',
+        'Docente_Especialidad = ?',
+        'Docente_Carga_Horaria_Maxima = ?'
+      );
+      setValores.push(
+        datosFila.Docente_Correo_Institucional,
+        datosFila.Docente_Especialidad,
+        datosFila.Docente_Carga_Horaria_Maxima
+      );
+    }
+
+    if (rol === 'Administrador') {
+      setCampos.push('Es_Administrador = 1',
+        'Administrador_Tipo = ?',
+        'Administrador_Correo_Institucional = ?'
+      );
+      setValores.push(
+        datosFila.Administrador_Tipo || 'Administrador Normal',
+        datosFila.Administrador_Correo_Institucional
+      );
+    }
+
+    if (rol === 'Apoderado') {
+      setCampos.push('Es_Apoderado = 1',
+        'Apoderado_Correo_Natural = ?',
+        'Apoderado_Direccion = ?'
+      );
+      setValores.push(
+        datosFila.Apoderado_Correo_Natural,
+        datosFila.Apoderado_Direccion
+      );
+    }
+
+    setValores.push(id);
+    await db.query(`UPDATE usuario SET ${setCampos.join(', ')} WHERE Usuario_Id = ?`, setValores);
+
+    const [actualizado] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
+    const { Usuario_Contraseña: pwd, ...usuarioSinPwd } = actualizado[0];
+    res.json({ mensaje: `Rol ${rol} asignado correctamente`, usuario: usuarioSinPwd });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al asignar el rol' });
   }
 };
 
@@ -332,5 +525,6 @@ module.exports = {
   updateUsuario,
   deleteUsuario,
   updateRoles,
-  toggleEstado
+  toggleEstado,
+  asignarRol,
 };

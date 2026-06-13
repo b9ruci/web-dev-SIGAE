@@ -22,6 +22,19 @@ const verifyToken = async (req, res, next) => {
       process.env.JWT_SECRET
     );
 
+    // Verificar que la sesión siga activa en BD (cubre cuentas desactivadas y logouts)
+    const [rows] = await pool.execute(
+      `SELECT Sesion_Estado FROM sesion WHERE Sesion_Token_Acceso = ? LIMIT 1`,
+      [token]
+    );
+
+    if (rows.length === 0 || rows[0].Sesion_Estado === 0) {
+      return res.status(401).json({
+        error: 'Sesión inválida o cerrada',
+        codigo: 'SESION_INACTIVA'
+      });
+    }
+
     req.user = decoded;
     req.token = token;
 
@@ -73,14 +86,10 @@ const verifyAdmin = (req, res, next) => {
 
 const verifySuperAdmin = (req, res, next) => {
 
-  if (
-    req.user?.administradorTipo !==
-    'SuperAdmin'
-  ) {
+  if (req.user?.administradorTipo !== 'Super Admin') {
 
     return res.status(403).json({
-      error:
-        'Solo un SuperAdmin puede modificar roles'
+      error: 'Solo un Super Administrador puede realizar esta acción'
     });
 
   }
@@ -89,8 +98,23 @@ const verifySuperAdmin = (req, res, next) => {
 
 };
 
+const verifyPuedeCrearRol = (req, res, next) => {
+  const { Es_Administrador } = req.body;
+
+  if (Es_Administrador) {
+    if (req.user?.administradorTipo !== 'Super Admin') {
+      return res.status(403).json({
+        error: 'Solo un Super Administrador puede registrar administradores'
+      });
+    }
+  }
+
+  next();
+};
+
 module.exports = {
   verifyToken,
   verifyAdmin,
-  verifySuperAdmin
+  verifySuperAdmin,
+  verifyPuedeCrearRol,   // ← agrega esta línea
 };
