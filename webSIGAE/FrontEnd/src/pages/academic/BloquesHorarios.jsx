@@ -562,6 +562,7 @@ function TabEventos() {
   const [guardando, setGuardando] = useState(false);
   const [errorModal,setErrorModal]= useState("");
   const [eliminando,setEliminando]= useState(null);
+  const [vista,     setVista]     = useState("calendario");
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -647,9 +648,26 @@ function TabEventos() {
             consejos, actos patrióticos, etc.
           </p>
         </div>
-        <button className="btn-primary" onClick={abrirCrear} style={{ flexShrink: 0 }}>
-          + Nuevo evento
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
+          <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+            <button
+              onClick={() => setVista("calendario")}
+              style={{ padding: "0.35rem 0.75rem", border: "none", cursor: "pointer",
+                background: vista === "calendario" ? "#1e3a5f" : "#f9fafb",
+                color: vista === "calendario" ? "#fff" : "#6b7280",
+                fontSize: "0.82rem", fontWeight: 500 }}
+            >📅 Semana</button>
+            <button
+              onClick={() => setVista("lista")}
+              style={{ padding: "0.35rem 0.75rem", border: "none", borderLeft: "1px solid #e5e7eb",
+                cursor: "pointer",
+                background: vista === "lista" ? "#1e3a5f" : "#f9fafb",
+                color: vista === "lista" ? "#fff" : "#6b7280",
+                fontSize: "0.82rem", fontWeight: 500 }}
+            >☰ Lista</button>
+          </div>
+          <button className="btn-primary" onClick={abrirCrear}>+ Nuevo evento</button>
+        </div>
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
@@ -670,57 +688,66 @@ function TabEventos() {
             <StatMini label="Total"    value={eventos.length}  color="#374151" bg="#f9fafb" />
           </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={s.tabla}>
-              <thead>
-                <tr style={s.theadRow}>
-                  <th style={s.th}>Nombre</th>
-                  <th style={s.th}>Fecha</th>
-                  <th style={s.th}>Impacto en clases</th>
-                  <th style={s.th}>Descripción</th>
-                  <th style={s.th}>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventos.map((ev, idx) => {
-                  const esPasado = ev.Evento_Institucional_Fecha?.slice(0,10) < hoy;
-                  return (
-                    <tr key={ev.Evento_Institucional_Id}
-                      style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff",
-                               borderBottom: "1px solid #e5e7eb",
-                               opacity: esPasado ? 0.65 : 1 }}>
-                      <td style={{ ...s.td, fontWeight: 600 }}>
-                        {ev.Evento_Institucional_Nombre}
-                        {esPasado && <span style={{ marginLeft: 6, fontSize: "0.72rem",
-                          color: "#9ca3af", fontWeight: 400 }}>Pasado</span>}
-                      </td>
-                      <td style={s.td}>
-                        {ev.Evento_Institucional_Fecha
-                          ? new Date(ev.Evento_Institucional_Fecha + "T12:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" })
-                          : "—"}
-                      </td>
-                      <td style={s.td}>
-                        <ImpactoChip impacto={ev.Evento_Institucional_Impacto_Clases} />
-                      </td>
-                      <td style={{ ...s.td, maxWidth: 280, color: "#6b7280", fontSize: "0.85rem" }}>
-                        {ev.Evento_Institucional_Descripcion}
-                      </td>
-                      <td style={{ ...s.td, whiteSpace: "nowrap" }}>
-                        <button onClick={() => abrirEditar(ev)} style={s.btnAccion}>✏ Editar</button>
-                        <button
-                          onClick={() => { if (window.confirm("¿Eliminar este evento?")) handleEliminar(ev.Evento_Institucional_Id); }}
-                          style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
-                          disabled={eliminando === ev.Evento_Institucional_Id}
-                        >
-                          {eliminando === ev.Evento_Institucional_Id ? "..." : "🗑 Eliminar"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {vista === "calendario" ? (
+            <VistaCalendarioEventos
+              eventos={eventos}
+              onEditar={abrirEditar}
+              onEliminar={handleEliminar}
+              eliminando={eliminando}
+            />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={s.tabla}>
+                <thead>
+                  <tr style={s.theadRow}>
+                    <th style={s.th}>Nombre</th>
+                    <th style={s.th}>Fecha</th>
+                    <th style={s.th}>Impacto en clases</th>
+                    <th style={s.th}>Descripción</th>
+                    <th style={s.th}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventos.map((ev, idx) => {
+                    const esPasado = ev.Evento_Institucional_Fecha?.slice(0,10) < hoy;
+                    return (
+                      <tr key={ev.Evento_Institucional_Id}
+                        style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff",
+                                 borderBottom: "1px solid #e5e7eb",
+                                 opacity: esPasado ? 0.65 : 1 }}>
+                        <td style={{ ...s.td, fontWeight: 600 }}>
+                          {ev.Evento_Institucional_Nombre}
+                          {esPasado && <span style={{ marginLeft: 6, fontSize: "0.72rem",
+                            color: "#9ca3af", fontWeight: 400 }}>Pasado</span>}
+                        </td>
+                        <td style={s.td}>
+                          {ev.Evento_Institucional_Fecha
+                            ? new Date(ev.Evento_Institucional_Fecha + "T12:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" })
+                            : "—"}
+                        </td>
+                        <td style={s.td}>
+                          <ImpactoChip impacto={ev.Evento_Institucional_Impacto_Clases} />
+                        </td>
+                        <td style={{ ...s.td, maxWidth: 280, color: "#6b7280", fontSize: "0.85rem" }}>
+                          {ev.Evento_Institucional_Descripcion}
+                        </td>
+                        <td style={{ ...s.td, whiteSpace: "nowrap" }}>
+                          <button onClick={() => abrirEditar(ev)} style={s.btnAccion}>✏ Editar</button>
+                          <button
+                            onClick={() => { if (window.confirm("¿Eliminar este evento?")) handleEliminar(ev.Evento_Institucional_Id); }}
+                            style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
+                            disabled={eliminando === ev.Evento_Institucional_Id}
+                          >
+                            {eliminando === ev.Evento_Institucional_Id ? "..." : "🗑 Eliminar"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 
@@ -775,6 +802,171 @@ function TabEventos() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Vista Semanal de Eventos (Google Calendar-style) ─────────── */
+
+const IMPACTO_COLORES = {
+  "Sin impacto":      { bg: "#f0fdf4", borde: "#22c55e", acento: "#166534", icono: "✅" },
+  "Salida anticipada":{ bg: "#fefce8", borde: "#eab308", acento: "#92400e", icono: "⚠" },
+  "Suspensión total": { bg: "#fef2f2", borde: "#ef4444", acento: "#991b1b", icono: "🚫" },
+};
+
+const DIAS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function lunesDe(fecha) {
+  const d = new Date(fecha);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return d;
+}
+
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function VistaCalendarioEventos({ eventos, onEditar, onEliminar, eliminando }) {
+  const [lunes,   setLunes]   = useState(() => lunesDe(new Date()));
+  const [hovered, setHovered] = useState(null);
+
+  const hoyISO = toISODate(new Date());
+
+  const dias = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(lunes);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const prevSemana = () => { const d = new Date(lunes); d.setDate(d.getDate() - 7); setLunes(d); };
+  const nextSemana = () => { const d = new Date(lunes); d.setDate(d.getDate() + 7); setLunes(d); };
+  const irHoy     = () => setLunes(lunesDe(new Date()));
+
+  const domingo = dias[6];
+  const rangoLabel = `${lunes.toLocaleDateString("es-CL", { day: "numeric", month: "short" })} – ${domingo.toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}`;
+
+  const btnNav = {
+    padding: "0.3rem 0.65rem", border: "1px solid #e5e7eb", borderRadius: 6,
+    background: "#fff", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600, color: "#374151",
+  };
+
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+      {/* Barra de navegación semanal */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 16px", borderBottom: "2px solid #e5e7eb", background: "#f8fafc", flexWrap: "wrap", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+          <button onClick={prevSemana} style={btnNav}>‹</button>
+          <button onClick={nextSemana} style={btnNav}>›</button>
+          <button onClick={irHoy} style={{ ...btnNav, fontSize: "0.78rem", color: "#1e40af", borderColor: "#93c5fd" }}>
+            Hoy
+          </button>
+        </div>
+        <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e3a5f" }}>{rangoLabel}</span>
+        <span style={{ fontSize: "0.78rem", color: "#9ca3af" }}>
+          {eventos.length} evento{eventos.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Grilla de días */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+        {dias.map((dia, i) => {
+          const diaISO   = toISODate(dia);
+          const esHoy    = diaISO === hoyISO;
+          const esPasado = diaISO < hoyISO;
+          const esFinde  = i >= 5;
+          const eventosDelDia = eventos.filter(ev => ev.Evento_Institucional_Fecha?.slice(0, 10) === diaISO);
+
+          return (
+            <div key={i} style={{
+              borderLeft: i > 0 ? "1px solid #e5e7eb" : "none",
+              borderTop: "1px solid #e5e7eb",
+              minHeight: 110,
+              background: esHoy ? "#eff6ff" : esFinde ? "#fafafa" : "#fff",
+              opacity: esPasado && !esHoy ? 0.72 : 1,
+            }}>
+              {/* Cabecera del día */}
+              <div style={{ padding: "8px 6px 5px", borderBottom: "1px solid #f3f4f6", textAlign: "center" }}>
+                <div style={{ fontSize: "0.65rem", color: esFinde ? "#9ca3af" : "#6b7280",
+                  fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  {DIAS_ES[i]}
+                </div>
+                <div style={{
+                  fontSize: "1.05rem", fontWeight: 700, lineHeight: 1,
+                  marginTop: 3,
+                  color: esHoy ? "#fff" : esFinde ? "#9ca3af" : "#1e3a5f",
+                  background: esHoy ? "#1e40af" : "transparent",
+                  borderRadius: "50%",
+                  width: 28, height: 28,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {dia.getDate()}
+                </div>
+              </div>
+
+              {/* Eventos del día */}
+              <div style={{ padding: "4px 4px 6px", display: "flex", flexDirection: "column", gap: 3 }}>
+                {eventosDelDia.map(ev => {
+                  const col   = IMPACTO_COLORES[ev.Evento_Institucional_Impacto_Clases] || IMPACTO_COLORES["Sin impacto"];
+                  const isHov = hovered === ev.Evento_Institucional_Id;
+
+                  return (
+                    <div
+                      key={ev.Evento_Institucional_Id}
+                      onMouseEnter={() => setHovered(ev.Evento_Institucional_Id)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() => onEditar(ev)}
+                      style={{
+                        background: col.bg,
+                        border: `1px solid ${col.borde}`,
+                        borderLeft: `3px solid ${col.acento}`,
+                        borderRadius: 5,
+                        padding: "3px 5px",
+                        cursor: "pointer",
+                        fontSize: "0.7rem",
+                        lineHeight: 1.35,
+                        position: "relative",
+                        boxShadow: isHov ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+                        transition: "box-shadow 0.15s",
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, color: col.acento,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        paddingRight: isHov ? 38 : 0 }}>
+                        {col.icono} {ev.Evento_Institucional_Nombre}
+                      </div>
+                      <div style={{ fontSize: "0.63rem", color: col.acento, opacity: 0.75 }}>
+                        {ev.Evento_Institucional_Impacto_Clases}
+                      </div>
+
+                      {/* Acciones al hover */}
+                      {isHov && (
+                        <div style={{ position: "absolute", top: 3, right: 4, display: "flex", gap: 2 }}>
+                          <button title="Editar"
+                            onClick={e => { e.stopPropagation(); onEditar(ev); }}
+                            style={{ width: 16, height: 16, padding: 0, border: "none", borderRadius: 3,
+                              cursor: "pointer", background: col.acento, color: "#fff",
+                              fontSize: "0.55rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          >✏</button>
+                          <button title="Eliminar"
+                            disabled={eliminando === ev.Evento_Institucional_Id}
+                            onClick={e => { e.stopPropagation(); if (window.confirm("¿Eliminar este evento?")) onEliminar(ev.Evento_Institucional_Id); }}
+                            style={{ width: 16, height: 16, padding: 0, border: "none", borderRadius: 3,
+                              cursor: "pointer", background: "#dc2626", color: "#fff",
+                              fontSize: "0.65rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                          >×</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
