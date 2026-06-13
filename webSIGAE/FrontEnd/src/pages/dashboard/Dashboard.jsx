@@ -11,7 +11,10 @@ function DashboardAdmin() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/dashboard/stats")
+    const token = localStorage.getItem("token");
+    fetch("/api/dashboard/stats", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then((r) => r.json())
       .then(setStats)
       .catch(console.error)

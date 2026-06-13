@@ -234,7 +234,7 @@ const confirmarToggle = async () => {
                     <button
                     className="btn-roles"
                     onClick={() =>
-                      navigate(`/perfil-usuario/${u.Usuario_Id}`)
+                      navigate(`/perfil/${u.Usuario_Id}`)
                     }
                     >
                       Ver Perfil
