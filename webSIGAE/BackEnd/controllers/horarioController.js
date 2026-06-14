@@ -127,7 +127,10 @@ const getAsignaturasCurso = async (req, res) => {
         ia.Horas_Semanales_Requeridas,
         COALESCE(prog.Horas_Programadas, 0) AS Horas_Programadas
        FROM incluyeasig ia
-       JOIN asignatura a ON a.Asignatura_Id = ia.Asignatura_Id
+       JOIN asignatura a  ON a.Asignatura_Id  = ia.Asignatura_Id
+       JOIN tieneasig  ta ON ta.Asignatura_Id = ia.Asignatura_Id
+                         AND ta.Curso_Id       = ?
+                         AND ta.Estado_Asignacion = 'Activa'
        LEFT JOIN (
          SELECT ha.Asignatura_Id,
            SUM(TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600) AS Horas_Programadas
@@ -138,7 +141,7 @@ const getAsignaturasCurso = async (req, res) => {
        ) prog ON prog.Asignatura_Id = ia.Asignatura_Id
        WHERE ia.Plan_Educativo_Id = ?
        ORDER BY a.Asignatura_Nombre`,
-      [curso_id, plan.Plan_Educativo_Id]
+      [curso_id, curso_id, plan.Plan_Educativo_Id]
     );
 
     res.json(rows);
@@ -323,6 +326,18 @@ const createHorario = async (req, res) => {
       return res.status(404).json({ error: 'Curso no encontrado' });
     }
 
+    // Precondición CU54: la asignatura debe estar asociada al curso (via CU53 / tieneasig)
+    const [[asigEnCurso]] = await pool.execute(
+      `SELECT tieneasig_Id FROM tieneasig
+       WHERE Curso_Id = ? AND Asignatura_Id = ? AND Estado_Asignacion = 'Activa'`,
+      [Curso_Id, Asignatura_Id]
+    );
+    if (!asigEnCurso) {
+      return res.status(422).json({
+        error: 'La asignatura no está asociada a este curso. Primero debe asociarla desde el módulo de Cursos'
+      });
+    }
+
     // E2 (CU53): la asignatura debe pertenecer al plan del nivel del curso
     const [[asigEnPlan]] = await pool.execute(
       `SELECT ia.Asignatura_Id, ia.Horas_Semanales_Requeridas
@@ -499,6 +514,18 @@ const updateHorario = async (req, res) => {
 
     if (!cursoNivelU) {
       return res.status(404).json({ error: 'Curso no encontrado' });
+    }
+
+    // Precondición CU54: la asignatura debe estar asociada al curso (via CU53 / tieneasig)
+    const [[asigEnCursoU]] = await pool.execute(
+      `SELECT tieneasig_Id FROM tieneasig
+       WHERE Curso_Id = ? AND Asignatura_Id = ? AND Estado_Asignacion = 'Activa'`,
+      [Curso_Id, Asignatura_Id]
+    );
+    if (!asigEnCursoU) {
+      return res.status(422).json({
+        error: 'La asignatura no está asociada a este curso. Primero debe asociarla desde el módulo de Cursos'
+      });
     }
 
     // E2 (CU53): la asignatura debe pertenecer al plan del nivel del curso
