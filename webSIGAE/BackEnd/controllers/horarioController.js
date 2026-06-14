@@ -98,6 +98,56 @@ const getAsignaturas = async (req, res) => {
   }
 };
 
+// ── GET /api/horarios/asignaturas-curso?curso_id=X  ──
+// Returns asignaturas from the active plan for a course, with hours required and programmed
+const getAsignaturasCurso = async (req, res) => {
+  const { curso_id } = req.query;
+  if (!curso_id) return res.status(400).json({ error: 'curso_id requerido' });
+
+  try {
+    const [[curso]] = await pool.execute(
+      'SELECT Nivel_Educativo_Id FROM curso WHERE Curso_Id = ?',
+      [curso_id]
+    );
+    if (!curso) return res.status(404).json({ error: 'Curso no encontrado' });
+
+    const [[plan]] = await pool.execute(
+      `SELECT Plan_Educativo_Id FROM plan_educativo
+       WHERE Nivel_Educativo_Id = ?
+       ORDER BY Plan_Educativo_Periodo_Lectivo DESC LIMIT 1`,
+      [curso.Nivel_Educativo_Id]
+    );
+
+    if (!plan) return res.json([]);
+
+    const [rows] = await pool.execute(
+      `SELECT
+        ia.Asignatura_Id,
+        a.Asignatura_Nombre,
+        ia.Horas_Semanales_Requeridas,
+        COALESCE(prog.Horas_Programadas, 0) AS Horas_Programadas
+       FROM incluyeasig ia
+       JOIN asignatura a ON a.Asignatura_Id = ia.Asignatura_Id
+       LEFT JOIN (
+         SELECT ha.Asignatura_Id,
+           SUM(TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600) AS Horas_Programadas
+         FROM horario_asignatura ha
+         JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+         WHERE ha.Curso_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'
+         GROUP BY ha.Asignatura_Id
+       ) prog ON prog.Asignatura_Id = ia.Asignatura_Id
+       WHERE ia.Plan_Educativo_Id = ?
+       ORDER BY a.Asignatura_Nombre`,
+      [curso_id, plan.Plan_Educativo_Id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error en getAsignaturasCurso:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // ── GET /api/horarios/docentes  ──
 const getDocentes = async (req, res) => {
   try {
@@ -578,7 +628,7 @@ const cambiarEstado = async (req, res) => {
 };
 
 module.exports = {
-  getHorarios, getCursos, getBloques, getAsignaturas,
+  getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado,
 };
