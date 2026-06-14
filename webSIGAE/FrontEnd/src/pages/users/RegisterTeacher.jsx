@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarDocente } from "../../services/api";
-import { validarRut, normalizarRut, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
+import { validarRut, normalizarRut, validarNombreCompleto, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
 
 
 function RegisterTeacher() {
@@ -28,6 +28,10 @@ function RegisterTeacher() {
 
   const validarCampo = (name, value) => {
     switch (name) {
+      case "nombre":
+        return value && !validarNombreCompleto(value)
+          ? "Ingrese nombre y apellido (ej: Juan Pérez)"
+          : "";
       case "rut":
         return value && !validarRut(value)
           ? "RUT inválido. Formato esperado: 12345678-9"
@@ -59,6 +63,7 @@ function RegisterTeacher() {
     e.preventDefault();
 
     const nuevosErrores = {
+      nombre: validarCampo("nombre", formData.nombre),
       rut: validarCampo("rut", formData.rut),
       correo: validarCampo("correo", formData.correo),
       cargaHoraria: validarCampo("cargaHoraria", formData.cargaHoraria),
@@ -153,14 +158,18 @@ function RegisterTeacher() {
         <form onSubmit={handleSubmit}>
 
 
-          <input
-            type="text"
-            name="nombre"
-            placeholder="Nombre completo"
-            value={formData.nombre}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="text"
+              name="nombre"
+              placeholder="Nombre completo (ej: Juan Pérez)"
+              value={formData.nombre}
+              onChange={handleChange}
+              className={errores.nombre ? "input-invalid" : ""}
+              required
+            />
+            {errores.nombre && <span className="input-error-msg">{errores.nombre}</span>}
+          </div>
 
 
 
