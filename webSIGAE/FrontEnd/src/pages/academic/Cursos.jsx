@@ -240,9 +240,7 @@ function Cursos() {
   const [cursos, setCursos] = useState([]);
   const [niveles, setNiveles] = useState([]);
   const [mostrarForm, setMostrarForm] = useState(false);
-  const [modoForm, setModoForm] = useState("nuevo"); // "nuevo" | "clonar"
   const [nivelId, setNivelId] = useState("");
-  const [cursoBaseId, setCursoBaseId] = useState("");
   const [seccion, setSeccion] = useState("");
   const [error, setError] = useState("");
   const [exito, setExito] = useState("");
@@ -272,34 +270,23 @@ function Cursos() {
 
   const resetForm = () => {
     setNivelId("");
-    setCursoBaseId("");
     setSeccion("");
     setError("");
   };
 
   const toggleForm = () => {
     setMostrarForm((v) => !v);
-    setModoForm("nuevo");
     setExito("");
     resetForm();
   };
-
-  const switchModo = (modo) => {
-    setModoForm(modo);
-    resetForm();
-  };
-
-  const cursoBase = cursos.find((c) => c.Curso_Id === Number(cursoBaseId));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setExito("");
 
-    const nivelEfectivo = modoForm === "clonar" ? cursoBase?.Nivel_Educativo_Id : nivelId;
-
-    if (!nivelEfectivo) {
-      setError(modoForm === "clonar" ? "Debe seleccionar el curso base" : "Debe seleccionar el nivel educativo");
+    if (!nivelId) {
+      setError("Debe seleccionar el nivel educativo");
       return;
     }
 
@@ -309,7 +296,7 @@ function Cursos() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ nivel_educativo_id: nivelEfectivo, seccion }),
+      body: JSON.stringify({ nivel_educativo_id: nivelId, seccion }),
     });
 
     const data = await res.json();
@@ -321,7 +308,6 @@ function Cursos() {
 
     setExito(data.mensaje);
     setMostrarForm(false);
-    setModoForm("nuevo");
     resetForm();
     cargarDatos();
   };
@@ -367,76 +353,18 @@ function Cursos() {
 
       {mostrarForm && (
         <div className="form-card">
-          <h2>{modoForm === "clonar" ? "Clonar Curso Existente" : "Nuevo Curso"}</h2>
-
-          {/* Selector de modo */}
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem" }}>
-            <button
-              type="button"
-              className={modoForm === "nuevo" ? "btn-primary" : "btn-secundario"}
-              style={{ flex: 1 }}
-              onClick={() => switchModo("nuevo")}
-            >
-              Nuevo
-            </button>
-            <button
-              type="button"
-              className={modoForm === "clonar" ? "btn-primary" : "btn-secundario"}
-              style={{ flex: 1 }}
-              onClick={() => switchModo("clonar")}
-            >
-              Clonar curso existente
-            </button>
-          </div>
+          <h2>Nuevo Curso</h2>
 
           <form onSubmit={handleSubmit}>
-            {modoForm === "nuevo" ? (
-              <>
-                <label>Nivel Educativo</label>
-                <select value={nivelId} onChange={(e) => setNivelId(e.target.value)} required>
-                  <option value="">Seleccionar nivel...</option>
-                  {niveles.map((n) => (
-                    <option key={n.Nivel_Educativo_Id} value={n.Nivel_Educativo_Id}>
-                      {n.Nivel_Educativo_Nombre}
-                    </option>
-                  ))}
-                </select>
-              </>
-            ) : (
-              <>
-                <label>Curso base</label>
-                <select
-                  value={cursoBaseId}
-                  onChange={(e) => { setCursoBaseId(e.target.value); setSeccion(""); setError(""); }}
-                  required
-                >
-                  <option value="">Seleccionar curso existente...</option>
-                  {Object.entries(cursosAgrupados).map(([nivel, lista]) => (
-                    <optgroup key={nivel} label={nivel}>
-                      {lista.map((c) => (
-                        <option key={c.Curso_Id} value={c.Curso_Id}>
-                          {c.Curso_Nombre}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-
-                {cursoBase && (
-                  <div style={{
-                    marginTop: "0.5rem",
-                    padding: "0.6rem 0.85rem",
-                    background: "#f0f9ff",
-                    border: "1px solid #bae6fd",
-                    borderRadius: "6px",
-                    fontSize: "0.9rem",
-                    color: "#0369a1",
-                  }}>
-                    Nivel educativo heredado: <strong>{cursoBase.Nivel_Educativo_Nombre}</strong>
-                  </div>
-                )}
-              </>
-            )}
+            <label>Nivel Educativo</label>
+            <select value={nivelId} onChange={(e) => setNivelId(e.target.value)} required>
+              <option value="">Seleccionar nivel...</option>
+              {niveles.map((n) => (
+                <option key={n.Nivel_Educativo_Id} value={n.Nivel_Educativo_Id}>
+                  {n.Nivel_Educativo_Nombre}
+                </option>
+              ))}
+            </select>
 
             <label style={{ marginTop: "1rem" }}>Sección (letra A-Z)</label>
             <input
@@ -448,14 +376,8 @@ function Cursos() {
               required
             />
 
-            {modoForm === "clonar" && cursoBase && seccion && (
-              <p style={{ fontSize: "0.85rem", color: "#64748b", margin: "0.35rem 0 0" }}>
-                Se creará el curso: <strong>{cursoBase.Nivel_Educativo_Nombre} {seccion}</strong>
-              </p>
-            )}
-
             <button type="submit" className="btn-primary" style={{ marginTop: "1rem" }}>
-              {modoForm === "clonar" ? "Clonar y registrar" : "Registrar"}
+              Registrar
             </button>
           </form>
         </div>
