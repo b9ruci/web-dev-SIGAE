@@ -532,9 +532,7 @@ function TabBloques() {
 
       {/* Panel lateral derecho */}
       {panelAbierto && (
-        <>
-          <div style={s.backdrop} onClick={cerrarPanel} />
-          <div style={s.panel}>
+        <div style={s.panel}>
             <div style={s.panelHeader}>
               <div>
                 <h2 style={{ margin: 0, color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>
@@ -662,7 +660,6 @@ function TabBloques() {
               </form>
             </div>
           </div>
-        </>
       )}
     </div>
   );
@@ -885,9 +882,7 @@ function TabEventos() {
 
       {/* Panel lateral derecho */}
       {panelAbierto && (
-        <>
-          <div style={s.backdrop} onClick={cerrarPanel} />
-          <div style={s.panel}>
+        <div style={s.panel}>
             <div style={s.panelHeader}>
               <div>
                 <h2 style={{ margin: 0, color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>
@@ -983,7 +978,6 @@ function TabEventos() {
               </form>
             </div>
           </div>
-        </>
       )}
     </div>
   );

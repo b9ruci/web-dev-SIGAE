@@ -1484,6 +1484,28 @@ body.horarios-panel-open .main-content {
   padding-right: 460px;
 }
 
+/* ===== LISTADO CURSOS: colapsa sidebar izquierda ===== */
+body.horarios-listado-open .sidebar {
+  width: 60px;
+  min-width: 60px;
+  padding: 14px 10px;
+  overflow: hidden;
+}
+
+body.horarios-listado-open .sidebar .logo,
+body.horarios-listado-open .sidebar .sidebar-user-info,
+body.horarios-listado-open .sidebar .menu-section,
+body.horarios-listado-open .sidebar .logout-button {
+  display: none;
+}
+
+body.horarios-listado-open .sidebar .menu a {
+  font-size: 0;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+}
+
 .main-content {
   transition: padding-right 0.25s ease;
 }

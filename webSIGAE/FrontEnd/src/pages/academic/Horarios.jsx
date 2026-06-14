@@ -88,6 +88,11 @@ function MiniGrid({ bloques, horarios, colorMap }) {
 function ListadoCursosSidebar({ cursos, bloques, onClose, onRefresh }) {
   const [vistas, setVistas] = useState({});
 
+  useEffect(() => {
+    document.body.classList.add("horarios-listado-open");
+    return () => document.body.classList.remove("horarios-listado-open");
+  }, []);
+
   const toggleVista = async (cursoId) => {
     const cur = vistas[cursoId];
     if (cur && cur !== "loading") { setVistas(p => ({ ...p, [cursoId]: null })); return; }
@@ -108,11 +113,9 @@ function ListadoCursosSidebar({ cursos, bloques, onClose, onRefresh }) {
   };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 1000 }} onClick={onClose}>
-      <div
-        style={{ position: "absolute", top: 0, left: 0, width: 300, height: "100%", background: "#fff", boxShadow: "4px 0 28px rgba(0,0,0,0.22)", display: "flex", flexDirection: "column", animation: "slideInLeft 0.22s ease" }}
-        onClick={e => e.stopPropagation()}
-      >
+    <div
+      style={{ position: "fixed", top: 0, left: 0, width: 300, height: "100vh", background: "#fff", boxShadow: "4px 0 28px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", animation: "slideInLeft 0.22s ease", zIndex: 990 }}
+    >
         {/* Header */}
         <div style={{ background: "#0f172a", padding: "0.85rem 1.1rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, position: "sticky", top: 0, zIndex: 1 }}>
           <div>
@@ -166,7 +169,6 @@ function ListadoCursosSidebar({ cursos, bloques, onClose, onRefresh }) {
           })}
         </div>
       </div>
-    </div>
   );
 }
 
