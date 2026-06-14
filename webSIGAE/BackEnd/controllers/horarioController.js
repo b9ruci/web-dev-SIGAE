@@ -98,6 +98,56 @@ const getAsignaturas = async (req, res) => {
   }
 };
 
+// ── GET /api/horarios/asignaturas-curso?curso_id=X  ──
+// Returns asignaturas from the active plan for a course, with hours required and programmed
+const getAsignaturasCurso = async (req, res) => {
+  const { curso_id } = req.query;
+  if (!curso_id) return res.status(400).json({ error: 'curso_id requerido' });
+
+  try {
+    const [[curso]] = await pool.execute(
+      'SELECT Nivel_Educativo_Id FROM curso WHERE Curso_Id = ?',
+      [curso_id]
+    );
+    if (!curso) return res.status(404).json({ error: 'Curso no encontrado' });
+
+    const [[plan]] = await pool.execute(
+      `SELECT Plan_Educativo_Id FROM plan_educativo
+       WHERE Nivel_Educativo_Id = ?
+       ORDER BY Plan_Educativo_Periodo_Lectivo DESC LIMIT 1`,
+      [curso.Nivel_Educativo_Id]
+    );
+
+    if (!plan) return res.json([]);
+
+    const [rows] = await pool.execute(
+      `SELECT
+        ia.Asignatura_Id,
+        a.Asignatura_Nombre,
+        ia.Horas_Semanales_Requeridas,
+        COALESCE(prog.Horas_Programadas, 0) AS Horas_Programadas
+       FROM incluyeasig ia
+       JOIN asignatura a ON a.Asignatura_Id = ia.Asignatura_Id
+       LEFT JOIN (
+         SELECT ha.Asignatura_Id,
+           SUM(TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600) AS Horas_Programadas
+         FROM horario_asignatura ha
+         JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+         WHERE ha.Curso_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'
+         GROUP BY ha.Asignatura_Id
+       ) prog ON prog.Asignatura_Id = ia.Asignatura_Id
+       WHERE ia.Plan_Educativo_Id = ?
+       ORDER BY a.Asignatura_Nombre`,
+      [curso_id, plan.Plan_Educativo_Id]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    console.error('Error en getAsignaturasCurso:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // ── GET /api/horarios/docentes  ──
 const getDocentes = async (req, res) => {
   try {
@@ -263,44 +313,53 @@ const createHorario = async (req, res) => {
       });
     }
 
-    // ── Excepción 3: Validar horas semanales programadas vs. requeridas en el plan ──
+    // ── Excepción 1/2/3 (CU53 + CU54): Plan educativo, pertenencia y horas ──
     const [[cursoNivel]] = await pool.execute(
       'SELECT Nivel_Educativo_Id FROM curso WHERE Curso_Id = ?',
       [Curso_Id]
     );
 
-    if (cursoNivel) {
-      const [[requerido]] = await pool.execute(
-        `SELECT ia.Horas_Semanales_Requeridas
-         FROM incluyeasig ia
-         JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
-         WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
-         ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC
-         LIMIT 1`,
-        [cursoNivel.Nivel_Educativo_Id, Asignatura_Id]
+    if (!cursoNivel) {
+      return res.status(404).json({ error: 'Curso no encontrado' });
+    }
+
+    // E2 (CU53): la asignatura debe pertenecer al plan del nivel del curso
+    const [[asigEnPlan]] = await pool.execute(
+      `SELECT ia.Asignatura_Id, ia.Horas_Semanales_Requeridas
+       FROM incluyeasig ia
+       JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
+       WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
+       ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC LIMIT 1`,
+      [cursoNivel.Nivel_Educativo_Id, Asignatura_Id]
+    );
+
+    if (!asigEnPlan) {
+      return res.status(422).json({
+        error: 'La asignatura no pertenece al plan educativo del nivel del curso seleccionado'
+      });
+    }
+
+    // E3 (CU54): no superar horas semanales requeridas
+    {
+      const [[{ horas_ya_programadas }]] = await pool.execute(
+        `SELECT COALESCE(SUM(
+           TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+         ), 0) AS horas_ya_programadas
+         FROM horario_asignatura ha
+         JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+         WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'`,
+        [Curso_Id, Asignatura_Id]
       );
 
-      if (requerido) {
-        const [[{ horas_ya_programadas }]] = await pool.execute(
-          `SELECT COALESCE(SUM(
-             TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
-           ), 0) AS horas_ya_programadas
-           FROM horario_asignatura ha
-           JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
-           WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'`,
-          [Curso_Id, Asignatura_Id]
-        );
+      const nuevaDuracion = Number(bloqueRestriccion.duracion_horas);
+      const totalConNuevo = Number(horas_ya_programadas) + nuevaDuracion;
 
-        const nuevaDuracion = Number(bloqueRestriccion.duracion_horas);
-        const totalConNuevo = Number(horas_ya_programadas) + nuevaDuracion;
-
-        if (totalConNuevo > requerido.Horas_Semanales_Requeridas) {
-          return res.status(422).json({
-            error: `La asignatura requiere ${requerido.Horas_Semanales_Requeridas}h semanales según el plan educativo. ` +
-                   `Ya tiene ${Number(horas_ya_programadas).toFixed(1)}h programadas; ` +
-                   `agregar este bloque (${nuevaDuracion.toFixed(1)}h) excedería el límite`
-          });
-        }
+      if (totalConNuevo > asigEnPlan.Horas_Semanales_Requeridas) {
+        return res.status(422).json({
+          error: `La asignatura requiere ${asigEnPlan.Horas_Semanales_Requeridas}h semanales según el plan educativo. ` +
+                 `Ya tiene ${Number(horas_ya_programadas).toFixed(1)}h programadas; ` +
+                 `agregar este bloque (${nuevaDuracion.toFixed(1)}h) excedería el límite`
+        });
       }
     }
 
@@ -432,45 +491,54 @@ const updateHorario = async (req, res) => {
       });
     }
 
-    // ── Excepción 3: Validar horas semanales programadas vs. requeridas en el plan ──
+    // ── Excepción 1/2/3 (CU53 + CU54): Plan educativo, pertenencia y horas ──
     const [[cursoNivelU]] = await pool.execute(
       'SELECT Nivel_Educativo_Id FROM curso WHERE Curso_Id = ?',
       [Curso_Id]
     );
 
-    if (cursoNivelU) {
-      const [[requeridoU]] = await pool.execute(
-        `SELECT ia.Horas_Semanales_Requeridas
-         FROM incluyeasig ia
-         JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
-         WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
-         ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC
-         LIMIT 1`,
-        [cursoNivelU.Nivel_Educativo_Id, Asignatura_Id]
+    if (!cursoNivelU) {
+      return res.status(404).json({ error: 'Curso no encontrado' });
+    }
+
+    // E2 (CU53): la asignatura debe pertenecer al plan del nivel del curso
+    const [[asigEnPlanU]] = await pool.execute(
+      `SELECT ia.Asignatura_Id, ia.Horas_Semanales_Requeridas
+       FROM incluyeasig ia
+       JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
+       WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
+       ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC LIMIT 1`,
+      [cursoNivelU.Nivel_Educativo_Id, Asignatura_Id]
+    );
+
+    if (!asigEnPlanU) {
+      return res.status(422).json({
+        error: 'La asignatura no pertenece al plan educativo del nivel del curso seleccionado'
+      });
+    }
+
+    // E3 (CU54): no superar horas semanales requeridas (excluye el registro editado)
+    {
+      const [[{ horas_ya_programadas_u }]] = await pool.execute(
+        `SELECT COALESCE(SUM(
+           TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+         ), 0) AS horas_ya_programadas_u
+         FROM horario_asignatura ha
+         JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+         WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'
+           AND ha.Horario_Asignatura_Id != ?`,
+        [Curso_Id, Asignatura_Id, id]
       );
 
-      if (requeridoU) {
-        const [[{ horas_ya_programadas_u }]] = await pool.execute(
-          `SELECT COALESCE(SUM(
-             TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
-           ), 0) AS horas_ya_programadas_u
-           FROM horario_asignatura ha
-           JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
-           WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'
-             AND ha.Horario_Asignatura_Id != ?`,
-          [Curso_Id, Asignatura_Id, id]
-        );
+      const nuevaDuracionU = Number(bloqueRestriccionU.duracion_horas);
+      const totalConNuevoU = Number(horas_ya_programadas_u) + nuevaDuracionU;
 
-        const nuevaDuracionU = Number(bloqueRestriccionU.duracion_horas);
-        const totalConNuevoU = Number(horas_ya_programadas_u) + nuevaDuracionU;
-
-        if (totalConNuevoU > requeridoU.Horas_Semanales_Requeridas) {
-          return res.status(422).json({
-            error: `La asignatura requiere ${requeridoU.Horas_Semanales_Requeridas}h semanales según el plan educativo. ` +
-                   `Ya tiene ${Number(horas_ya_programadas_u).toFixed(1)}h programadas; ` +
-                   `agregar este bloque (${nuevaDuracionU.toFixed(1)}h) excedería el límite`
-          });
-        }
+      if (totalConNuevoU > asigEnPlanU.Horas_Semanales_Requeridas) {
+        return res.status(422).json({
+          error: `La asignatura requiere ${asigEnPlanU.Horas_Semanales_Requeridas}h semanales según el plan educativo. ` +
+                 `Ya tiene ${Number(horas_ya_programadas_u).toFixed(1)}h programadas; ` +
+                 `agregar este bloque (${nuevaDuracionU.toFixed(1)}h) excedería el límite`
+        });
       }
     }
 
@@ -578,7 +646,7 @@ const cambiarEstado = async (req, res) => {
 };
 
 module.exports = {
-  getHorarios, getCursos, getBloques, getAsignaturas,
+  getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado,
 };
