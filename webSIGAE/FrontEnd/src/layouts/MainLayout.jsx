@@ -68,13 +68,13 @@ function MainLayout() {
               <>
                 <span className="menu-section">Administración</span>
 
-                {/* Dropdown: Gestión de Usuarios, Roles y Apoderados */}
+                {/* Dropdown: Gestión Usuarios, Roles y Apoderados */}
                 <div className="menu-item-dropdown">
                   <button
                     className="dropdown-toggle"
                     onClick={() => setGestionAbierto(!gestionAbierto)}
                   >
-                    Gestión
+                    Gestión Usuarios
                     <span className={`dropdown-arrow ${gestionAbierto ? 'open' : ''}`}>▾</span>
                   </button>
                   {gestionAbierto && (
