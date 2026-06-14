@@ -746,6 +746,8 @@ select {
   flex-direction: column;
   gap: 3px;
   padding: 4px 2px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .plan-stat-sep {
@@ -754,17 +756,20 @@ select {
 }
 
 .plan-stat-valor {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #4f46e5;
 }
 
 .plan-stat-label {
-  font-size: 0.62rem;
+  font-size: 0.58rem;
   color: #94a3b8;
   text-transform: uppercase;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* === Vista Lista === */
