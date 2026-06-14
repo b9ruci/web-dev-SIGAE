@@ -1506,6 +1506,10 @@ body.horarios-listado-open .sidebar .menu a {
   justify-content: center;
 }
 
+body.horarios-listado-open .main-content {
+  padding-left: 240px;
+}
+
 .main-content {
   transition: padding-right 0.25s ease;
 }
