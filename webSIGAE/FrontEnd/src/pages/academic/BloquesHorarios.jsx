@@ -99,7 +99,7 @@ export default function BloquesHorarios() {
         <div>
           <h1 style={s.titulo}>Configuración Horaria Institucional</h1>
           <p style={s.subtitulo}>
-            Parámetros institucionales, bloques horarios y eventos — CU52 · CU49
+            Parámetros institucionales, bloques horarios y eventos {/* CU52 · CU49 */}
           </p>
         </div>
         <span style={s.rolBadge}>
@@ -204,7 +204,7 @@ function TabParametros() {
         <h2 style={s.seccionTitulo}>Parámetros del horario institucional</h2>
         <p style={s.seccionDesc}>
           Define los límites de jornada, duración de bloques y recreos. Estos valores
-          se usan para validar cada bloque horario que se registre (CU52).
+          se usan para validar cada bloque horario que se registre.
         </p>
       </div>
 
@@ -440,7 +440,7 @@ function TabBloques() {
         <div>
           <h2 style={s.seccionTitulo}>Bloques horarios</h2>
           <p style={s.seccionDesc}>
-            Registra los bloques de tiempo de la jornada escolar: Clase y Recreo (CU49).
+            Registra los bloques de tiempo de la jornada escolar: Clase y Recreo.
           </p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
@@ -541,7 +541,7 @@ function TabBloques() {
                   {editando ? "Editar bloque horario" : "Nuevo bloque horario"}
                 </h2>
                 <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "#94a3b8" }}>
-                  CU49 — Configuración de bloques de tiempo
+                  Configuración de bloques de tiempo {/* CU49 */}
                 </p>
               </div>
               <button onClick={cerrarPanel} style={s.panelBtnClose} title="Cerrar">✕</button>

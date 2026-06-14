@@ -285,7 +285,7 @@ export default function Horarios() {
           <h1 style={s.titulo}>{esAdmin ? "Gestión de Horarios" : "Mi Horario"}</h1>
           <p style={s.subtitulo}>
             {esAdmin
-              ? "Programa bloques horarios por curso — CU54"
+              ? "Programa bloques horarios por curso" /* CU54 */
               : `Horario de ${usuario?.nombre || "docente"} — solo lectura`}
           </p>
         </div>
@@ -999,7 +999,7 @@ function PanelForm({
               {modoEdicion ? "Editar bloque horario" : "Agregar bloque horario"}
             </h2>
             <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "#94a3b8" }}>
-              CU54 — Programar asignatura en el horario
+              Programar asignatura en el horario {/* CU54 */}
             </p>
           </div>
           <button onClick={onClose} style={s.panelBtnClose} title="Cerrar">
@@ -1015,7 +1015,7 @@ function PanelForm({
               <span style={s.stepNum}>1</span>
               <div>
                 <div style={s.stepTitle}>Programar bloque horario</div>
-                <div style={s.stepSub}>CU54 — asignatura, día y horario a asignar</div>
+                <div style={s.stepSub}>Asignatura, día y horario a asignar {/* CU54 */}</div>
               </div>
             </div>
 
