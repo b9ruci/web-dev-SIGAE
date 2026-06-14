@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const API = "/api";
@@ -40,6 +40,137 @@ function tipoIcon(tipo) {
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+/*  MiniGrid — compact schedule preview (blocks × days)          */
+/* ═══════════════════════════════════════════════════════════════ */
+function MiniGrid({ bloques, horarios, colorMap }) {
+  const classBloques = bloques.filter(b => b.Bloque_Horario_Tipo === "Clase");
+  if (classBloques.length === 0)
+    return <p style={{ fontSize: "0.68rem", color: "#94a3b8", marginTop: 6 }}>Sin bloques de clase configurados.</p>;
+
+  const lookup = {};
+  for (const h of horarios) lookup[`${h.Bloque_Horario_Id}-${h.dia}`] = colorMap[h.Asignatura_Id];
+
+  return (
+    <div style={{ marginTop: 8, overflowX: "auto" }}>
+      <div style={{ display: "grid", gridTemplateColumns: `26px repeat(5, 1fr)`, gap: 2 }}>
+        <div />
+        {DIAS_ABR.map(d => (
+          <div key={d} style={{ fontSize: "0.58rem", color: "#94a3b8", textAlign: "center", fontWeight: 700 }}>
+            {d}
+          </div>
+        ))}
+        {classBloques.map(bloque => (
+          <React.Fragment key={bloque.Bloque_Horario_Id}>
+            <div style={{ fontSize: "0.5rem", color: "#cbd5e1", textAlign: "right", paddingRight: 2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+              {bloque.Bloque_Horario_Hora_Inicio.slice(0, 5)}
+            </div>
+            {DIAS.map(dia => {
+              const color = lookup[`${bloque.Bloque_Horario_Id}-${dia}`];
+              const asigNombre = horarios.find(h => h.Bloque_Horario_Id === bloque.Bloque_Horario_Id && h.dia === dia)?.asignatura || "";
+              return (
+                <div
+                  key={`${bloque.Bloque_Horario_Id}-${dia}`}
+                  title={asigNombre}
+                  style={{ height: 13, borderRadius: 2, background: color ? color.bg : "#f8fafc", border: `1px solid ${color ? color.border : "#e2e8f0"}` }}
+                />
+              );
+            })}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
+/*  ListadoCursosSidebar — panel that overlays the nav sidebar   */
+/* ═══════════════════════════════════════════════════════════════ */
+function ListadoCursosSidebar({ cursos, bloques, onClose, onRefresh }) {
+  const [vistas, setVistas] = useState({});
+
+  const toggleVista = async (cursoId) => {
+    const cur = vistas[cursoId];
+    if (cur && cur !== "loading") { setVistas(p => ({ ...p, [cursoId]: null })); return; }
+    if (cur === "loading") return;
+    setVistas(p => ({ ...p, [cursoId]: "loading" }));
+    try {
+      const h = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+      const [rH, rA] = await Promise.all([
+        fetch(`/api/horarios?curso_id=${cursoId}`, { headers: h }).then(r => r.json()),
+        fetch(`/api/horarios/asignaturas-curso?curso_id=${cursoId}`, { headers: h }).then(r => r.json()),
+      ]);
+      const colorMap = {};
+      (Array.isArray(rA) ? rA : []).forEach((a, i) => { colorMap[a.Asignatura_Id] = ASIG_COLORS[i % ASIG_COLORS.length]; });
+      setVistas(p => ({ ...p, [cursoId]: { horarios: Array.isArray(rH) ? rH : [], colorMap } }));
+    } catch {
+      setVistas(p => ({ ...p, [cursoId]: null }));
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000 }} onClick={onClose}>
+      <div
+        style={{ position: "absolute", top: 0, left: 0, width: 300, height: "100%", background: "#fff", boxShadow: "4px 0 28px rgba(0,0,0,0.22)", display: "flex", flexDirection: "column", animation: "slideInLeft 0.22s ease" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ background: "#0f172a", padding: "0.85rem 1.1rem", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, position: "sticky", top: 0, zIndex: 1 }}>
+          <div>
+            <div style={{ color: "#fff", fontWeight: 700, fontSize: "0.88rem" }}>Listado de Cursos</div>
+            <div style={{ color: "#94a3b8", fontSize: "0.68rem", marginTop: 1 }}>{cursos.length} cursos — comparación de horarios</div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={onRefresh} title="Actualizar" style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#94a3b8", borderRadius: 6, width: 26, height: 26, cursor: "pointer", fontSize: "0.75rem", display: "flex", alignItems: "center", justifyContent: "center" }}>↺</button>
+            <button onClick={onClose} style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 6, width: 26, height: 26, cursor: "pointer", fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          </div>
+        </div>
+
+        {/* Course list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0.55rem", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+          {cursos.length === 0 ? (
+            <p style={{ color: "#94a3b8", fontSize: "0.82rem", textAlign: "center", marginTop: "2rem" }}>Cargando...</p>
+          ) : cursos.map(curso => {
+            const pct = curso.total_horas_requeridas > 0
+              ? Math.min(100, Math.round((curso.total_horas_programadas / curso.total_horas_requeridas) * 100))
+              : 0;
+            const vistaData = vistas[curso.Curso_Id];
+            const vistaAbierta = vistaData && vistaData !== "loading";
+            const barColor = pct >= 100 ? "#22c55e" : pct > 50 ? "#6366f1" : "#f59e0b";
+
+            return (
+              <div key={curso.Curso_Id} style={{ background: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0", padding: "0.5rem 0.6rem" }}>
+                <div style={{ fontWeight: 700, fontSize: "0.82rem", color: "#1e293b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {curso.Curso_Nombre}
+                </div>
+                <div style={{ fontSize: "0.67rem", color: "#64748b", marginBottom: 5 }}>{curso.Nivel_Educativo_Nombre}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontSize: "0.64rem", color: "#6b7280" }}>
+                    {Number(curso.total_horas_programadas).toFixed(1)}h de {curso.total_horas_requeridas}h
+                  </span>
+                  <span style={{ fontSize: "0.64rem", fontWeight: 700, color: pct >= 100 ? "#166534" : "#6b7280" }}>{pct}%</span>
+                </div>
+                <div style={{ height: 4, background: "#e2e8f0", borderRadius: 2, overflow: "hidden", marginBottom: 7 }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 2, transition: "width 0.3s" }} />
+                </div>
+                <button
+                  onClick={() => toggleVista(curso.Curso_Id)}
+                  style={{ width: "100%", border: `1px solid ${vistaAbierta ? "#c4b5fd" : "#dbeafe"}`, borderRadius: 5, padding: "0.2rem 0.5rem", fontSize: "0.69rem", fontWeight: 600, cursor: "pointer", background: vistaAbierta ? "#ede9fe" : "#f0f4ff", color: vistaAbierta ? "#5b21b6" : "#4f46e5", transition: "all 0.15s" }}
+                >
+                  {vistaData === "loading" ? "Cargando..." : vistaAbierta ? "▲ Ocultar" : "▼ Vista rápida"}
+                </button>
+                {vistaAbierta && (
+                  <MiniGrid bloques={bloques} horarios={vistaData.horarios} colorMap={vistaData.colorMap} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
 export default function Horarios() {
   const { rolActivo, usuario } = useAuth();
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
@@ -74,6 +205,10 @@ export default function Horarios() {
   // Bulk suspend
   const [confirmandoSuspender, setConfirmandoSuspender] = useState(false);
   const [suspendiendo, setSuspendiendo] = useState(false);
+
+  // Listado sidebar
+  const [listadoAbierto, setListadoAbierto] = useState(false);
+  const [resumenCursos, setResumenCursos] = useState([]);
 
   // Sidebar collapse
   useEffect(() => {
@@ -125,9 +260,23 @@ export default function Horarios() {
     }
   }, []);
 
+  const cargarResumenCursos = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/horarios/resumen-cursos`, { headers: authHeaders() });
+      const data = await res.json();
+      setResumenCursos(res.ok && Array.isArray(data) ? data : []);
+    } catch {
+      setResumenCursos([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (esDocente) cargarHorarios("");
   }, [esDocente, cargarHorarios]);
+
+  useEffect(() => {
+    if (listadoAbierto) cargarResumenCursos();
+  }, [listadoAbierto, cargarResumenCursos]);
 
   const handleCursoChange = (id) => {
     setCursoSeleccionado(id);
@@ -317,6 +466,12 @@ export default function Horarios() {
               ⚠ Este curso no tiene asignaturas en el plan educativo.
             </span>
           )}
+          <button
+            style={{ marginLeft: "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #93c5fd", background: listadoAbierto ? "#4f46e5" : "#fff", color: listadoAbierto ? "#fff" : "#4f46e5", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
+            onClick={() => setListadoAbierto(v => !v)}
+          >
+            📋 Desplegar listado
+          </button>
         </div>
       )}
 
@@ -512,6 +667,16 @@ export default function Horarios() {
           onChange={handleFormChange}
           onSubmit={handleGuardar}
           onClose={cerrarPanel}
+        />
+      )}
+
+      {/* Listado de cursos (left overlay sidebar) */}
+      {esAdmin && listadoAbierto && (
+        <ListadoCursosSidebar
+          cursos={resumenCursos}
+          bloques={bloques}
+          onClose={() => setListadoAbierto(false)}
+          onRefresh={cargarResumenCursos}
         />
       )}
     </div>

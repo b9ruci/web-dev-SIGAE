@@ -11,6 +11,7 @@ const {
   createHorario,
   updateHorario,
   cambiarEstado,
+  getResumenCursos,
 } = require('../controllers/horarioController');
 
 const router = express.Router();
@@ -19,6 +20,7 @@ const router = express.Router();
 router.use(verifyToken);
 
 // Datos de apoyo para formularios
+router.get('/resumen-cursos',        getResumenCursos);
 router.get('/cursos',                getCursos);
 router.get('/bloques',               getBloques);
 router.get('/asignaturas',           getAsignaturas);

@@ -697,8 +697,68 @@ const cambiarEstado = async (req, res) => {
   }
 };
 
+// ── GET /api/horarios/resumen-cursos  ── resumen de horas por curso para el listado
+const getResumenCursos = async (req, res) => {
+  try {
+    const [cursosBase] = await pool.execute(`
+      SELECT c.Curso_Id, c.Curso_Nombre, ne.Nivel_Educativo_Nombre
+      FROM curso c
+      JOIN nivel_educativo ne ON ne.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+      ORDER BY ne.Nivel_Educativo_Nombre, c.Curso_Nombre
+    `);
+    if (cursosBase.length === 0) return res.json([]);
+
+    const [requeridas] = await pool.execute(`
+      SELECT c.Curso_Id,
+             COALESCE(SUM(CASE WHEN ta.Curso_Id IS NOT NULL THEN ia.Horas_Semanales_Requeridas ELSE 0 END), 0)
+               AS total_horas_requeridas
+      FROM curso c
+      LEFT JOIN plan_educativo pe
+             ON pe.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+            AND pe.Plan_Educativo_Periodo_Lectivo = (
+                  SELECT MAX(pe2.Plan_Educativo_Periodo_Lectivo)
+                  FROM plan_educativo pe2
+                  WHERE pe2.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+                )
+      LEFT JOIN incluyeasig ia ON ia.Plan_Educativo_Id = pe.Plan_Educativo_Id
+      LEFT JOIN tieneasig ta ON ta.Asignatura_Id = ia.Asignatura_Id
+                             AND ta.Curso_Id = c.Curso_Id
+                             AND ta.Estado_Asignacion = 'Activa'
+      GROUP BY c.Curso_Id
+    `);
+
+    const [programadas] = await pool.execute(`
+      SELECT ha.Curso_Id,
+             COALESCE(SUM(TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600), 0)
+               AS total_horas_programadas
+      FROM horario_asignatura ha
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      WHERE ha.Horario_Asignatura_Estado = 'Activo'
+      GROUP BY ha.Curso_Id
+    `);
+
+    const reqMap = {};
+    for (const r of requeridas) reqMap[r.Curso_Id] = Number(r.total_horas_requeridas);
+    const progMap = {};
+    for (const r of programadas) progMap[r.Curso_Id] = Number(r.total_horas_programadas);
+
+    const result = cursosBase.map(c => ({
+      Curso_Id              : c.Curso_Id,
+      Curso_Nombre          : c.Curso_Nombre,
+      Nivel_Educativo_Nombre: c.Nivel_Educativo_Nombre,
+      total_horas_requeridas : reqMap[c.Curso_Id]  ?? 0,
+      total_horas_programadas: progMap[c.Curso_Id] ?? 0,
+    }));
+
+    res.json(result);
+  } catch (err) {
+    console.error('getResumenCursos:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
-  createHorario, updateHorario, cambiarEstado,
+  createHorario, updateHorario, cambiarEstado, getResumenCursos,
 };

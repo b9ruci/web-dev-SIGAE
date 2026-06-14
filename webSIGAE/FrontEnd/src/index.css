@@ -1450,6 +1450,11 @@ select {
   to   { transform: translateX(0); }
 }
 
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
 .sidebar {
   transition: width 0.25s ease, min-width 0.25s ease, padding 0.25s ease;
 }
