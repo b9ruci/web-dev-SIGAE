@@ -308,9 +308,9 @@ function TabBloques() {
 
   /* Colapsar sidebar mientras el panel esté abierto */
   useEffect(() => {
-    if (panelAbierto) document.body.classList.add("horarios-panel-open");
-    else              document.body.classList.remove("horarios-panel-open");
-    return () => document.body.classList.remove("horarios-panel-open");
+    if (panelAbierto) document.body.classList.add("bloques-panel-open");
+    else              document.body.classList.remove("bloques-panel-open");
+    return () => document.body.classList.remove("bloques-panel-open");
   }, [panelAbierto]);
 
   const cargar = useCallback(async () => {
@@ -691,9 +691,9 @@ function TabEventos() {
 
   /* Colapsar sidebar mientras el panel esté abierto */
   useEffect(() => {
-    if (panelAbierto) document.body.classList.add("horarios-panel-open");
-    else              document.body.classList.remove("horarios-panel-open");
-    return () => document.body.classList.remove("horarios-panel-open");
+    if (panelAbierto) document.body.classList.add("bloques-panel-open");
+    else              document.body.classList.remove("bloques-panel-open");
+    return () => document.body.classList.remove("bloques-panel-open");
   }, [panelAbierto]);
 
   const cargar = useCallback(async () => {

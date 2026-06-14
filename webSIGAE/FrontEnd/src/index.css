@@ -1510,6 +1510,15 @@ body.horarios-listado-open .main-content {
   padding-left: 240px;
 }
 
+/* ===== BLOQUES HORARIOS: oculta sidebar completamente ===== */
+body.bloques-panel-open .sidebar {
+  display: none;
+}
+
+body.bloques-panel-open .main-content {
+  padding-right: 460px;
+}
+
 .main-content {
   transition: padding-right 0.25s ease;
 }

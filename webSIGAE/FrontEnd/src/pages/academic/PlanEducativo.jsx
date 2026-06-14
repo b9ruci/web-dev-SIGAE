@@ -575,7 +575,7 @@ function PlanEducativo() {
                         </div>
                         <div className="plan-stat">
                           <span className="plan-stat-valor">{plan.total_horas_semanales ?? 0}h</span>
-                          <span className="plan-stat-label">Hrs / sem</span>
+                          <span className="plan-stat-label">h/sem</span>
                         </div>
                       </div>
                     </div>
