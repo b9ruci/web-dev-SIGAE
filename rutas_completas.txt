@@ -10,6 +10,7 @@ webSIGAE/BackEnd/routes/estudianteRoutes.js
 webSIGAE/BackEnd/routes/dashboardRoutes.js
 webSIGAE/BackEnd/routes/authRoutes.js
 webSIGAE/BackEnd/routes/bloquesRoutes.js
+webSIGAE/BackEnd/routes/planRoutes.js
 webSIGAE/BackEnd/routes/horarioRoutes.js
 webSIGAE/BackEnd/routes/usuarioRoutes.js
 webSIGAE/BackEnd/routes/cursoRoutes.js
@@ -18,9 +19,9 @@ webSIGAE/BackEnd/appsettings.Development.json
 webSIGAE/BackEnd/config/db.js
 webSIGAE/BackEnd/controllers/authController.js
 webSIGAE/BackEnd/controllers/roleController.js
+webSIGAE/BackEnd/controllers/planController.js
 webSIGAE/BackEnd/controllers/passwordController.js
 webSIGAE/BackEnd/controllers/dashboardController.js
-webSIGAE/BackEnd/controllers/regController.js
 webSIGAE/BackEnd/controllers/estudianteController.js
 webSIGAE/BackEnd/controllers/cursoController.js
 webSIGAE/BackEnd/controllers/bloquesController.js
@@ -8345,6 +8346,7 @@ webSIGAE/FrontEnd/package-lock.json
 webSIGAE/FrontEnd/eslint.config.js
 webSIGAE/FrontEnd/vite.config.js
 webSIGAE/FrontEnd/README.md
+webSIGAE/FrontEnd/rutas_completas.txt
 webSIGAE/FrontEnd/src/App.jsx
 webSIGAE/FrontEnd/src/routes/ProtectedRoute.jsx
 webSIGAE/FrontEnd/src/routes/AppRouter.jsx
@@ -8354,6 +8356,7 @@ webSIGAE/FrontEnd/src/App.css
 webSIGAE/FrontEnd/src/pages/communications/Citaciones.jsx
 webSIGAE/FrontEnd/src/pages/communications/Mensajes.jsx
 webSIGAE/FrontEnd/src/pages/users/RegisterGuardian.jsx
+webSIGAE/FrontEnd/src/pages/users/FormEditarUsuario.jsx
 webSIGAE/FrontEnd/src/pages/users/RegisterStudent.jsx
 webSIGAE/FrontEnd/src/pages/users/Apoderados.jsx
 webSIGAE/FrontEnd/src/pages/users/RegisterTeacher.jsx
@@ -8370,12 +8373,15 @@ webSIGAE/FrontEnd/src/pages/auth/ForgotPassword.jsx
 webSIGAE/FrontEnd/src/pages/auth/SessionExpired.jsx
 webSIGAE/FrontEnd/src/pages/auth/ResetPassword.jsx
 webSIGAE/FrontEnd/src/pages/auth/SelectRole.jsx
+webSIGAE/FrontEnd/src/pages/academic/Asignaturas.jsx
 webSIGAE/FrontEnd/src/pages/academic/Cursos.jsx
+webSIGAE/FrontEnd/src/pages/academic/PlanEducativo.jsx
 webSIGAE/FrontEnd/src/pages/academic/Horarios.jsx
 webSIGAE/FrontEnd/src/pages/academic/BloquesHorarios.jsx
 webSIGAE/FrontEnd/src/main.jsx
 webSIGAE/FrontEnd/src/layouts/MainLayout.jsx
 webSIGAE/FrontEnd/src/assets/hero.png
 webSIGAE/FrontEnd/src/assets/vite.svg
+webSIGAE/FrontEnd/src/utils/validaciones.js
 webSIGAE/FrontEnd/src/components/Sidebar.jsx
 webSIGAE/FrontEnd/index.html
