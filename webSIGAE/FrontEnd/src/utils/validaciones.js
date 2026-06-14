@@ -29,6 +29,10 @@ export function validarRut(rutCompleto) {
   return dv === dvIngresado.toLowerCase();
 }
 
+export function validarNombreCompleto(nombre) {
+  return /\S+\s+\S+/.test(nombre.trim());
+}
+
 export function validarCorreoInstitucional(correo) {
   const normalizado = correo.trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizado) && normalizado.endsWith(DOMINIO_INSTITUCIONAL);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { validarCorreoInstitucional, validarCorreo, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
+import { validarNombreCompleto, validarCorreoInstitucional, validarCorreo, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
 
 function FormEditarUsuario({ datos, onGuardado }) {
   const [form, setForm] = useState({
@@ -20,6 +20,10 @@ function FormEditarUsuario({ datos, onGuardado }) {
   const validarCampo = (name, value) => {
     if (!value) return "";
     switch (name) {
+      case "Usuario_Nombre_Completo":
+        return !validarNombreCompleto(value)
+          ? "Ingrese nombre y apellido (ej: Juan Pérez)"
+          : "";
       case "Administrador_Correo_Institucional":
       case "Docente_Correo_Institucional":
         return !validarCorreoInstitucional(value)
@@ -85,7 +89,16 @@ function FormEditarUsuario({ datos, onGuardado }) {
     <form className="cambiar-pwd-form" onSubmit={handleSubmit}>
       <div className="campo-pwd">
         <label>Nombre Completo</label>
-        <input name="Usuario_Nombre_Completo" value={form.Usuario_Nombre_Completo} onChange={handleChange} />
+        <input
+          name="Usuario_Nombre_Completo"
+          placeholder="Nombre completo (ej: Juan Pérez)"
+          value={form.Usuario_Nombre_Completo}
+          onChange={handleChange}
+          className={errores.Usuario_Nombre_Completo ? "input-invalid" : ""}
+        />
+        {errores.Usuario_Nombre_Completo && (
+          <span className="input-error-msg">{errores.Usuario_Nombre_Completo}</span>
+        )}
       </div>
       <div className="campo-pwd">
         <label>Teléfono</label>
