@@ -266,12 +266,33 @@ const clonarPlan = async (req, res) => {
       );
     }
 
+    // ── Excepción 3: Verificar docentes habilitados en el horario del plan origen ──
+    const [docentesInhabilitados] = await conn.execute(
+      `SELECT DISTINCT u.Usuario_Nombre_Completo AS docente, a.Asignatura_Nombre AS asignatura
+       FROM horario_asignatura ha
+       JOIN usuario    u  ON u.Usuario_Id    = ha.Usuario_Id
+       JOIN asignatura a  ON a.Asignatura_Id = ha.Asignatura_Id
+       JOIN curso      c  ON c.Curso_Id      = ha.Curso_Id
+       JOIN incluyeasig ia ON ia.Asignatura_Id = ha.Asignatura_Id AND ia.Plan_Educativo_Id = ?
+       WHERE (u.Es_Docente = 0 OR u.Usuario_Estado_Cuenta = 0)`,
+      [plan_origen_id]
+    );
+
     await conn.commit();
-    res.status(201).json({
+
+    const respuesta = {
       mensaje: `Plan educativo clonado correctamente para ${nivelDestino[0].Nivel_Educativo_Nombre} – ${periodo}`,
       plan_id: nuevoPlanId,
       origen : planOrigen[0].Plan_Educativo_Periodo_Lectivo,
-    });
+    };
+
+    if (docentesInhabilitados.length > 0) {
+      respuesta.advertencias = docentesInhabilitados.map(d =>
+        `El docente "${d.docente}" no está habilitado para la asignatura "${d.asignatura}" del período de origen`
+      );
+    }
+
+    res.status(201).json(respuesta);
   } catch (err) {
     await conn.rollback();
     console.error('clonarPlan:', err);

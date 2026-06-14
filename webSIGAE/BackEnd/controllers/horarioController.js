@@ -233,6 +233,77 @@ const createHorario = async (req, res) => {
       return res.status(409).json({ error: 'Ya existe un bloque asignado en ese día y horario para este curso' });
     }
 
+    // ── Excepción 5: Restricciones institucionales (tipo de bloque y límite diario) ──
+    const [[bloqueRestriccion]] = await pool.execute(
+      `SELECT bh.Bloque_Horario_Tipo,
+              pi.Parametro_Institucional_Bloques_Maximos_Diarios,
+              TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion_horas
+       FROM bloque_horario bh
+       JOIN parametro_institucional pi ON pi.Parametro_Institucional_Id = bh.Parametro_Institucional_Id
+       WHERE bh.Bloque_Horario_Id = ?`,
+      [Bloque_Horario_Id]
+    );
+
+    if (!bloqueRestriccion) {
+      return res.status(404).json({ error: 'Bloque horario no encontrado' });
+    }
+
+    if (bloqueRestriccion.Bloque_Horario_Tipo === 'Recreo') {
+      return res.status(422).json({ error: 'No se pueden programar clases en bloques de recreo' });
+    }
+
+    const [[{ total_dia }]] = await pool.execute(
+      `SELECT COUNT(*) AS total_dia FROM horario_asignatura
+       WHERE Curso_Id = ? AND Horario_Asignatura_Dia_Semana = ? AND Horario_Asignatura_Estado = 'Activo'`,
+      [Curso_Id, Horario_Asignatura_Dia_Semana]
+    );
+    if (total_dia >= bloqueRestriccion.Parametro_Institucional_Bloques_Maximos_Diarios) {
+      return res.status(422).json({
+        error: `El curso ya alcanzó el máximo de ${bloqueRestriccion.Parametro_Institucional_Bloques_Maximos_Diarios} bloque(s) diarios establecido por la institución`
+      });
+    }
+
+    // ── Excepción 3: Validar horas semanales programadas vs. requeridas en el plan ──
+    const [[cursoNivel]] = await pool.execute(
+      'SELECT Nivel_Educativo_Id FROM curso WHERE Curso_Id = ?',
+      [Curso_Id]
+    );
+
+    if (cursoNivel) {
+      const [[requerido]] = await pool.execute(
+        `SELECT ia.Horas_Semanales_Requeridas
+         FROM incluyeasig ia
+         JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
+         WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
+         ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC
+         LIMIT 1`,
+        [cursoNivel.Nivel_Educativo_Id, Asignatura_Id]
+      );
+
+      if (requerido) {
+        const [[{ horas_ya_programadas }]] = await pool.execute(
+          `SELECT COALESCE(SUM(
+             TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+           ), 0) AS horas_ya_programadas
+           FROM horario_asignatura ha
+           JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+           WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'`,
+          [Curso_Id, Asignatura_Id]
+        );
+
+        const nuevaDuracion = Number(bloqueRestriccion.duracion_horas);
+        const totalConNuevo = Number(horas_ya_programadas) + nuevaDuracion;
+
+        if (totalConNuevo > requerido.Horas_Semanales_Requeridas) {
+          return res.status(422).json({
+            error: `La asignatura requiere ${requerido.Horas_Semanales_Requeridas}h semanales según el plan educativo. ` +
+                   `Ya tiene ${Number(horas_ya_programadas).toFixed(1)}h programadas; ` +
+                   `agregar este bloque (${nuevaDuracion.toFixed(1)}h) excedería el límite`
+          });
+        }
+      }
+    }
+
     // Verificar conflicto de docente si se asigna uno
     if (Usuario_Id) {
       const [conflicto] = await pool.execute(
@@ -328,6 +399,79 @@ const updateHorario = async (req, res) => {
     );
     if (conflictoCurso.length > 0) {
       return res.status(409).json({ error: 'Ya existe un bloque asignado en ese día y horario para este curso' });
+    }
+
+    // ── Excepción 5: Restricciones institucionales (tipo de bloque y límite diario) ──
+    const [[bloqueRestriccionU]] = await pool.execute(
+      `SELECT bh.Bloque_Horario_Tipo,
+              pi.Parametro_Institucional_Bloques_Maximos_Diarios,
+              TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion_horas
+       FROM bloque_horario bh
+       JOIN parametro_institucional pi ON pi.Parametro_Institucional_Id = bh.Parametro_Institucional_Id
+       WHERE bh.Bloque_Horario_Id = ?`,
+      [Bloque_Horario_Id]
+    );
+
+    if (!bloqueRestriccionU) {
+      return res.status(404).json({ error: 'Bloque horario no encontrado' });
+    }
+
+    if (bloqueRestriccionU.Bloque_Horario_Tipo === 'Recreo') {
+      return res.status(422).json({ error: 'No se pueden programar clases en bloques de recreo' });
+    }
+
+    const [[{ total_dia_u }]] = await pool.execute(
+      `SELECT COUNT(*) AS total_dia_u FROM horario_asignatura
+       WHERE Curso_Id = ? AND Horario_Asignatura_Dia_Semana = ?
+         AND Horario_Asignatura_Estado = 'Activo' AND Horario_Asignatura_Id != ?`,
+      [Curso_Id, Horario_Asignatura_Dia_Semana, id]
+    );
+    if (total_dia_u >= bloqueRestriccionU.Parametro_Institucional_Bloques_Maximos_Diarios) {
+      return res.status(422).json({
+        error: `El curso ya alcanzó el máximo de ${bloqueRestriccionU.Parametro_Institucional_Bloques_Maximos_Diarios} bloque(s) diarios establecido por la institución`
+      });
+    }
+
+    // ── Excepción 3: Validar horas semanales programadas vs. requeridas en el plan ──
+    const [[cursoNivelU]] = await pool.execute(
+      'SELECT Nivel_Educativo_Id FROM curso WHERE Curso_Id = ?',
+      [Curso_Id]
+    );
+
+    if (cursoNivelU) {
+      const [[requeridoU]] = await pool.execute(
+        `SELECT ia.Horas_Semanales_Requeridas
+         FROM incluyeasig ia
+         JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
+         WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
+         ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC
+         LIMIT 1`,
+        [cursoNivelU.Nivel_Educativo_Id, Asignatura_Id]
+      );
+
+      if (requeridoU) {
+        const [[{ horas_ya_programadas_u }]] = await pool.execute(
+          `SELECT COALESCE(SUM(
+             TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+           ), 0) AS horas_ya_programadas_u
+           FROM horario_asignatura ha
+           JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+           WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'
+             AND ha.Horario_Asignatura_Id != ?`,
+          [Curso_Id, Asignatura_Id, id]
+        );
+
+        const nuevaDuracionU = Number(bloqueRestriccionU.duracion_horas);
+        const totalConNuevoU = Number(horas_ya_programadas_u) + nuevaDuracionU;
+
+        if (totalConNuevoU > requeridoU.Horas_Semanales_Requeridas) {
+          return res.status(422).json({
+            error: `La asignatura requiere ${requeridoU.Horas_Semanales_Requeridas}h semanales según el plan educativo. ` +
+                   `Ya tiene ${Number(horas_ya_programadas_u).toFixed(1)}h programadas; ` +
+                   `agregar este bloque (${nuevaDuracionU.toFixed(1)}h) excedería el límite`
+          });
+        }
+      }
     }
 
     // Verificar conflicto de docente (excluyendo el registro actual)
