@@ -334,8 +334,7 @@ const getNivelesSinPlan = async (req, res) => {
 const getAsignaturas = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT Asignatura_Id, Asignatura_Nombre, Asignatura_Descripcion,
-              Asignatura_Prioridad_Academica
+      `SELECT Asignatura_Id, Asignatura_Nombre, Asignatura_Prioridad_Academica
        FROM asignatura ORDER BY Asignatura_Nombre`
     );
     res.json(rows);
@@ -347,7 +346,7 @@ const getAsignaturas = async (req, res) => {
 
 // ── POST /api/planes/asignaturas  ── CU 47
 const crearAsignatura = async (req, res) => {
-  const { nombre, descripcion, prioridad } = req.body;
+  const { nombre, prioridad } = req.body;
 
   if (!nombre?.trim() || !prioridad) {
     return res.status(400).json({ error: 'El nombre y la prioridad académica son obligatorios' });
@@ -368,9 +367,9 @@ const crearAsignatura = async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      `INSERT INTO asignatura (Asignatura_Nombre, Asignatura_Descripcion, Asignatura_Prioridad_Academica)
-       VALUES (?, ?, ?)`,
-      [nombreTrim, descripcion?.trim() || null, prioridad]
+      `INSERT INTO asignatura (Asignatura_Nombre, Asignatura_Prioridad_Academica)
+       VALUES (?, ?)`,
+      [nombreTrim, prioridad]
     );
 
     res.status(201).json({
@@ -389,7 +388,7 @@ const crearAsignatura = async (req, res) => {
 // ── PUT /api/planes/asignaturas/:id  ── CU 47
 const editarAsignatura = async (req, res) => {
   const { id } = req.params;
-  const { nombre, descripcion, prioridad } = req.body;
+  const { nombre, prioridad } = req.body;
 
   if (!nombre?.trim() || !prioridad) {
     return res.status(400).json({ error: 'El nombre y la prioridad académica son obligatorios' });
@@ -419,9 +418,9 @@ const editarAsignatura = async (req, res) => {
 
     await pool.execute(
       `UPDATE asignatura
-       SET Asignatura_Nombre = ?, Asignatura_Descripcion = ?, Asignatura_Prioridad_Academica = ?
+       SET Asignatura_Nombre = ?, Asignatura_Prioridad_Academica = ?
        WHERE Asignatura_Id = ?`,
-      [nombreTrim, descripcion?.trim() || null, prioridad, id]
+      [nombreTrim, prioridad, id]
     );
 
     res.json({ mensaje: `Asignatura "${nombreTrim}" actualizada correctamente` });

@@ -25,13 +25,12 @@ function BadgePrioridad({ valor }) {
 }
 
 function FormAsignatura({ inicial, onGuardar, onCancelar, guardando, error }) {
-  const [nombre, setNombre]       = useState(inicial?.nombre       || "");
-  const [descripcion, setDesc]    = useState(inicial?.descripcion   || "");
-  const [prioridad, setPrioridad] = useState(inicial?.prioridad    || "");
+  const [nombre, setNombre]       = useState(inicial?.nombre    || "");
+  const [prioridad, setPrioridad] = useState(inicial?.prioridad || "");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onGuardar({ nombre, descripcion, prioridad });
+    onGuardar({ nombre, prioridad });
   };
 
   return (
@@ -46,15 +45,6 @@ function FormAsignatura({ inicial, onGuardar, onCancelar, guardando, error }) {
         onChange={(e) => setNombre(e.target.value)}
         maxLength={100}
         required
-      />
-
-      <label style={{ marginTop: "0.9rem" }}>Descripción general</label>
-      <textarea
-        placeholder="Descripción breve de la asignatura (opcional)"
-        value={descripcion}
-        onChange={(e) => setDesc(e.target.value)}
-        rows={3}
-        style={{ resize: "vertical", width: "100%", boxSizing: "border-box" }}
       />
 
       <label style={{ marginTop: "0.9rem" }}>Prioridad académica *</label>
@@ -88,7 +78,7 @@ function Asignaturas() {
   const [asignaturas, setAsignaturas] = useState([]);
   const [cargando, setCargando]       = useState(true);
   const [mostrarForm, setMostrarForm] = useState(false);
-  const [editando, setEditando]       = useState(null); // { id, nombre, descripcion, prioridad }
+  const [editando, setEditando]       = useState(null); // { id, nombre, prioridad }
   const [guardando, setGuardando]     = useState(false);
   const [error, setError]             = useState("");
   const [exito, setExito]             = useState("");
@@ -120,7 +110,7 @@ function Asignaturas() {
     setTimeout(() => setExito(""), 4000);
   };
 
-  const handleCrear = async ({ nombre, descripcion, prioridad }) => {
+  const handleCrear = async ({ nombre, prioridad }) => {
     setGuardando(true);
     setError("");
     try {
@@ -130,7 +120,7 @@ function Asignaturas() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nombre, descripcion, prioridad }),
+        body: JSON.stringify({ nombre, prioridad }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
@@ -144,7 +134,7 @@ function Asignaturas() {
     }
   };
 
-  const handleEditar = async ({ nombre, descripcion, prioridad }) => {
+  const handleEditar = async ({ nombre, prioridad }) => {
     setGuardando(true);
     setError("");
     try {
@@ -154,7 +144,7 @@ function Asignaturas() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nombre, descripcion, prioridad }),
+        body: JSON.stringify({ nombre, prioridad }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error); return; }
@@ -172,7 +162,6 @@ function Asignaturas() {
     setEditando({
       id: a.Asignatura_Id,
       nombre: a.Asignatura_Nombre,
-      descripcion: a.Asignatura_Descripcion || "",
       prioridad: a.Asignatura_Prioridad_Academica,
     });
     setMostrarForm(false);
@@ -191,8 +180,7 @@ function Asignaturas() {
 
   const filtradas = asignaturas.filter((a) =>
     busqueda.trim() === "" ||
-    a.Asignatura_Nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    (a.Asignatura_Descripcion || "").toLowerCase().includes(busqueda.toLowerCase())
+    a.Asignatura_Nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   if (cargando) return <div className="page-container"><p>Cargando asignaturas...</p></div>;
@@ -245,7 +233,7 @@ function Asignaturas() {
         <div style={{ marginBottom: "1rem" }}>
           <input
             type="text"
-            placeholder="Buscar por nombre o descripción..."
+            placeholder="Buscar por nombre..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             style={{ maxWidth: "360px" }}
@@ -264,7 +252,6 @@ function Asignaturas() {
             <tr>
               <th>#</th>
               <th>Nombre</th>
-              <th>Descripción</th>
               <th>Prioridad</th>
               {esAdmin && <th>Acciones</th>}
             </tr>
@@ -274,9 +261,6 @@ function Asignaturas() {
               <tr key={a.Asignatura_Id} style={editando?.id === a.Asignatura_Id ? { background: "#eff6ff" } : {}}>
                 <td style={{ color: "#94a3b8", fontSize: "0.85rem" }}>{i + 1}</td>
                 <td style={{ fontWeight: 500 }}>{a.Asignatura_Nombre}</td>
-                <td style={{ color: "#64748b", fontSize: "0.9rem" }}>
-                  {a.Asignatura_Descripcion || <span style={{ color: "#cbd5e1", fontStyle: "italic" }}>Sin descripción</span>}
-                </td>
                 <td><BadgePrioridad valor={a.Asignatura_Prioridad_Academica} /></td>
                 {esAdmin && (
                   <td>
