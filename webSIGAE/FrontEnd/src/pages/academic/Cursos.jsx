@@ -54,7 +54,7 @@ function ModalAsignarAsignaturas({ curso, token, onClose, onExito }) {
 
     const asignaturas = ids.map((id) => ({
       asignatura_id: id,
-      estado: estadoSeleccion[id] || "Vigente",
+      estado: estadoSeleccion[id] || "Activa",
     }));
 
     setEnviando(true);
@@ -116,7 +116,7 @@ function ModalAsignarAsignaturas({ curso, token, onClose, onExito }) {
                     <div className="asig-estado-select">
                       <label>Estado:</label>
                       <select
-                        value={estadoSeleccion[a.Asignatura_Id] || "Vigente"}
+                        value={estadoSeleccion[a.Asignatura_Id] || "Activa"}
                         onChange={(e) => handleEstado(a.Asignatura_Id, e.target.value)}
                       >
                         <option value="Activa">Activa</option>
@@ -246,6 +246,7 @@ function Cursos() {
   const [exito, setExito] = useState("");
   const [cargando, setCargando] = useState(true);
   const [cursoSeleccionado, setCursoSeleccionado] = useState(null);
+  const [vistaLista, setVistaLista] = useState(false);
 
   const token = localStorage.getItem("token");
 
@@ -334,6 +335,8 @@ function Cursos() {
     );
   }
 
+  const hayCursos = Object.keys(cursosAgrupados).length > 0;
+
   return (
     <div className="page-container">
       <div className="page-header">
@@ -341,11 +344,31 @@ function Cursos() {
           <h1>Cursos</h1>
           <p>Gestión de cursos por nivel educativo</p>
         </div>
-        {esAdmin && (
-          <button className="btn-primary" onClick={toggleForm}>
-            {mostrarForm ? "Cancelar" : "+ Registrar Curso"}
-          </button>
-        )}
+        <div className="page-header-actions">
+          {hayCursos && (
+            <div className="vista-toggle">
+              <button
+                className={`btn-vista ${!vistaLista ? "activo" : ""}`}
+                onClick={() => setVistaLista(false)}
+                title="Vista en tarjetas"
+              >
+                ⊞ Tarjetas
+              </button>
+              <button
+                className={`btn-vista ${vistaLista ? "activo" : ""}`}
+                onClick={() => setVistaLista(true)}
+                title="Vista en lista"
+              >
+                ☰ Lista
+              </button>
+            </div>
+          )}
+          {esAdmin && (
+            <button className="btn-primary" onClick={toggleForm}>
+              {mostrarForm ? "Cancelar" : "+ Registrar Curso"}
+            </button>
+          )}
+        </div>
       </div>
 
       {exito && <p className="msg-exito">{exito}</p>}
@@ -354,7 +377,6 @@ function Cursos() {
       {mostrarForm && (
         <div className="form-card">
           <h2>Nuevo Curso</h2>
-
           <form onSubmit={handleSubmit}>
             <label>Nivel Educativo</label>
             <select value={nivelId} onChange={(e) => setNivelId(e.target.value)} required>
@@ -383,11 +405,44 @@ function Cursos() {
         </div>
       )}
 
-      {Object.keys(cursosAgrupados).length === 0 ? (
+      {!hayCursos ? (
         <div className="empty-state">
           <p>No hay cursos registrados aún.</p>
         </div>
+      ) : vistaLista ? (
+        /* ── Vista Lista ── */
+        <div className="cursos-lista-container">
+          <table className="tabla-cursos">
+            <thead>
+              <tr>
+                <th>Curso</th>
+                <th>Nivel Educativo</th>
+                <th>Sección</th>
+                <th>Asignaturas activas</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {cursos.map((c) => (
+                <tr
+                  key={c.Curso_Id}
+                  className="tabla-curso-fila"
+                  onClick={() => setCursoSeleccionado(c)}
+                >
+                  <td className="tabla-curso-nombre">{c.Curso_Nombre}</td>
+                  <td>{c.Nivel_Educativo_Nombre}</td>
+                  <td>{c.Curso_Seccion}</td>
+                  <td>
+                    <span className="badge-asig-count">{c.Total_Asignaturas_Activas ?? 0}</span>
+                  </td>
+                  <td><span className="curso-link">Ver asignaturas →</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
+        /* ── Vista Tarjetas ── */
         Object.entries(cursosAgrupados).map(([nivel, lista]) => (
           <div key={nivel} className="cursos-grupo">
             <h3>{nivel}</h3>
@@ -399,8 +454,23 @@ function Cursos() {
                   onClick={() => setCursoSeleccionado(c)}
                   title="Ver asignaturas del curso"
                 >
-                  <span className="curso-nombre">{c.Curso_Nombre}</span>
-                  <span className="curso-link">Ver asignaturas →</span>
+                  <div className="curso-card-header">
+                    <span className="curso-nombre">{c.Curso_Nombre}</span>
+                    <span className="curso-seccion-badge">Sec. {c.Curso_Seccion}</span>
+                  </div>
+                  <div className="curso-card-body">
+                    <div className="curso-info-item">
+                      <span className="curso-info-label">Nivel educativo</span>
+                      <span className="curso-info-valor">{c.Nivel_Educativo_Nombre}</span>
+                    </div>
+                    <div className="curso-info-item">
+                      <span className="curso-info-label">Asignaturas activas</span>
+                      <span className="curso-info-valor curso-asig-count">{c.Total_Asignaturas_Activas ?? 0}</span>
+                    </div>
+                  </div>
+                  <div className="curso-card-footer">
+                    <span className="curso-link">Ver asignaturas →</span>
+                  </div>
                 </div>
               ))}
             </div>

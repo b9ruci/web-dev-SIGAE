@@ -3,6 +3,25 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../../services/api";
 
+/* ── Grupo de navegación ───────────────────────────── */
+function NavGroup({ titulo, icono, color, links }) {
+  return (
+    <div className="nav-group">
+      <div className="nav-group-header" style={{ background: color }}>
+        <span>{icono}</span>
+        <span>{titulo}</span>
+      </div>
+      <div className="nav-group-links">
+        {links.filter(Boolean).map((link) => (
+          <Link key={link.to} to={link.to}>
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ── Dashboard de Administrador ───────────────────── */
 function DashboardAdmin({ esSuperAdmin }) {
   const [stats, setStats] = useState({
@@ -48,6 +67,50 @@ function DashboardAdmin({ esSuperAdmin }) {
           <Link to="/registrar-estudiante">Registrar Estudiante</Link>
           <Link to="/plan-educativo">Plan Educativo</Link>
           <Link to="/citaciones">Ver Citaciones</Link>
+        </div>
+      </div>
+
+      {/* ── Navegación por secciones ── */}
+      <div className="nav-sections">
+        <h2>Módulos del sistema</h2>
+        <div className="nav-sections-grid">
+
+          <NavGroup
+            titulo="Registro de Usuarios"
+            icono="✏"
+            color="#4f46e5"
+            links={[
+              { label: "Registrar Docente",       to: "/registrar-docente" },
+              { label: "Registrar Apoderado",      to: "/registrar-apoderado" },
+              { label: "Registrar Estudiante",     to: "/registrar-estudiante" },
+              esSuperAdmin && { label: "Registrar Administrador", to: "/registrar-admin" },
+            ]}
+          />
+
+          <NavGroup
+            titulo="Gestión de Usuarios"
+            icono="👤"
+            color="#0f766e"
+            links={[
+              { label: "Gestión de Usuarios",   to: "/usuarios" },
+              { label: "Gestión de Apoderados", to: "/apoderados" },
+              esSuperAdmin && { label: "Gestión de Roles", to: "/gestion-roles" },
+            ]}
+          />
+
+          <NavGroup
+            titulo="Gestión Académica"
+            icono="📚"
+            color="#7c3aed"
+            links={[
+              { label: "Plan Educativo",   to: "/plan-educativo" },
+              { label: "Asignaturas",      to: "/asignaturas" },
+              { label: "Cursos",           to: "/cursos" },
+              { label: "Horarios",         to: "/horarios" },
+              { label: "Bloques Horarios", to: "/bloques-horarios" },
+            ]}
+          />
+
         </div>
       </div>
     </div>
@@ -111,7 +174,6 @@ function Dashboard() {
   if (esDocente)   return <DashboardDocente nombre={usuario?.nombre} />;
   if (esApoderado) return <DashboardApoderado nombre={usuario?.nombre} />;
 
-  // Fallback genérico
   return (
     <div className="dashboard-container">
       <h1>Dashboard SIGAE</h1>
@@ -121,3 +183,4 @@ function Dashboard() {
 }
 
 export default Dashboard;
+

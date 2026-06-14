@@ -5,9 +5,12 @@ const getCursos = async (req, res) => {
   try {
     const [rows] = await pool.execute(`
       SELECT c.Curso_Id, c.Curso_Seccion, c.Curso_Nombre,
-             c.Nivel_Educativo_Id, n.Nivel_Educativo_Nombre
+             c.Nivel_Educativo_Id, n.Nivel_Educativo_Nombre,
+             COUNT(ta.Asignatura_Id) AS Total_Asignaturas_Activas
       FROM curso c
       JOIN nivel_educativo n ON c.Nivel_Educativo_Id = n.Nivel_Educativo_Id
+      LEFT JOIN tieneasig ta ON c.Curso_Id = ta.Curso_Id AND ta.Estado_Asignacion = 'Activa'
+      GROUP BY c.Curso_Id, c.Curso_Seccion, c.Curso_Nombre, c.Nivel_Educativo_Id, n.Nivel_Educativo_Nombre
       ORDER BY n.Nivel_Educativo_Id, c.Curso_Seccion
     `);
     res.json(rows);

@@ -285,7 +285,7 @@ export default function Horarios() {
           <h1 style={s.titulo}>{esAdmin ? "Gestión de Horarios" : "Mi Horario"}</h1>
           <p style={s.subtitulo}>
             {esAdmin
-              ? "Programa bloques horarios por curso — CU54"
+              ? "Programa bloques horarios por curso" /* CU54 */
               : `Horario de ${usuario?.nombre || "docente"} — solo lectura`}
           </p>
         </div>
@@ -991,12 +991,6 @@ function PanelForm({
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 980 }}
-        onClick={onClose}
-      />
-
       {/* Panel */}
       <div style={s.panel}>
         <div style={s.panelHeader}>
@@ -1005,7 +999,7 @@ function PanelForm({
               {modoEdicion ? "Editar bloque horario" : "Agregar bloque horario"}
             </h2>
             <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "#94a3b8" }}>
-              CU54 — Programar asignatura en el horario
+              Programar asignatura en el horario {/* CU54 */}
             </p>
           </div>
           <button onClick={onClose} style={s.panelBtnClose} title="Cerrar">
@@ -1015,6 +1009,15 @@ function PanelForm({
 
         <div style={s.panelBody}>
           <form onSubmit={onSubmit}>
+
+            {/* ─── Paso 1: Programar bloque horario ─────────────── */}
+            <div style={s.stepHeader}>
+              <span style={s.stepNum}>1</span>
+              <div>
+                <div style={s.stepTitle}>Programar bloque horario</div>
+                <div style={s.stepSub}>Asignatura, día y horario a asignar {/* CU54 */}</div>
+              </div>
+            </div>
 
             {/* Block info chip */}
             {bloque && (
@@ -1091,6 +1094,16 @@ function PanelForm({
                 {asigSel.Horas_Semanales_Requeridas}h). El servidor rechazará el registro si se excede el límite.
               </p>
             )}
+
+            {/* ─── Paso 2: Asignar docente ──────────────────────── */}
+            <div style={s.stepDivider} />
+            <div style={s.stepHeader}>
+              <span style={{ ...s.stepNum, background: "#0f766e" }}>2</span>
+              <div>
+                <div style={s.stepTitle}>Asignar docente</div>
+                <div style={s.stepSub}>Opcional — puede definirse en otro momento</div>
+              </div>
+            </div>
 
             {/* Docente */}
             <label style={s.label}>
@@ -1480,6 +1493,42 @@ const s = {
     flex: 1,
     overflowY: "auto",
     padding: "1.25rem",
+  },
+
+  stepHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "0.65rem",
+    marginBottom: "0.9rem",
+  },
+  stepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: "50%",
+    background: "#4f46e5",
+    color: "#fff",
+    fontSize: "0.68rem",
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  stepTitle: {
+    fontWeight: 700,
+    fontSize: "0.88rem",
+    color: "#1e293b",
+    lineHeight: 1.3,
+  },
+  stepSub: {
+    fontSize: "0.72rem",
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  stepDivider: {
+    borderTop: "1px dashed #e2e8f0",
+    margin: "1.2rem 0 1rem",
   },
 
   bloqueChip: {
