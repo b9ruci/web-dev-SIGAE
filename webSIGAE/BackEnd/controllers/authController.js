@@ -52,8 +52,8 @@ const login = async (req, res) => {
       roles,
       administradorTipo: user.Administrador_Tipo || null
     };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '2h' });
-    const expiracion = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const expiracion = new Date(Date.now() + 15 * 60 * 1000);
 
     await pool.execute(
       `INSERT INTO sesion
