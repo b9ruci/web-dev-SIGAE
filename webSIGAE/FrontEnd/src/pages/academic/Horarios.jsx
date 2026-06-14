@@ -991,12 +991,6 @@ function PanelForm({
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 980 }}
-        onClick={onClose}
-      />
-
       {/* Panel */}
       <div style={s.panel}>
         <div style={s.panelHeader}>
@@ -1107,6 +1101,10 @@ function PanelForm({
                 Selecciona una asignatura para ver docentes disponibles.
               </p>
             )}
+
+            <p style={{ fontSize: "0.76rem", color: "#94a3b8", margin: "0 0 0.35rem", fontStyle: "italic" }}>
+              ℹ Se puede definir más tarde.
+            </p>
 
             <select
               name="Usuario_Id"
