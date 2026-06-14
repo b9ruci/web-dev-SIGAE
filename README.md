@@ -27,13 +27,15 @@ Al abrir el codespace por primera vez, se ejecutará automáticamente `.devconta
 
 Si no esperaste el tiempo suficiente o hubo un error, puedes correr el setup manualmente:
 
-\`\`\`bash
+\`\`\` bash
+
 bash .devcontainer/setup.sh
 \`\`\`
 
 ### 2. Verificar que todo esté listo (opcional)
 
-\`\`\`bash
+\`\`\` bash
+
 ls webSIGAE/BackEnd/node_modules/dotenv   # debe listar archivos
 ls webSIGAE/FrontEnd/node_modules/vite    # debe listar archivos
 sudo service mariadb status               # debe mostrar "Uptime"
