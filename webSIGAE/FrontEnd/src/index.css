@@ -1173,7 +1173,45 @@ select {
   background: #e2e8f0;
 }
 
-/* ===== MENSAJES INLINE (forgot/reset password) ===== */
+/* ===== PANEL HORARIOS: colapsa sidebar y empuja contenido ===== */
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.sidebar {
+  transition: width 0.25s ease, min-width 0.25s ease, padding 0.25s ease;
+}
+
+body.horarios-panel-open .sidebar {
+  width: 60px;
+  min-width: 60px;
+  padding: 14px 10px;
+  overflow: hidden;
+}
+
+body.horarios-panel-open .sidebar .logo,
+body.horarios-panel-open .sidebar .sidebar-user-info,
+body.horarios-panel-open .sidebar .menu-section,
+body.horarios-panel-open .sidebar .logout-button {
+  display: none;
+}
+
+body.horarios-panel-open .sidebar .menu a {
+  font-size: 0;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+body.horarios-panel-open .main-content {
+  padding-right: 460px;
+}
+
+.main-content {
+  transition: padding-right 0.25s ease;
+}
+
 .error-message {
   color: #b91c1c;
   background: #fee2e2;

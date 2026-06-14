@@ -5,6 +5,7 @@ const {
   getCursos,
   getBloques,
   getAsignaturas,
+  getAsignaturasCurso,
   getDocentes,
   getDocentesDisponibles,
   createHorario,
@@ -18,11 +19,12 @@ const router = express.Router();
 router.use(verifyToken);
 
 // Datos de apoyo para formularios
-router.get('/cursos',               getCursos);
-router.get('/bloques',              getBloques);
-router.get('/asignaturas',          getAsignaturas);
-router.get('/docentes',             getDocentes);
-router.get('/docentes-disponibles', getDocentesDisponibles);
+router.get('/cursos',                getCursos);
+router.get('/bloques',               getBloques);
+router.get('/asignaturas',           getAsignaturas);
+router.get('/asignaturas-curso',     getAsignaturasCurso);
+router.get('/docentes',              getDocentes);
+router.get('/docentes-disponibles',  getDocentesDisponibles);
 
 // CRUD horario
 router.get('/',            getHorarios);
