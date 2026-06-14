@@ -1010,6 +1010,15 @@ function PanelForm({
         <div style={s.panelBody}>
           <form onSubmit={onSubmit}>
 
+            {/* ─── Paso 1: Programar bloque horario ─────────────── */}
+            <div style={s.stepHeader}>
+              <span style={s.stepNum}>1</span>
+              <div>
+                <div style={s.stepTitle}>Programar bloque horario</div>
+                <div style={s.stepSub}>CU54 — asignatura, día y horario a asignar</div>
+              </div>
+            </div>
+
             {/* Block info chip */}
             {bloque && (
               <div style={s.bloqueChip}>
@@ -1086,6 +1095,16 @@ function PanelForm({
               </p>
             )}
 
+            {/* ─── Paso 2: Asignar docente ──────────────────────── */}
+            <div style={s.stepDivider} />
+            <div style={s.stepHeader}>
+              <span style={{ ...s.stepNum, background: "#0f766e" }}>2</span>
+              <div>
+                <div style={s.stepTitle}>Asignar docente</div>
+                <div style={s.stepSub}>Opcional — puede definirse en otro momento</div>
+              </div>
+            </div>
+
             {/* Docente */}
             <label style={s.label}>
               Docente
@@ -1101,10 +1120,6 @@ function PanelForm({
                 Selecciona una asignatura para ver docentes disponibles.
               </p>
             )}
-
-            <p style={{ fontSize: "0.76rem", color: "#94a3b8", margin: "0 0 0.35rem", fontStyle: "italic" }}>
-              ℹ Se puede definir más tarde.
-            </p>
 
             <select
               name="Usuario_Id"
@@ -1478,6 +1493,42 @@ const s = {
     flex: 1,
     overflowY: "auto",
     padding: "1.25rem",
+  },
+
+  stepHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "0.65rem",
+    marginBottom: "0.9rem",
+  },
+  stepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: "50%",
+    background: "#4f46e5",
+    color: "#fff",
+    fontSize: "0.68rem",
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  stepTitle: {
+    fontWeight: 700,
+    fontSize: "0.88rem",
+    color: "#1e293b",
+    lineHeight: 1.3,
+  },
+  stepSub: {
+    fontSize: "0.72rem",
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  stepDivider: {
+    borderTop: "1px dashed #e2e8f0",
+    margin: "1.2rem 0 1rem",
   },
 
   bloqueChip: {
