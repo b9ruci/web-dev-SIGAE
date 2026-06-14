@@ -150,6 +150,11 @@ export default function Horarios() {
 
   // ── Panel handlers ──
   const abrirDesdeGrid = (bloqueId, dia) => {
+    // E1 (CU53): bloquear operación si el curso no tiene asignaturas en el plan
+    if (asignaturasCurso.length === 0) {
+      setError("Este curso no tiene asignaturas en el plan educativo. No es posible programar bloques horarios.");
+      return;
+    }
     setForm({
       ...EMPTY_FORM,
       Curso_Id: cursoSeleccionado,
@@ -421,6 +426,11 @@ export default function Horarios() {
                             }}
                           />
                         </div>
+                        {completa && (
+                          <div style={{ fontSize: "0.67rem", color: "#15803d", fontWeight: 600, marginTop: 4 }}>
+                            ✓ Horas completas — no requiere más bloques
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -968,6 +978,17 @@ function PanelForm({
   const docSel = docentesInfo.find((d) => d.Usuario_Id === Number(form.Usuario_Id));
   const nDisp = docentesInfo.filter((d) => d.disponible).length;
 
+  // E3 (CU53): detectar asignatura con horas ya completas para advertir antes del submit
+  const asigSel = asignaturasCurso.find((a) => a.Asignatura_Id === Number(form.Asignatura_Id));
+  const asigPct =
+    asigSel && asigSel.Horas_Semanales_Requeridas > 0
+      ? Math.min(
+          100,
+          Math.round((Number(asigSel.Horas_Programadas) / asigSel.Horas_Semanales_Requeridas) * 100)
+        )
+      : 0;
+  const asigCompleta = asigPct >= 100;
+
   return (
     <>
       {/* Backdrop */}
@@ -1051,6 +1072,25 @@ function PanelForm({
                 );
               })}
             </select>
+
+            {/* E3 (CU53): aviso cuando la asignatura ya tiene todas sus horas programadas */}
+            {asigCompleta && (
+              <p
+                style={{
+                  color: "#92400e",
+                  fontSize: "0.82rem",
+                  background: "#fef3c7",
+                  border: "1px solid #fde68a",
+                  padding: "0.4rem 0.65rem",
+                  borderRadius: "6px",
+                  margin: "0.4rem 0 0",
+                }}
+              >
+                ⚠ Esta asignatura ya tiene todas sus horas semanales programadas (
+                {Number(asigSel.Horas_Programadas).toFixed(1)}h /{" "}
+                {asigSel.Horas_Semanales_Requeridas}h). El servidor rechazará el registro si se excede el límite.
+              </p>
+            )}
 
             {/* Docente */}
             <label style={s.label}>
