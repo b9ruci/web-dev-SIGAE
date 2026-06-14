@@ -5,6 +5,7 @@ const API = "/api/bloques";
 
 const JORNADAS     = ["Mañana", "Tarde"];
 const TIPOS_BLOQUE = ["Clase", "Recreo"];
+const IMPACTOS     = ["Sin impacto", "Salida anticipada", "Suspensión total"];
 
 function authHeaders() {
   return {
@@ -50,6 +51,22 @@ function TipoChip({ tipo }) {
   );
 }
 
+/* ── Chip de impacto ───────────────────────────────────────────── */
+function ImpactoChip({ impacto }) {
+  const map = {
+    "Sin impacto":       { bg: "#f0fdf4", color: "#166534" },
+    "Salida anticipada": { bg: "#fef9c3", color: "#92400e" },
+    "Suspensión total":  { bg: "#fee2e2", color: "#991b1b" },
+  };
+  const c = map[impacto] || { bg: "#f3f4f6", color: "#374151" };
+  return (
+    <span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.78rem",
+      fontWeight: 700, background: c.bg, color: c.color }}>
+      {impacto}
+    </span>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════
    Componente principal
 ══════════════════════════════════════════════════════════════════ */
@@ -82,7 +99,7 @@ export default function BloquesHorarios() {
         <div>
           <h1 style={s.titulo}>Configuración Horaria Institucional</h1>
           <p style={s.subtitulo}>
-            Parámetros institucionales y bloques horarios — CU52 · CU49
+            Parámetros institucionales, bloques horarios y eventos — CU52 · CU49
           </p>
         </div>
         <span style={s.rolBadge}>
@@ -95,6 +112,7 @@ export default function BloquesHorarios() {
         {[
           { key: "parametros", label: "⚙ Parámetros institucionales" },
           { key: "bloques",    label: "🕐 Bloques horarios" },
+          { key: "eventos",    label: "📅 Eventos institucionales" },
         ].map((t) => (
           <button
             key={t.key}
@@ -110,6 +128,7 @@ export default function BloquesHorarios() {
       <div style={s.tabContent}>
         {tab === "parametros" && <TabParametros />}
         {tab === "bloques"    && <TabBloques />}
+        {tab === "eventos"    && <TabEventos />}
       </div>
     </div>
   );
@@ -650,7 +669,470 @@ function TabBloques() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   Vista Calendario de Bloques (Google Calendar-style)
+   PESTAÑA 3 — Eventos institucionales
+   Eventos que afectan el desarrollo normal de clases (excepciones).
+   Pueden ser todo el día, retiro temprano, o suspensión total.
+══════════════════════════════════════════════════════════════════ */
+const EMPTY_EVENTO = {
+  Evento_Institucional_Nombre:         "",
+  Evento_Institucional_Fecha:          "",
+  Evento_Institucional_Descripcion:    "",
+  Evento_Institucional_Impacto_Clases: "Sin impacto",
+};
+
+function TabEventos() {
+  const [eventos,      setEventos]      = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState("");
+  const [panelAbierto, setPanelAbierto] = useState(false);
+  const [editando,     setEditando]     = useState(null);
+  const [form,         setForm]         = useState(EMPTY_EVENTO);
+  const [guardando,    setGuardando]    = useState(false);
+  const [errorPanel,   setErrorPanel]   = useState("");
+  const [eliminando,   setEliminando]   = useState(null);
+  const [vista,        setVista]        = useState("calendario");
+
+  /* Colapsar sidebar mientras el panel esté abierto */
+  useEffect(() => {
+    if (panelAbierto) document.body.classList.add("horarios-panel-open");
+    else              document.body.classList.remove("horarios-panel-open");
+    return () => document.body.classList.remove("horarios-panel-open");
+  }, [panelAbierto]);
+
+  const cargar = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res  = await fetch(`${API}/eventos`, { headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEventos(data);
+    } catch (e) {
+      setError(e.message || "Error al cargar eventos");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const abrirCrear = () => {
+    setForm(EMPTY_EVENTO);
+    setEditando(null);
+    setErrorPanel("");
+    setPanelAbierto(true);
+  };
+
+  const abrirEditar = (ev) => {
+    setForm({
+      Evento_Institucional_Nombre:         ev.Evento_Institucional_Nombre,
+      Evento_Institucional_Fecha:          ev.Evento_Institucional_Fecha?.slice(0, 10),
+      Evento_Institucional_Descripcion:    ev.Evento_Institucional_Descripcion,
+      Evento_Institucional_Impacto_Clases: ev.Evento_Institucional_Impacto_Clases,
+    });
+    setEditando(ev.Evento_Institucional_Id);
+    setErrorPanel("");
+    setPanelAbierto(true);
+  };
+
+  const cerrarPanel = () => { setPanelAbierto(false); setErrorPanel(""); };
+
+  const handleGuardar = async (e) => {
+    e.preventDefault();
+    setGuardando(true);
+    setErrorPanel("");
+    try {
+      const url    = editando ? `${API}/eventos/${editando}` : `${API}/eventos`;
+      const method = editando ? "PUT" : "POST";
+      const res    = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(form) });
+      const data   = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      cerrarPanel();
+      cargar();
+    } catch (e) {
+      setErrorPanel(e.message || "Error al guardar");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleEliminar = async (id) => {
+    setEliminando(id);
+    setError("");
+    try {
+      const res  = await fetch(`${API}/eventos/${id}`, { method: "DELETE", headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      cargar();
+    } catch (e) {
+      setError(e.message || "Error al eliminar");
+    } finally {
+      setEliminando(null);
+    }
+  };
+
+  const hoy      = new Date().toISOString().slice(0, 10);
+  const proximos = eventos.filter((ev) => ev.Evento_Institucional_Fecha?.slice(0, 10) >= hoy);
+  const pasados  = eventos.filter((ev) => ev.Evento_Institucional_Fecha?.slice(0, 10)  < hoy);
+
+  const impactoActivo = IMPACTO_COLORES[form.Evento_Institucional_Impacto_Clases] || IMPACTO_COLORES["Sin impacto"];
+
+  return (
+    <div style={s.seccion}>
+      <div style={{ ...s.seccionHeader, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h2 style={s.seccionTitulo}>Eventos institucionales</h2>
+          <p style={s.seccionDesc}>
+            Registra excepciones que afectan el desarrollo normal de clases: retiros tempranos,
+            suspensiones parciales o totales de jornada.
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexShrink: 0 }}>
+          <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+            <button onClick={() => setVista("calendario")}
+              style={{ padding: "0.35rem 0.75rem", border: "none", cursor: "pointer",
+                background: vista === "calendario" ? "#1e3a5f" : "#f9fafb",
+                color: vista === "calendario" ? "#fff" : "#6b7280",
+                fontSize: "0.82rem", fontWeight: 500 }}>📅 Semana</button>
+            <button onClick={() => setVista("lista")}
+              style={{ padding: "0.35rem 0.75rem", border: "none", borderLeft: "1px solid #e5e7eb",
+                cursor: "pointer",
+                background: vista === "lista" ? "#1e3a5f" : "#f9fafb",
+                color: vista === "lista" ? "#fff" : "#6b7280",
+                fontSize: "0.82rem", fontWeight: 500 }}>☰ Lista</button>
+          </div>
+          <button className="btn-primary" onClick={abrirCrear}>+ Nuevo evento</button>
+        </div>
+      </div>
+
+      {error && <div style={s.errorBanner}>{error}</div>}
+
+      {loading ? (
+        <p style={s.loadingText}>Cargando eventos...</p>
+      ) : eventos.length === 0 ? (
+        <div style={s.emptyState}>
+          <span style={{ fontSize: "2.5rem" }}>📅</span>
+          <p>No hay eventos institucionales registrados.</p>
+        </div>
+      ) : (
+        <>
+          <div style={s.statsRow}>
+            <StatMini label="Próximos" value={proximos.length} color="#1e40af" bg="#dbeafe" />
+            <StatMini label="Pasados"  value={pasados.length}  color="#6b7280" bg="#f3f4f6" />
+            <StatMini label="Total"    value={eventos.length}  color="#374151" bg="#f9fafb" />
+          </div>
+
+          {vista === "calendario" ? (
+            <VistaCalendarioEventos
+              eventos={eventos}
+              onEditar={abrirEditar}
+              onEliminar={handleEliminar}
+              eliminando={eliminando}
+            />
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={s.tabla}>
+                <thead>
+                  <tr style={s.theadRow}>
+                    <th style={s.th}>Nombre</th>
+                    <th style={s.th}>Fecha</th>
+                    <th style={s.th}>Impacto en clases</th>
+                    <th style={s.th}>Descripción</th>
+                    <th style={s.th}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventos.map((ev, idx) => {
+                    const esPasado = ev.Evento_Institucional_Fecha?.slice(0, 10) < hoy;
+                    return (
+                      <tr key={ev.Evento_Institucional_Id}
+                        style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff",
+                          borderBottom: "1px solid #e5e7eb", opacity: esPasado ? 0.65 : 1 }}>
+                        <td style={{ ...s.td, fontWeight: 600 }}>
+                          {ev.Evento_Institucional_Nombre}
+                          {esPasado && <span style={{ marginLeft: 6, fontSize: "0.72rem",
+                            color: "#9ca3af", fontWeight: 400 }}>Pasado</span>}
+                        </td>
+                        <td style={s.td}>
+                          {ev.Evento_Institucional_Fecha
+                            ? new Date(ev.Evento_Institucional_Fecha + "T12:00:00").toLocaleDateString("es-CL",
+                                { day: "2-digit", month: "short", year: "numeric" })
+                            : "—"}
+                        </td>
+                        <td style={s.td}><ImpactoChip impacto={ev.Evento_Institucional_Impacto_Clases} /></td>
+                        <td style={{ ...s.td, maxWidth: 280, color: "#6b7280", fontSize: "0.85rem" }}>
+                          {ev.Evento_Institucional_Descripcion}
+                        </td>
+                        <td style={{ ...s.td, whiteSpace: "nowrap" }}>
+                          <button onClick={() => abrirEditar(ev)} style={s.btnAccion}>✏ Editar</button>
+                          <button
+                            onClick={() => { if (window.confirm("¿Eliminar este evento?")) handleEliminar(ev.Evento_Institucional_Id); }}
+                            style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
+                            disabled={eliminando === ev.Evento_Institucional_Id}
+                          >
+                            {eliminando === ev.Evento_Institucional_Id ? "..." : "🗑 Eliminar"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Panel lateral derecho */}
+      {panelAbierto && (
+        <>
+          <div style={s.backdrop} onClick={cerrarPanel} />
+          <div style={s.panel}>
+            <div style={s.panelHeader}>
+              <div>
+                <h2 style={{ margin: 0, color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>
+                  {editando ? "Editar evento" : "Nuevo evento institucional"}
+                </h2>
+                <p style={{ margin: "2px 0 0", fontSize: "0.78rem", color: "#94a3b8" }}>
+                  Excepción institucional — suspende clases individualmente
+                </p>
+              </div>
+              <button onClick={cerrarPanel} style={s.panelBtnClose} title="Cerrar">✕</button>
+            </div>
+
+            <div style={s.panelBody}>
+              {/* Chip de impacto activo (preview visual) */}
+              <div style={{
+                marginBottom: "1rem",
+                padding: "0.75rem 1rem",
+                borderRadius: "10px",
+                background: impactoActivo.bg,
+                border: `2px solid ${impactoActivo.borde}`,
+                textAlign: "center",
+                fontSize: "0.85rem",
+                fontWeight: 700,
+                color: impactoActivo.acento,
+              }}>
+                {impactoActivo.icono} {form.Evento_Institucional_Impacto_Clases || "Sin impacto"}
+                {form.Evento_Institucional_Nombre && (
+                  <div style={{ fontWeight: 400, fontSize: "0.78rem", marginTop: 2 }}>
+                    {form.Evento_Institucional_Nombre}
+                  </div>
+                )}
+              </div>
+
+              <form onSubmit={handleGuardar}>
+                <label style={s.labelPanel}>Nombre del evento *</label>
+                <input type="text"
+                  value={form.Evento_Institucional_Nombre}
+                  onChange={(e) => setForm((p) => ({ ...p, Evento_Institucional_Nombre: e.target.value }))}
+                  style={s.inputPanel}
+                  placeholder="Ej: Licenciatura 4tos Medios, Retiro anticipado" required />
+
+                <label style={{ ...s.labelPanel, marginTop: "0.85rem" }}>Fecha *</label>
+                <input type="date"
+                  value={form.Evento_Institucional_Fecha}
+                  onChange={(e) => setForm((p) => ({ ...p, Evento_Institucional_Fecha: e.target.value }))}
+                  style={s.inputPanel} required />
+
+                <label style={{ ...s.labelPanel, marginTop: "0.85rem" }}>Impacto en clases *</label>
+                <div style={{ display: "flex", gap: "0.4rem", flexDirection: "column", marginBottom: "0.5rem" }}>
+                  {IMPACTOS.map((imp) => {
+                    const col    = IMPACTO_COLORES[imp];
+                    const activo = form.Evento_Institucional_Impacto_Clases === imp;
+                    return (
+                      <button key={imp} type="button"
+                        onClick={() => setForm((p) => ({ ...p, Evento_Institucional_Impacto_Clases: imp }))}
+                        style={{
+                          padding: "0.45rem 0.75rem", borderRadius: "8px", textAlign: "left",
+                          border: `2px solid ${activo ? col.acento : "#e5e7eb"}`,
+                          background: activo ? col.bg : "#f9fafb",
+                          color: activo ? col.acento : "#6b7280",
+                          fontWeight: activo ? 700 : 400,
+                          fontSize: "0.82rem", cursor: "pointer", transition: "all 0.15s",
+                        }}>
+                        {col.icono} {imp}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <label style={{ ...s.labelPanel, marginTop: "0.85rem" }}>Descripción *</label>
+                <textarea
+                  value={form.Evento_Institucional_Descripcion}
+                  onChange={(e) => setForm((p) => ({ ...p, Evento_Institucional_Descripcion: e.target.value }))}
+                  style={{ ...s.inputPanel, minHeight: 80, resize: "vertical" }}
+                  placeholder="Describe el evento, su motivo y el impacto en el horario" required />
+
+                {errorPanel && (
+                  <p style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: "0.5rem",
+                    background: "#fee2e2", padding: "0.5rem 0.75rem", borderRadius: "6px" }}>
+                    {errorPanel}
+                  </p>
+                )}
+
+                <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
+                  <button type="button" onClick={cerrarPanel}
+                    style={{ ...s.btnSecundario, flex: 1 }} disabled={guardando}>
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn-primary" style={{ flex: 2 }} disabled={guardando}>
+                    {guardando ? "Guardando..." : editando ? "Guardar cambios" : "Crear evento"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Vista Calendario de Eventos (Google Calendar-style, 7 días)
+══════════════════════════════════════════════════════════════════ */
+const IMPACTO_COLORES = {
+  "Sin impacto":       { bg: "#f0fdf4", borde: "#22c55e", acento: "#166534", icono: "✅" },
+  "Salida anticipada": { bg: "#fefce8", borde: "#eab308", acento: "#92400e", icono: "⚠" },
+  "Suspensión total":  { bg: "#fef2f2", borde: "#ef4444", acento: "#991b1b", icono: "🚫" },
+};
+
+const DIAS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function lunesDe(fecha) {
+  const d = new Date(fecha);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay();
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return d;
+}
+
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function VistaCalendarioEventos({ eventos, onEditar, onEliminar, eliminando }) {
+  const [lunes,   setLunes]   = useState(() => lunesDe(new Date()));
+  const [hovered, setHovered] = useState(null);
+
+  const hoyISO = toISODate(new Date());
+
+  const dias = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(lunes);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const prevSemana = () => { const d = new Date(lunes); d.setDate(d.getDate() - 7); setLunes(d); };
+  const nextSemana = () => { const d = new Date(lunes); d.setDate(d.getDate() + 7); setLunes(d); };
+  const irHoy      = () => setLunes(lunesDe(new Date()));
+
+  const domingo    = dias[6];
+  const rangoLabel = `${lunes.toLocaleDateString("es-CL", { day: "numeric", month: "short" })} – ${domingo.toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" })}`;
+
+  const btnNav = {
+    padding: "0.3rem 0.65rem", border: "1px solid #e5e7eb", borderRadius: 6,
+    background: "#fff", cursor: "pointer", fontSize: "0.85rem", fontWeight: 600, color: "#374151",
+  };
+
+  return (
+    <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 16px", borderBottom: "2px solid #e5e7eb", background: "#f8fafc", flexWrap: "wrap", gap: "0.5rem" }}>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+          <button onClick={prevSemana} style={btnNav}>‹</button>
+          <button onClick={nextSemana} style={btnNav}>›</button>
+          <button onClick={irHoy} style={{ ...btnNav, fontSize: "0.78rem", color: "#1e40af", borderColor: "#93c5fd" }}>Hoy</button>
+        </div>
+        <span style={{ fontWeight: 700, fontSize: "0.95rem", color: "#1e3a5f" }}>{rangoLabel}</span>
+        <span style={{ fontSize: "0.78rem", color: "#9ca3af" }}>{eventos.length} evento{eventos.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+        {dias.map((dia, i) => {
+          const diaISO        = toISODate(dia);
+          const esHoy         = diaISO === hoyISO;
+          const esPasado      = diaISO < hoyISO;
+          const esFinde       = i >= 5;
+          const eventosDelDia = eventos.filter(ev => ev.Evento_Institucional_Fecha?.slice(0, 10) === diaISO);
+
+          return (
+            <div key={i} style={{
+              borderLeft: i > 0 ? "1px solid #e5e7eb" : "none",
+              borderTop: "1px solid #e5e7eb",
+              minHeight: 110,
+              background: esHoy ? "#eff6ff" : esFinde ? "#fafafa" : "#fff",
+              opacity: esPasado && !esHoy ? 0.72 : 1,
+            }}>
+              <div style={{ padding: "8px 6px 5px", borderBottom: "1px solid #f3f4f6", textAlign: "center" }}>
+                <div style={{ fontSize: "0.65rem", color: esFinde ? "#9ca3af" : "#6b7280",
+                  fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  {DIAS_ES[i]}
+                </div>
+                <div style={{
+                  fontSize: "1.05rem", fontWeight: 700, lineHeight: 1, marginTop: 3,
+                  color: esHoy ? "#fff" : esFinde ? "#9ca3af" : "#1e3a5f",
+                  background: esHoy ? "#1e40af" : "transparent",
+                  borderRadius: "50%", width: 28, height: 28,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {dia.getDate()}
+                </div>
+              </div>
+
+              <div style={{ padding: "4px 4px 6px", display: "flex", flexDirection: "column", gap: 3 }}>
+                {eventosDelDia.map(ev => {
+                  const col   = IMPACTO_COLORES[ev.Evento_Institucional_Impacto_Clases] || IMPACTO_COLORES["Sin impacto"];
+                  const isHov = hovered === ev.Evento_Institucional_Id;
+                  return (
+                    <div key={ev.Evento_Institucional_Id}
+                      onMouseEnter={() => setHovered(ev.Evento_Institucional_Id)}
+                      onMouseLeave={() => setHovered(null)}
+                      onClick={() => onEditar(ev)}
+                      style={{
+                        background: col.bg, border: `1px solid ${col.borde}`,
+                        borderLeft: `3px solid ${col.acento}`, borderRadius: 5,
+                        padding: "3px 5px", cursor: "pointer", fontSize: "0.7rem",
+                        lineHeight: 1.35, position: "relative",
+                        boxShadow: isHov ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+                        transition: "box-shadow 0.15s",
+                      }}>
+                      <div style={{ fontWeight: 700, color: col.acento,
+                        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                        paddingRight: isHov ? 38 : 0 }}>
+                        {col.icono} {ev.Evento_Institucional_Nombre}
+                      </div>
+                      <div style={{ fontSize: "0.63rem", color: col.acento, opacity: 0.75 }}>
+                        {ev.Evento_Institucional_Impacto_Clases}
+                      </div>
+                      {isHov && (
+                        <div style={{ position: "absolute", top: 3, right: 4, display: "flex", gap: 2 }}>
+                          <button title="Editar" onClick={e => { e.stopPropagation(); onEditar(ev); }}
+                            style={{ width: 16, height: 16, padding: 0, border: "none", borderRadius: 3,
+                              cursor: "pointer", background: col.acento, color: "#fff",
+                              fontSize: "0.55rem", display: "flex", alignItems: "center", justifyContent: "center" }}>✏</button>
+                          <button title="Eliminar" disabled={eliminando === ev.Evento_Institucional_Id}
+                            onClick={e => { e.stopPropagation(); if (window.confirm("¿Eliminar este evento?")) onEliminar(ev.Evento_Institucional_Id); }}
+                            style={{ width: 16, height: 16, padding: 0, border: "none", borderRadius: 3,
+                              cursor: "pointer", background: "#dc2626", color: "#fff",
+                              fontSize: "0.65rem", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Vista Calendario de Bloques (Google Calendar-style, eje de tiempo)
 ══════════════════════════════════════════════════════════════════ */
 const PX_POR_MIN = 1.5;
 
