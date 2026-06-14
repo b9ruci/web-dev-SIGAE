@@ -560,10 +560,28 @@ function PlanEducativo() {
                     onClick={() => setPlanDetalleId(plan.Plan_Educativo_Id)}
                     title="Ver asignaturas del plan"
                   >
-                    <span className="curso-nombre">{plan.Nivel_Educativo_Nombre}</span>
-                    <span className="curso-link">
-                      {plan.total_asignaturas} asignatura{plan.total_asignaturas !== 1 ? "s" : ""} →
-                    </span>
+                    <div className="curso-card-header">
+                      <span className="curso-nombre">{plan.Nivel_Educativo_Nombre}</span>
+                    </div>
+                    <div className="curso-card-body">
+                      <div className="plan-stats">
+                        <div className="plan-stat">
+                          <span className="plan-stat-valor">{plan.total_obligatorias ?? 0}</span>
+                          <span className="plan-stat-label">Obligatorias</span>
+                        </div>
+                        <div className="plan-stat plan-stat-sep">
+                          <span className="plan-stat-valor">{plan.total_complementarias ?? 0}</span>
+                          <span className="plan-stat-label">Complementarias</span>
+                        </div>
+                        <div className="plan-stat">
+                          <span className="plan-stat-valor">{plan.total_horas_semanales ?? 0}h</span>
+                          <span className="plan-stat-label">Hrs / sem</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="curso-card-footer">
+                      <span className="curso-link">Ver asignaturas →</span>
+                    </div>
                   </div>
                 ))}
               </div>

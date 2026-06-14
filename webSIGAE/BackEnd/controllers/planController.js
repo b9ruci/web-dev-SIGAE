@@ -9,13 +9,16 @@ const getPlanes = async (req, res) => {
         pe.Plan_Educativo_Periodo_Lectivo,
         pe.Nivel_Educativo_Id,
         ne.Nivel_Educativo_Nombre,
-        COUNT(ia.IncluyeAsig_Id) AS total_asignaturas
+        COUNT(ia.IncluyeAsig_Id) AS total_asignaturas,
+        SUM(CASE WHEN ia.Tipo = 'Obligatorio'    THEN 1 ELSE 0 END) AS total_obligatorias,
+        SUM(CASE WHEN ia.Tipo = 'Complementario' THEN 1 ELSE 0 END) AS total_complementarias,
+        COALESCE(SUM(ia.Horas_Semanales_Requeridas), 0)             AS total_horas_semanales
       FROM plan_educativo pe
       JOIN nivel_educativo ne ON ne.Nivel_Educativo_Id = pe.Nivel_Educativo_Id
       LEFT JOIN incluyeasig ia ON ia.Plan_Educativo_Id = pe.Plan_Educativo_Id
       GROUP BY pe.Plan_Educativo_Id, pe.Plan_Educativo_Periodo_Lectivo,
                pe.Nivel_Educativo_Id, ne.Nivel_Educativo_Nombre
-      ORDER BY ne.Nivel_Educativo_Nombre, pe.Plan_Educativo_Periodo_Lectivo DESC
+      ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC, ne.Nivel_Educativo_Nombre
     `);
     res.json(rows);
   } catch (err) {
