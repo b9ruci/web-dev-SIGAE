@@ -100,7 +100,7 @@ function MainLayout() {
                       {esSuperAdmin && <Link to="/registrar-admin">Registrar Admin</Link>}
                       <Link to="/registrar-docente">Registrar Docente</Link>
                       <Link to="/registrar-apoderado">Registrar Apoderado</Link>
-                      <Link to="/registrar-estudiante">Registrar Estudiante</Link>
+                      
                     </div>
                   )}
                 </div>
@@ -121,6 +121,7 @@ function MainLayout() {
                       <Link to="/cursos">Cursos</Link>
                       <Link to="/horarios">Horarios</Link>
                       <Link to="/bloques-horarios">Bloques Horarios</Link>
+                      <Link to="/registrar-estudiante">Registrar Estudiante</Link>
                     </div>
                   )}
                 </div>
