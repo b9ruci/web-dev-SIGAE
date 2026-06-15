@@ -121,7 +121,6 @@ function MainLayout() {
                       <Link to="/cursos">Cursos</Link>
                       <Link to="/horarios">Horarios</Link>
                       <Link to="/bloques-horarios">Bloques Horarios</Link>
-                      <Link to="/registrar-estudiante">Registro de Estudiante</Link>
                     </div>
                   )}
                 </div>
