@@ -64,8 +64,8 @@ function DashboardAdmin({ esSuperAdmin }) {
           {esSuperAdmin && <Link to="/registrar-admin">Registrar Administrador</Link>}
           <Link to="/registrar-docente">Registrar Docente</Link>
           <Link to="/registrar-apoderado">Registrar Apoderado</Link>
-          <Link to="/registrar-estudiante">Registrar Estudiante</Link>
           <Link to="/plan-educativo">Plan Educativo</Link>
+          <Link to="/registrar-estudiante">Registrar Estudiante</Link>
           <Link to="/citaciones">Ver Citaciones</Link>
         </div>
       </div>
@@ -82,7 +82,6 @@ function DashboardAdmin({ esSuperAdmin }) {
             links={[
               { label: "Registrar Docente",       to: "/registrar-docente" },
               { label: "Registrar Apoderado",      to: "/registrar-apoderado" },
-              { label: "Registrar Estudiante",     to: "/registrar-estudiante" },
               esSuperAdmin && { label: "Registrar Administrador", to: "/registrar-admin" },
             ]}
           />
@@ -103,11 +102,12 @@ function DashboardAdmin({ esSuperAdmin }) {
             icono="📚"
             color="#7c3aed"
             links={[
-              { label: "Plan Educativo",   to: "/plan-educativo" },
-              { label: "Asignaturas",      to: "/asignaturas" },
-              { label: "Cursos",           to: "/cursos" },
-              { label: "Horarios",         to: "/horarios" },
-              { label: "Bloques Horarios", to: "/bloques-horarios" },
+              { label: "Plan Educativo",        to: "/plan-educativo" },
+              { label: "Asignaturas",           to: "/asignaturas" },
+              { label: "Cursos",                to: "/cursos" },
+              { label: "Horarios",              to: "/horarios" },
+              { label: "Bloques Horarios",      to: "/bloques-horarios" },
+              { label: "Registrar Estudiante",  to: "/registrar-estudiante" },
             ]}
           />
 
