@@ -248,6 +248,21 @@ const asignarApoderado = async (req, res) => {
   }
 };
 
+const verificarRut = async (req, res) => {
+  const { rut } = req.query;
+  if (!rut) return res.status(400).json({ mensaje: 'RUT requerido' });
+  try {
+    const [rows] = await db.query(
+      'SELECT Estudiante_Id FROM estudiante WHERE Estudiante_RUT = ?',
+      [rut]
+    );
+    res.json({ existe: rows.length > 0 });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al verificar el RUT' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
   getEstudianteById,
@@ -256,4 +271,5 @@ module.exports = {
   deleteEstudiante,
   getEstudiantesSinApoderado,
   asignarApoderado,
+  verificarRut,
 };

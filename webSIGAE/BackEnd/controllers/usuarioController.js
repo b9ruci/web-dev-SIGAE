@@ -456,51 +456,60 @@ const asignarRol = async (req, res) => {
     // y se eliminarán esos roles automáticamente (conversión)
     const convirtiendo = rol === 'Administrador' && (usuario.Es_Docente || usuario.Es_Apoderado);
 
-    // Validar datos específicos según rol
+    // Resolver campos: valor enviado o, si se omite, el que ya existe en la BD
+    const correoDocente  = datosFila.Docente_Correo_Institucional  || usuario.Docente_Correo_Institucional;
+    const especialidad   = datosFila.Docente_Especialidad          || usuario.Docente_Especialidad;
+    const carga          = datosFila.Docente_Carga_Horaria_Maxima  || usuario.Docente_Carga_Horaria_Maxima;
+    const correoAdmin    = datosFila.Administrador_Correo_Institucional || usuario.Administrador_Correo_Institucional;
+    const tipoAdmin      = datosFila.Administrador_Tipo            || usuario.Administrador_Tipo || 'Administrador Normal';
+    const correoApo      = datosFila.Apoderado_Correo_Natural      || usuario.Apoderado_Correo_Natural;
+    const direccionApo   = datosFila.Apoderado_Direccion           || usuario.Apoderado_Direccion;
+
+    // Validar datos específicos según rol (usando valores resueltos)
     if (rol === 'Docente') {
-      if (!datosFila.Docente_Correo_Institucional)
+      if (!correoDocente)
         return res.status(400).json({ mensaje: 'El correo institucional del docente es obligatorio' });
-      if (!validarCorreoInstitucional(datosFila.Docente_Correo_Institucional))
+      if (!validarCorreoInstitucional(correoDocente))
         return res.status(400).json({ mensaje: 'El correo institucional debe pertenecer al dominio @jacquescousteau.edu' });
-      if (!datosFila.Docente_Especialidad)
+      if (!especialidad)
         return res.status(400).json({ mensaje: 'La especialidad es obligatoria' });
-      if (!datosFila.Docente_Carga_Horaria_Maxima)
+      if (!carga)
         return res.status(400).json({ mensaje: 'La carga horaria máxima es obligatoria' });
       const [dup] = await db.query(
-        'SELECT Usuario_Id FROM usuario WHERE Docente_Correo_Institucional = ?',
-        [datosFila.Docente_Correo_Institucional]
+        'SELECT Usuario_Id FROM usuario WHERE Docente_Correo_Institucional = ? AND Usuario_Id != ?',
+        [correoDocente, id]
       );
       if (dup.length > 0)
         return res.status(400).json({ mensaje: 'Ya existe un docente con ese correo institucional' });
     }
 
     if (rol === 'Administrador') {
-      if (!datosFila.Administrador_Correo_Institucional)
+      if (!correoAdmin)
         return res.status(400).json({ mensaje: 'El correo institucional del administrador es obligatorio' });
-      if (!validarCorreoInstitucional(datosFila.Administrador_Correo_Institucional))
+      if (!validarCorreoInstitucional(correoAdmin))
         return res.status(400).json({ mensaje: 'El correo institucional debe pertenecer al dominio @jacquescousteau.edu' });
       const [dup] = await db.query(
-        'SELECT Usuario_Id FROM usuario WHERE Administrador_Correo_Institucional = ?',
-        [datosFila.Administrador_Correo_Institucional]
+        'SELECT Usuario_Id FROM usuario WHERE Administrador_Correo_Institucional = ? AND Usuario_Id != ?',
+        [correoAdmin, id]
       );
       if (dup.length > 0)
         return res.status(400).json({ mensaje: 'Ya existe un administrador con ese correo institucional' });
     }
 
     if (rol === 'Apoderado') {
-      if (!datosFila.Apoderado_Correo_Natural)
+      if (!correoApo)
         return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
-      if (!datosFila.Apoderado_Direccion)
+      if (!direccionApo)
         return res.status(400).json({ mensaje: 'La dirección es obligatoria' });
       const [dup] = await db.query(
-        'SELECT Usuario_Id FROM usuario WHERE Apoderado_Correo_Natural = ?',
-        [datosFila.Apoderado_Correo_Natural]
+        'SELECT Usuario_Id FROM usuario WHERE Apoderado_Correo_Natural = ? AND Usuario_Id != ?',
+        [correoApo, id]
       );
       if (dup.length > 0)
         return res.status(400).json({ mensaje: 'Ya existe un apoderado con ese correo' });
     }
 
-    // Construir SET dinámico con el flag del rol + datos específicos
+    // Construir SET dinámico con el flag del rol + datos específicos (valores resueltos)
     const setCampos = [];
     const setValores = [];
 
@@ -510,11 +519,7 @@ const asignarRol = async (req, res) => {
         'Docente_Especialidad = ?',
         'Docente_Carga_Horaria_Maxima = ?'
       );
-      setValores.push(
-        datosFila.Docente_Correo_Institucional,
-        datosFila.Docente_Especialidad,
-        datosFila.Docente_Carga_Horaria_Maxima
-      );
+      setValores.push(correoDocente, especialidad, carga);
     }
 
     if (rol === 'Administrador') {
@@ -522,14 +527,10 @@ const asignarRol = async (req, res) => {
         'Administrador_Tipo = ?',
         'Administrador_Correo_Institucional = ?'
       );
-      // Si el usuario tenía roles Docente/Apoderado, se eliminan (conversión exclusiva)
       if (convirtiendo) {
         setCampos.push('Es_Docente = 0', 'Es_Apoderado = 0');
       }
-      setValores.push(
-        datosFila.Administrador_Tipo || 'Administrador Normal',
-        datosFila.Administrador_Correo_Institucional
-      );
+      setValores.push(tipoAdmin, correoAdmin);
     }
 
     if (rol === 'Apoderado') {
@@ -537,10 +538,7 @@ const asignarRol = async (req, res) => {
         'Apoderado_Correo_Natural = ?',
         'Apoderado_Direccion = ?'
       );
-      setValores.push(
-        datosFila.Apoderado_Correo_Natural,
-        datosFila.Apoderado_Direccion
-      );
+      setValores.push(correoApo, direccionApo);
     }
 
     setValores.push(id);

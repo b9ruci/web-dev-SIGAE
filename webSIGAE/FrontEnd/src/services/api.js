@@ -126,6 +126,13 @@ export async function registrarApoderado({ nombre, rut, correo, telefono, direcc
 }
 
 // ── ESTUDIANTE ───────────────────────────────
+export async function verificarRutEstudiante(rut) {
+  const res = await fetch(`${BASE_URL}/estudiantes/verificar-rut?rut=${encodeURIComponent(rut)}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico }) {
   const res = await fetch(`${BASE_URL}/estudiantes`, {
     method : 'POST',

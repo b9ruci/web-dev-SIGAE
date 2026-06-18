@@ -296,10 +296,34 @@ function GestionRoles() {
 
   const handleRolChange = (nuevoRol) => {
     setRolNuevo(nuevoRol);
-    setDatosRol({});
     setErrores({});
     setMsgExito("");
     setMsgError("");
+
+    if (!seleccionado || !nuevoRol) {
+      setDatosRol({});
+      return;
+    }
+
+    if (nuevoRol === "Docente") {
+      setDatosRol({
+        Docente_Correo_Institucional: seleccionado.Docente_Correo_Institucional || "",
+        Docente_Especialidad:         seleccionado.Docente_Especialidad         || "",
+        Docente_Carga_Horaria_Maxima: seleccionado.Docente_Carga_Horaria_Maxima || "",
+      });
+    } else if (nuevoRol === "Administrador") {
+      setDatosRol({
+        Administrador_Tipo:                 seleccionado.Administrador_Tipo                 || "Administrador Normal",
+        Administrador_Correo_Institucional: seleccionado.Administrador_Correo_Institucional || "",
+      });
+    } else if (nuevoRol === "Apoderado") {
+      setDatosRol({
+        Apoderado_Correo_Natural: seleccionado.Apoderado_Correo_Natural || "",
+        Apoderado_Direccion:      seleccionado.Apoderado_Direccion      || "",
+      });
+    } else {
+      setDatosRol({});
+    }
   };
 
   /* Envío del formulario */
