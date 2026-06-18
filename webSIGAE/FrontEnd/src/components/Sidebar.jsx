@@ -19,7 +19,10 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <h2>SIGAE</h2>
+        <div className="sidebar-logo-row">
+          <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="sidebar-logo-img" />
+          <h2>SIGAE</h2>
+        </div>
         <p>{usuario?.nombre}</p>
         <small>{rolEfectivo}</small>
       </div>

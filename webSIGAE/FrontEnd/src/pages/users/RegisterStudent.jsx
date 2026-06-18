@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { registrarEstudiante } from "../../services/api";
+import { registrarEstudiante, verificarRutEstudiante } from "../../services/api";
 import { validarRut, normalizarRut } from "../../utils/validaciones";
 
 function RegisterStudent() {
@@ -13,10 +13,12 @@ function RegisterStudent() {
     estadoAcademico: "Regular",
   });
 
-  const [cursos, setCursos]   = useState([]);
-  const [errores, setErrores] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState(null);
+  const [cursos, setCursos]           = useState([]);
+  const [errores, setErrores]         = useState({});
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState(null);
+  const [rutExiste, setRutExiste]     = useState(false);
+  const [verificandoRut, setVerificandoRut] = useState(false);
 
   useEffect(() => {
     fetch("/api/cursos", {
@@ -26,6 +28,25 @@ function RegisterStudent() {
       .then((data) => setCursos(Array.isArray(data) ? data : []))
       .catch(() => setCursos([]));
   }, []);
+
+  useEffect(() => {
+    if (!formData.rut || !validarRut(formData.rut)) {
+      setRutExiste(false);
+      return;
+    }
+    setVerificandoRut(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const data = await verificarRutEstudiante(formData.rut);
+        setRutExiste(data.existe);
+      } catch {
+        setRutExiste(false);
+      } finally {
+        setVerificandoRut(false);
+      }
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [formData.rut]);
 
   const validarCampo = (name, value) => {
     if (name === "rut" && value && !validarRut(value)) {
@@ -52,6 +73,8 @@ function RegisterStudent() {
       setErrores(nuevosErrores);
       return;
     }
+
+    if (rutExiste) return;
 
     setLoading(true);
     setError(null);
@@ -90,10 +113,16 @@ function RegisterStudent() {
               placeholder="RUT (ej: 12345678-9)"
               value={formData.rut}
               onChange={handleChange}
-              className={errores.rut ? "input-invalid" : ""}
+              className={errores.rut || rutExiste ? "input-invalid" : ""}
               required
             />
             {errores.rut && <span className="input-error-msg">{errores.rut}</span>}
+            {!errores.rut && rutExiste && (
+              <span className="input-error-msg">Ya existe un estudiante registrado con ese RUT</span>
+            )}
+            {!errores.rut && !rutExiste && verificandoRut && (
+              <span style={{ fontSize: "0.82rem", color: "#64748b" }}>Verificando RUT...</span>
+            )}
           </div>
 
           <select

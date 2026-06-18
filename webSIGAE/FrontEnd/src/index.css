@@ -31,9 +31,13 @@ body {
   margin-bottom: 8px;
 }
 
-.login-logo-icon {
-  font-size: 48px;
-  margin-bottom: 8px;
+.login-logo-img {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  display: block;
+  margin: 0 auto 8px;
+  object-fit: contain;
 }
 
 .login-form h1 {
@@ -448,9 +452,25 @@ select {
   justify-content: space-between;
 }
 
+.logo-row,
+.sidebar-logo-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.sidebar-logo-img {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
 .logo {
   font-size: 30px;
-  margin-bottom: 30px;
+  margin-bottom: 0;
 }
 
 .menu {
@@ -1111,6 +1131,14 @@ select {
   color: #1e293b;
   font-weight: 500;
 }
+
+.perfil-campo .badge-rol {
+  color: inherit;
+}
+.perfil-campo .badge-superadmin { color: white; }
+.perfil-campo .badge-admin      { color: #1e40af; }
+.perfil-campo .badge-docente    { color: #166534; }
+.perfil-campo .badge-apoderado  { color: #92400e; }
 
 .perfil-roles {
   display: flex;
