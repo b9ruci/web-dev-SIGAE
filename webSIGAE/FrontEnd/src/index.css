@@ -1132,6 +1132,14 @@ select {
   font-weight: 500;
 }
 
+.perfil-campo .badge-rol {
+  color: inherit;
+}
+.perfil-campo .badge-superadmin { color: white; }
+.perfil-campo .badge-admin      { color: #1e40af; }
+.perfil-campo .badge-docente    { color: #166534; }
+.perfil-campo .badge-apoderado  { color: #92400e; }
+
 .perfil-roles {
   display: flex;
   flex-wrap: wrap;
