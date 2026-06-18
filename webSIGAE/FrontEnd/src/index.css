@@ -31,9 +31,11 @@ body {
   margin-bottom: 8px;
 }
 
-.login-logo-icon {
-  font-size: 48px;
+.login-logo-img {
+  width: 100px;
+  height: auto;
   margin-bottom: 8px;
+  object-fit: contain;
 }
 
 .login-form h1 {
@@ -448,9 +450,24 @@ select {
   justify-content: space-between;
 }
 
+.logo-row,
+.sidebar-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.sidebar-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
 .logo {
   font-size: 30px;
-  margin-bottom: 30px;
+  margin-bottom: 0;
 }
 
 .menu {

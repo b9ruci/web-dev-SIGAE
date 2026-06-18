@@ -73,7 +73,7 @@ function Login() {
       <form className="login-form" onSubmit={handleSubmit}>
 
         <div className="login-logo">
-          <span className="login-logo-icon">🎓</span>
+          <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="login-logo-img" />
           <h1>SIGAE</h1>
           <p>Sistema de Gestión Académica Escolar</p>
         </div>

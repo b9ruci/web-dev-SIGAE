@@ -49,7 +49,10 @@ function MainLayout() {
       {/* SIDEBAR */}
       <aside className="sidebar">
         <div>
-          <h2 className="logo">SIGAE</h2>
+          <div className="logo-row">
+            <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="sidebar-logo-img" />
+            <h2 className="logo">SIGAE</h2>
+          </div>
 
           {usuario && (
             <div className="sidebar-user-info">
