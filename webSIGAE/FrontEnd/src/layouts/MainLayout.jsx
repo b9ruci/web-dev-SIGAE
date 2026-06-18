@@ -50,10 +50,11 @@ function MainLayout() {
       <aside className="sidebar">
         <div>
           <div className="logo-row">
-            <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="sidebar-logo-img" />
-            <h2 className="logo">SIGAE</h2>
+            <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="sidebar-logo-img"
+            style={{ width: '100%', maxWidth: '300px', height: 'auto', display: 'block', margin: '0 auto' }}
+            />
           </div>
-
+          
           {usuario && (
             <div className="sidebar-user-info">
               <div className="nombre">
