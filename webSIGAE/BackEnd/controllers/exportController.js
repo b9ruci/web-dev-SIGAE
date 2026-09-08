@@ -22,9 +22,7 @@ function hhmm(t) {
   return t ? String(t).slice(0, 5) : '';
 }
 
-// ════════════════════════════════════════════════════════════════
 //  OBTENCIÓN DE DATOS
-// ════════════════════════════════════════════════════════════════
 
 // CU 60 — datos del horario maestro (todos los cursos, solo bloques activos)
 async function fetchMaestro() {
@@ -102,9 +100,7 @@ async function fetchPorCurso(cursoId) {
   return { curso: curso.Curso_Nombre, filas: ordenarFilas(rows) };
 }
 
-// ════════════════════════════════════════════════════════════════
 //  RENDERIZADORES (uno por formato)
-// ════════════════════════════════════════════════════════════════
 
 function renderPDF(res, { titulo, columnas, filas, filename }) {
   const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
@@ -252,9 +248,7 @@ async function responder(res, formato, payload) {
   if (formato === 'png')   return renderPNG(res, payload);
 }
 
-// ════════════════════════════════════════════════════════════════
 //  ENDPOINTS
-// ════════════════════════════════════════════════════════════════
 
 // GET /api/horarios/exportar/maestro?formato=pdf|excel|png
 const exportarMaestro = async (req, res) => {
