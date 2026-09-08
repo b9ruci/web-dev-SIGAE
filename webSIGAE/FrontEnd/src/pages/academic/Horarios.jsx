@@ -33,6 +33,129 @@ function authHeaders() {
   };
 }
 
+/* ── Export helpers (CU60-62) ─────────────────────────────────── */
+function authHeadersGet() {
+  return { Authorization: `Bearer ${localStorage.getItem("token")}` };
+}
+
+async function descargarArchivo(url, nombreArchivo) {
+  const res = await fetch(url, { headers: authHeadersGet() });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Error al exportar el horario");
+  }
+  const blob = await res.blob();
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = nombreArchivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
+}
+
+const EXT_POR_FORMATO = { pdf: "pdf", excel: "xlsx", png: "png" };
+
+/* ── Menú desplegable de exportación (CU60/61/62) ─────────────── */
+function ExportMenu({ label, url, filenameBase, disabled }) {
+  const [abierto, setAbierto] = useState(false);
+  const [exportando, setExportando] = useState(null);
+  const [error, setError] = useState("");
+
+  const exportar = async (formato) => {
+    setExportando(formato);
+    setError("");
+    try {
+      await descargarArchivo(`${url}?formato=${formato}`, `${filenameBase}.${EXT_POR_FORMATO[formato]}`);
+      setAbierto(false);
+    } catch (e) {
+      setError(e.message || "Error al exportar");
+    } finally {
+      setExportando(null);
+    }
+  };
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <button
+        onClick={() => setAbierto((v) => !v)}
+        disabled={disabled}
+        style={{
+          padding: "0.35rem 0.85rem",
+          borderRadius: "6px",
+          border: "1px solid #93c5fd",
+          background: abierto ? "#4f46e5" : "#fff",
+          color: abierto ? "#fff" : "#4f46e5",
+          cursor: disabled ? "not-allowed" : "pointer",
+          fontWeight: 600,
+          fontSize: "0.82rem",
+          whiteSpace: "nowrap",
+          opacity: disabled ? 0.5 : 1,
+          transition: "all 0.15s",
+        }}
+      >
+        ⬇ {label}
+      </button>
+      {abierto && (
+        <div
+          style={{
+            position: "absolute",
+            top: "110%",
+            right: 0,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: 8,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.14)",
+            zIndex: 60,
+            minWidth: 180,
+            overflow: "hidden",
+          }}
+        >
+          {[
+            { key: "pdf", label: "📄 PDF" },
+            { key: "excel", label: "📊 Excel" },
+            { key: "png", label: "🖼 Imagen (PNG)" },
+          ].map((op) => (
+            <button
+              key={op.key}
+              onClick={() => exportar(op.key)}
+              disabled={exportando !== null}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "0.5rem 0.85rem",
+                border: "none",
+                borderBottom: "1px solid #f3f4f6",
+                background: "#fff",
+                cursor: exportando !== null ? "default" : "pointer",
+                fontSize: "0.85rem",
+                color: "#374151",
+              }}
+              onMouseEnter={(e) => { if (!exportando) e.currentTarget.style.background = "#f0f4ff"; }}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+            >
+              {exportando === op.key ? "Generando..." : op.label}
+            </button>
+          ))}
+          {error && (
+            <div style={{ padding: "0.45rem 0.85rem", fontSize: "0.74rem", color: "#dc2626", background: "#fee2e2" }}>
+              {error}
+            </div>
+          )}
+        </div>
+      )}
+      {/* Cierra el menú al hacer clic fuera */}
+      {abierto && (
+        <div
+          onClick={() => setAbierto(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 40 }}
+        />
+      )}
+    </div>
+  );
+}
+
 function tipoIcon(tipo) {
   if (tipo === "Recreo") return "⛹";
   if (tipo === "Evento Académico") return "🎓";
@@ -440,9 +563,39 @@ export default function Horarios() {
               : `Horario de ${usuario?.nombre || "docente"} — solo lectura`}
           </p>
         </div>
-        <RolBadge
-          rol={esAdmin ? (esSuperAdmin ? "Super Administrador" : "Administrador") : "Docente"}
-        />
+
+        <div style={{ display: "flex", gap: "0.6rem", alignItems: "center", flexWrap: "wrap" }}>
+          {/* CU60 — exportar horario maestro (siempre disponible para admin) */}
+          {esAdmin && (
+            <ExportMenu
+              label="Exportar maestro"
+              url={`${API}/horarios/exportar/maestro`}
+              filenameBase="horario_maestro"
+            />
+          )}
+
+          {/* CU62 — exportar horario del curso seleccionado */}
+          {esAdmin && cursoSeleccionado && (
+            <ExportMenu
+              label={`Exportar ${cursoObj?.Curso_Nombre || "curso"}`}
+              url={`${API}/horarios/exportar/curso/${cursoSeleccionado}`}
+              filenameBase={`horario_curso_${cursoSeleccionado}`}
+            />
+          )}
+
+          {/* CU61 — exportar mi propio horario (docente) */}
+          {esDocente && usuario?.id && (
+            <ExportMenu
+              label="Exportar mi horario"
+              url={`${API}/horarios/exportar/docente/${usuario.id}`}
+              filenameBase="mi_horario"
+            />
+          )}
+
+          <RolBadge
+            rol={esAdmin ? (esSuperAdmin ? "Super Administrador" : "Administrador") : "Docente"}
+          />
+        </div>
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
