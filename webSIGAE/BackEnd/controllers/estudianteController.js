@@ -263,6 +263,92 @@ const verificarRut = async (req, res) => {
   }
 };
 
+// ==========================================
+// CU9: Eliminar todas las asociaciones de un apoderado
+// ==========================================
+const eliminarTodasAsociacionesApoderado = async (req, res) => {
+  const { apoderadoId } = req.params;
+
+  try {
+    // 1. Validar existencia y estado del apoderado
+    const [apoderado] = await db.query(
+      'SELECT Usuario_Id, Usuario_Nombre_Completo, Usuario_Estado_Cuenta, Es_Apoderado FROM usuario WHERE Usuario_Id = ?',
+      [apoderadoId]
+    );
+
+    if (apoderado.length === 0) {
+      return res.status(404).json({ mensaje: 'Apoderado no encontrado' });
+    }
+
+    if (!apoderado[0].Usuario_Estado_Cuenta) {
+      return res.status(400).json({ mensaje: 'La cuenta del apoderado está inactiva' });
+    }
+
+    // 2. Excepción 1: Verificar que tenga asociaciones activas
+    const [asociados] = await db.query(
+      'SELECT Estudiante_Id FROM estudiante WHERE Apoderado_Usuario_Id = ?',
+      [apoderadoId]
+    );
+
+    if (asociados.length === 0) {
+      return res.status(400).json({
+        mensaje: 'El apoderado seleccionado no posee asociaciones activas con estudiantes',
+      });
+    }
+
+    // 3. Desvincular todas las relaciones (eliminación lógica de la relación)
+    const [resultado] = await db.query(
+      'UPDATE estudiante SET Apoderado_Usuario_Id = NULL WHERE Apoderado_Usuario_Id = ?',
+      [apoderadoId]
+    );
+
+    return res.json({
+      mensaje: 'Todas las asociaciones activas fueron eliminadas exitosamente',
+      eliminadas: resultado.affectedRows,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al eliminar las asociaciones del apoderado' });
+  }
+};
+
+// ==========================================
+// CU10: Eliminar asociación específica entre apoderado y estudiante
+// ==========================================
+const eliminarAsociacionEspecifica = async (req, res) => {
+  const { estudianteId } = req.params;
+
+  try {
+    const [estudiante] = await db.query(
+      'SELECT Estudiante_Id, Estudiante_Nombre_Completo, Apoderado_Usuario_Id FROM estudiante WHERE Estudiante_Id = ?',
+      [estudianteId]
+    );
+
+    if (estudiante.length === 0) {
+      return res.status(404).json({ mensaje: 'Ficha de estudiante no encontrada' });
+    }
+
+    // Excepción 1: la asociación ya no se encuentra activa
+    if (!estudiante[0].Apoderado_Usuario_Id) {
+      return res.status(400).json({
+        mensaje: 'La asociación seleccionada ya no se encuentra disponible o activa',
+      });
+    }
+
+    await db.query(
+      'UPDATE estudiante SET Apoderado_Usuario_Id = NULL WHERE Estudiante_Id = ?',
+      [estudianteId]
+    );
+
+    return res.json({
+      mensaje: `Asociación eliminada exitosamente para el estudiante ${estudiante[0].Estudiante_Nombre_Completo}`,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al eliminar la asociación específica' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
   getEstudianteById,
@@ -272,4 +358,6 @@ module.exports = {
   getEstudiantesSinApoderado,
   asignarApoderado,
   verificarRut,
+  eliminarTodasAsociacionesApoderado, // CU9
+  eliminarAsociacionEspecifica,       // CU10
 };
