@@ -25,7 +25,7 @@ jobs:
           cache-dependency-path: webSIGAE/BackEnd/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         working-directory: webSIGAE/BackEnd
 
       - name: Verify server starts
@@ -48,7 +48,7 @@ jobs:
           cache-dependency-path: webSIGAE/FrontEnd/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
         working-directory: webSIGAE/FrontEnd
 
       - name: Build
