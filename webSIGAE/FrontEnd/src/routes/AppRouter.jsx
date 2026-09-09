@@ -30,6 +30,7 @@ import RegisterGuardian from "../pages/users/RegisterGuardian";
 import RegisterStudent from "../pages/users/RegisterStudent";
 import Apoderados from "../pages/users/Apoderados";
 import Perfil from "../pages/users/Perfil";
+import EstudiantesListado from "../pages/EstudiantesListado";
 
 /* ACADEMIC */
 
@@ -60,15 +61,16 @@ function AppRouter() {
 
       <Routes>
 
-        {/* AUTH — públicas */}
+        {/* AUTH — publicas */}
 
-        <Route path="/"                element={<Login />} />
+        <Route path="/"                 element={<Login />} />
         <Route path="/seleccionar-rol" element={<SelectRole />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
         <Route path="/session-expired" element={<SessionExpired />} />
+        <Route path="/estudiantes"     element={<EstudiantesListado />} />
 
-        {/* RUTAS PRIVADAS — requieren sesión */}
+        {/* RUTAS PRIVADAS — requieren sesion */}
 
         <Route
           element={
@@ -85,10 +87,10 @@ function AppRouter() {
             path="/perfil/:id"
             element={
               <RoleRoute roles={["Administrador"]}>
-              <Perfil />
+                <Perfil />
               </RoleRoute>
             }
-        />
+          />
           {/* Accesibles por Docente y Apoderado */}
           <Route path="/citaciones" element={<Citaciones />} />
           <Route path="/mensajes"   element={<Mensajes />} />
@@ -114,22 +116,22 @@ function AppRouter() {
           />
           
           <Route
-          path="/gestion-roles"
-          element={
-          <RoleRoute roles={["Administrador"]}>
-            <GestionRoles />
-            </RoleRoute>
-          }
+            path="/gestion-roles"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <GestionRoles />
+              </RoleRoute>
+            }
           />
 
-<Route
-  path="/gestion-roles/:id"
-  element={
-    <RoleRoute roles={["Administrador"]}>
-      <GestionRoles />
-    </RoleRoute>
-  }
-/>
+          <Route
+            path="/gestion-roles/:id"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <GestionRoles />
+              </RoleRoute>
+            }
+          />
 
           <Route
             path="/registrar-admin"
@@ -163,6 +165,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Administrador"]}>
                 <RegisterStudent />
+              </RoleRoute>
+            }
+          />
+
+          {/* Gestion y Listado de Estudiantes (CU34 - CU37) */}
+          <Route
+            path="/estudiantes"
+            element={
+              <RoleRoute roles={["Administrador", "Docente"]}>
+                <EstudiantesListado />
               </RoleRoute>
             }
           />
