@@ -67,6 +67,24 @@ function ImpactoChip({ impacto }) {
   );
 }
 
+/* ── Badge de bloques afectados (CU70/71) ─────────────────────── */
+function BloquesAfectadosBadge({ count }) {
+  if (!count) return null;
+  return (
+    <span
+      title={`${count} bloque(s) horario(s) quedan marcados como suspendidos por este evento`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 3,
+        padding: "2px 8px", borderRadius: "10px", fontSize: "0.7rem",
+        fontWeight: 700, background: "#fee2e2", color: "#991b1b",
+        border: "1px solid #fecaca", marginLeft: 6, whiteSpace: "nowrap",
+      }}
+    >
+      🚫 {count} bloque{count !== 1 ? "s" : ""} afectado{count !== 1 ? "s" : ""}
+    </span>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════
    Componente principal
 ══════════════════════════════════════════════════════════════════ */
@@ -666,9 +684,11 @@ function TabBloques() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PESTAÑA 3 — Eventos institucionales
+   PESTAÑA 3 — Eventos institucionales (CU70, CU71, CU72)
    Eventos que afectan el desarrollo normal de clases (excepciones).
    Pueden ser todo el día, retiro temprano, o suspensión total.
+   Cada evento, según su impacto, marca bloques horarios como
+   afectados en la tabla `afecta` (calculado por el backend).
 ══════════════════════════════════════════════════════════════════ */
 const EMPTY_EVENTO = {
   Evento_Institucional_Nombre:         "",
@@ -688,6 +708,10 @@ function TabEventos() {
   const [errorPanel,   setErrorPanel]   = useState("");
   const [eliminando,   setEliminando]   = useState(null);
   const [vista,        setVista]        = useState("calendario");
+
+  // CU70/71 — detalle de bloques afectados por el evento en edición
+  const [bloquesAfectados, setBloquesAfectados] = useState([]);
+  const [cargandoAfectados, setCargandoAfectados] = useState(false);
 
   /* Colapsar sidebar mientras el panel esté abierto */
   useEffect(() => {
@@ -717,10 +741,11 @@ function TabEventos() {
     setForm(EMPTY_EVENTO);
     setEditando(null);
     setErrorPanel("");
+    setBloquesAfectados([]);
     setPanelAbierto(true);
   };
 
-  const abrirEditar = (ev) => {
+  const abrirEditar = async (ev) => {
     setForm({
       Evento_Institucional_Nombre:         ev.Evento_Institucional_Nombre,
       Evento_Institucional_Fecha:          ev.Evento_Institucional_Fecha?.slice(0, 10),
@@ -730,9 +755,21 @@ function TabEventos() {
     setEditando(ev.Evento_Institucional_Id);
     setErrorPanel("");
     setPanelAbierto(true);
+
+    // Cargar el detalle de bloques afectados (CU70/71)
+    setCargandoAfectados(true);
+    try {
+      const res  = await fetch(`${API}/eventos/${ev.Evento_Institucional_Id}/afectados`, { headers: authHeaders() });
+      const data = await res.json();
+      setBloquesAfectados(res.ok && Array.isArray(data) ? data : []);
+    } catch {
+      setBloquesAfectados([]);
+    } finally {
+      setCargandoAfectados(false);
+    }
   };
 
-  const cerrarPanel = () => { setPanelAbierto(false); setErrorPanel(""); };
+  const cerrarPanel = () => { setPanelAbierto(false); setErrorPanel(""); setBloquesAfectados([]); };
 
   const handleGuardar = async (e) => {
     e.preventDefault();
@@ -856,14 +893,19 @@ function TabEventos() {
                                 { day: "2-digit", month: "short", year: "numeric" })
                             : "—"}
                         </td>
-                        <td style={s.td}><ImpactoChip impacto={ev.Evento_Institucional_Impacto_Clases} /></td>
+                        <td style={s.td}>
+                          <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
+                            <ImpactoChip impacto={ev.Evento_Institucional_Impacto_Clases} />
+                            <BloquesAfectadosBadge count={ev.bloques_afectados_count} />
+                          </div>
+                        </td>
                         <td style={{ ...s.td, maxWidth: 280, color: "#6b7280", fontSize: "0.85rem" }}>
                           {ev.Evento_Institucional_Descripcion}
                         </td>
                         <td style={{ ...s.td, whiteSpace: "nowrap" }}>
                           <button onClick={() => abrirEditar(ev)} style={s.btnAccion}>✏ Editar</button>
                           <button
-                            onClick={() => { if (window.confirm("¿Eliminar este evento?")) handleEliminar(ev.Evento_Institucional_Id); }}
+                            onClick={() => { if (window.confirm("¿Eliminar este evento? Los bloques que quedaron marcados como afectados se liberarán.")) handleEliminar(ev.Evento_Institucional_Id); }}
                             style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
                             disabled={eliminando === ev.Evento_Institucional_Id}
                           >
@@ -916,6 +958,39 @@ function TabEventos() {
                 )}
               </div>
 
+              {/* CU70/71 — detalle de bloques afectados (solo al editar) */}
+              {editando && (
+                <div style={{
+                  marginBottom: "1rem", padding: "0.6rem 0.75rem", borderRadius: 8,
+                  background: "#fafafa", border: "1px solid #e5e7eb",
+                }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#374151", marginBottom: 4 }}>
+                    Bloques horarios afectados
+                  </div>
+                  {cargandoAfectados ? (
+                    <p style={{ fontSize: "0.78rem", color: "#94a3b8", margin: 0 }}>Cargando...</p>
+                  ) : bloquesAfectados.length === 0 ? (
+                    <p style={{ fontSize: "0.78rem", color: "#94a3b8", margin: 0 }}>
+                      Este evento no afecta ningún bloque horario.
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {bloquesAfectados.map((b) => (
+                        <span key={b.Afecta_Id} style={{
+                          fontSize: "0.72rem", padding: "2px 8px", borderRadius: 10,
+                          background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca",
+                        }}>
+                          {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)} ({b.Bloque_Horario_Jornada})
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p style={{ fontSize: "0.7rem", color: "#9ca3af", margin: "6px 0 0" }}>
+                    Se recalculan automáticamente al guardar según el impacto seleccionado.
+                  </p>
+                </div>
+              )}
+
               <form onSubmit={handleGuardar}>
                 <label style={s.labelPanel}>Nombre del evento *</label>
                 <input type="text"
@@ -947,6 +1022,16 @@ function TabEventos() {
                           fontSize: "0.82rem", cursor: "pointer", transition: "all 0.15s",
                         }}>
                         {col.icono} {imp}
+                        {imp === "Salida anticipada" && (
+                          <span style={{ display: "block", fontWeight: 400, fontSize: "0.7rem", opacity: 0.8, marginTop: 2 }}>
+                            Afecta bloques de la jornada Tarde
+                          </span>
+                        )}
+                        {imp === "Suspensión total" && (
+                          <span style={{ display: "block", fontWeight: 400, fontSize: "0.7rem", opacity: 0.8, marginTop: 2 }}>
+                            Afecta todos los bloques de Clase del día
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -1097,8 +1182,11 @@ function VistaCalendarioEventos({ eventos, onEditar, onEliminar, eliminando }) {
                         paddingRight: isHov ? 38 : 0 }}>
                         {col.icono} {ev.Evento_Institucional_Nombre}
                       </div>
-                      <div style={{ fontSize: "0.63rem", color: col.acento, opacity: 0.75 }}>
-                        {ev.Evento_Institucional_Impacto_Clases}
+                      <div style={{ fontSize: "0.63rem", color: col.acento, opacity: 0.75, display: "flex", alignItems: "center", gap: 4 }}>
+                        <span>{ev.Evento_Institucional_Impacto_Clases}</span>
+                        {ev.bloques_afectados_count > 0 && (
+                          <span style={{ fontWeight: 700 }}>· {ev.bloques_afectados_count} bloq.</span>
+                        )}
                       </div>
                       {isHov && (
                         <div style={{ position: "absolute", top: 3, right: 4, display: "flex", gap: 2 }}>
