@@ -604,6 +604,111 @@ const buscarUsuario = async (req, res) => {
   }
 };
 
+// CU30 y CU31: Listar docentes y filtrar por especialidad o estado de cuenta
+// Endpoint: GET /api/usuarios/docentes?especialidad=...&estado=...
+const getDocentes = async (req, res) => {
+  try {
+    const { especialidad, estado } = req.query;
+
+    let sql = `
+      SELECT 
+        Usuario_Id,
+        Usuario_RUT,
+        Usuario_Nombre_Completo,
+        Usuario_Telefono,
+        Docente_Correo_Institucional,
+        Docente_Especialidad,
+        Docente_Carga_Horaria_Maxima,
+        Usuario_Estado_Cuenta,
+        Es_Docente,
+        Es_Apoderado,
+        Es_Administrador
+      FROM usuario
+      WHERE Es_Docente = 1
+    `;
+    const params = [];
+
+    // Filtros opcionales (CU31)
+    if (especialidad && especialidad.trim() !== '') {
+      sql += ' AND Docente_Especialidad LIKE ?';
+      params.push(`%${especialidad.trim()}%`);
+    }
+
+    if (estado !== undefined && estado !== '') {
+      sql += ' AND Usuario_Estado_Cuenta = ?';
+      params.push(estado === '1' || estado === 'true' ? 1 : 0);
+    }
+
+    sql += ' ORDER BY Usuario_Nombre_Completo ASC';
+
+    const [docentes] = await db.query(sql, params);
+
+    // Excepción 1: No hay coincidencias con los filtros
+    if (docentes.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen docentes asociados a los criterios ingresados',
+        docentes: [],
+      });
+    }
+
+    return res.json(docentes);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al obtener el listado de docentes' });
+  }
+};
+
+// CU32 y CU33: Listar apoderados y filtrar por cantidad de estudiantes asociados
+// Endpoint: GET /api/usuarios/apoderados?cantidadEstudiantes=...
+const getApoderados = async (req, res) => {
+  try {
+    const { cantidadEstudiantes } = req.query;
+
+    let sql = `
+      SELECT 
+        u.Usuario_Id,
+        u.Usuario_RUT,
+        u.Usuario_Nombre_Completo,
+        u.Usuario_Telefono,
+        u.Apoderado_Correo_Natural,
+        u.Apoderado_Direccion,
+        u.Usuario_Estado_Cuenta,
+        u.Es_Docente,
+        u.Es_Apoderado,
+        u.Es_Administrador,
+        COUNT(e.Estudiante_Id) AS Total_Estudiantes_Asociados
+      FROM usuario u
+      LEFT JOIN estudiante e ON u.Usuario_Id = e.Apoderado_Usuario_Id
+      WHERE u.Es_Apoderado = 1
+      GROUP BY u.Usuario_Id
+    `;
+    const params = [];
+
+    // Filtro por cantidad de estudiantes (CU33)
+    if (cantidadEstudiantes !== undefined && cantidadEstudiantes !== '') {
+      sql += ' HAVING Total_Estudiantes_Asociados = ?';
+      params.push(parseInt(cantidadEstudiantes, 10));
+    }
+
+    sql += ' ORDER BY u.Usuario_Nombre_Completo ASC';
+
+    const [apoderados] = await db.query(sql, params);
+
+    // Excepción 1: No hay coincidencias
+    if (apoderados.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen apoderados asociados a los criterios ingresados',
+        apoderados: [],
+      });
+    }
+
+    return res.json(apoderados);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al obtener el listado de apoderados' });
+  }
+};
+
 module.exports = {
   getUsuarios,
   getUsuarioById,
@@ -614,4 +719,6 @@ module.exports = {
   toggleEstado,
   asignarRol,
   buscarUsuario,
+  getDocentes,   // CU30 y CU31
+  getApoderados, // CU32 y CU33
 };
