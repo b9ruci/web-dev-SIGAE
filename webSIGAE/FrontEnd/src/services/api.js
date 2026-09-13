@@ -172,14 +172,17 @@ export async function getDocentes({ especialidad, estado } = {}) {
 
 // ── ASOCIACIÓN APODERADO-ESTUDIANTE ──────────
 
-// Obtener todos los apoderados activos con sus estudiantes ya asociados
-export async function getApoderados() {
-  const res = await fetch(`${BASE_URL}/usuarios`, {
+// CU32 y CU33: Listado y filtros de apoderados (incluye roles y estudiantes vinculados)
+export async function getApoderados({ cantidadEstudiantes } = {}) {
+  const params = new URLSearchParams();
+  if (cantidadEstudiantes !== undefined && cantidadEstudiantes !== '') {
+    params.set('cantidadEstudiantes', cantidadEstudiantes);
+  }
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/usuarios/apoderados${query ? `?${query}` : ''}`, {
     headers: authHeaders(),
   });
-  const data = await handleResponse(res);
-  // Filtrar solo los que tienen rol apoderado activos
-  return data.filter((u) => u.Es_Apoderado && u.Usuario_Estado_Cuenta);
+  return handleResponse(res);
 }
 
 // Obtener estudiantes que aún no tienen apoderado asignado

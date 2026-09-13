@@ -18,6 +18,8 @@ function Apoderados() {
   const [apoderados, setApoderados]           = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [busqueda, setBusqueda]               = useState("");
+  const [mensajeInfo, setMensajeInfo]         = useState("");
+  const [errorCarga, setErrorCarga]           = useState("");
 
   // Modal
   const [apoderadoSeleccionado, setApoderadoSeleccionado] = useState(null);
@@ -46,11 +48,20 @@ function Apoderados() {
 
   const cargarApoderados = async () => {
     setLoading(true);
+    setErrorCarga("");
+    setMensajeInfo("");
     try {
       const data = await getApoderados();
-      setApoderados(data);
+      if (Array.isArray(data)) {
+        setApoderados(data);
+      } else {
+        // CU32 - Excepción "Sin apoderados registrados"
+        setApoderados(data.apoderados || []);
+        setMensajeInfo(data.mensaje || "No existen apoderados registrados");
+      }
     } catch (error) {
-      console.error(error);
+      // CU32 - Excepción "Interrupción técnica crítica"
+      setErrorCarga(error.message || "Los datos no pudieron ser cargados, reintente más tarde");
     } finally {
       setLoading(false);
     }
@@ -226,6 +237,15 @@ function Apoderados() {
     );
   });
 
+  // CU32: roles del usuario y estudiantes vinculados en el listado de apoderados
+  const getBadgesRoles = (u) => {
+    const badges = [];
+    if (u.Es_Administrador) badges.push(<span key="adm" className="badge-rol badge-admin">Administrador</span>);
+    if (u.Es_Docente) badges.push(<span key="doc" className="badge-rol badge-docente">Docente</span>);
+    if (u.Es_Apoderado) badges.push(<span key="apo" className="badge-rol badge-apoderado">Apoderado</span>);
+    return badges.length > 0 ? badges : <span style={{ color: "#94a3b8" }}>Sin roles</span>;
+  };
+
   if (loading) {
     return (
       <div className="usuarios-container">
@@ -253,9 +273,19 @@ function Apoderados() {
       </div>
 
       {/* Tabla */}
-      {apoderadosFiltrados.length === 0 ? (
+      {errorCarga && (
+        <div className="usuarios-empty" style={{ color: "#dc2626" }}>
+          {errorCarga}
+        </div>
+      )}
+
+      {!errorCarga && mensajeInfo && (
+        <div className="usuarios-empty">{mensajeInfo}</div>
+      )}
+
+      {!errorCarga && !mensajeInfo && apoderadosFiltrados.length === 0 ? (
         <div className="usuarios-empty">No se encontraron apoderados registrados</div>
-      ) : (
+      ) : !errorCarga && !mensajeInfo && (
         <table className="tabla-usuarios">
           <thead>
             <tr>
@@ -265,6 +295,8 @@ function Apoderados() {
               <th>Correo</th>
               <th>Teléfono</th>
               <th>Estado</th>
+              <th>Roles</th>
+              <th>Estudiantes vinculados</th>
               {esAdmin && <th>Acciones</th>}
             </tr>
           </thead>
@@ -283,6 +315,8 @@ function Apoderados() {
                     <span className="badge-inactivo">Inactivo</span>
                   )}
                 </td>
+                <td>{getBadgesRoles(u)}</td>
+                <td>{u.Total_Estudiantes_Asociados ?? 0}</td>
                 {esAdmin && (
                   <td>
                     <button
@@ -433,7 +467,7 @@ function Apoderados() {
                               >
                                 <option value="">Selecciona un nuevo apoderado...</option>
                                 {apoderados
-                                  .filter((a) => a.Usuario_Id !== apoderadoSeleccionado.Usuario_Id)
+                                  .filter((a) => a.Usuario_Id !== apoderadoSeleccionado.Usuario_Id && a.Usuario_Estado_Cuenta)
                                   .map((a) => (
                                     <option key={a.Usuario_Id} value={a.Usuario_Id}>
                                       {a.Usuario_Nombre_Completo}
