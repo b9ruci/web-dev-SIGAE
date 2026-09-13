@@ -101,6 +101,79 @@ const getEstudiantes = async (req, res) => {
   }
 };
 
+// CU36: Buscar estudiantes por nombre completo o RUT
+// Endpoint: GET /api/estudiantes/buscar?criterio=...
+const buscarEstudiantes = async (req, res) => {
+  const { roles, id: userId } = req.user;
+  const esAdmin = roles.includes('Administrador');
+  const esDocente = roles.includes('Docente') && !esAdmin;
+
+  // Actor(es) del CU36: Super Administrador, Administrador, Docente (no Apoderado)
+  if (!esAdmin && !esDocente) {
+    return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+  }
+
+  // CU36 - Excepción "Criterio vacío o solo espacios"
+  const criterio = (req.query.criterio || '').trim();
+  if (!criterio) {
+    return res.status(400).json({ mensaje: 'Ingrese al menos un carácter para realizar la búsqueda' });
+  }
+
+  try {
+    let rows;
+    if (esDocente) {
+      // Un Docente solo puede buscar entre estudiantes de sus propios cursos
+      const [cursos] = await db.query(
+        'SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?',
+        [userId]
+      );
+
+      // CU36 - Excepción "Docente sin cursos asignados"
+      if (cursos.length === 0) {
+        return res.status(200).json({
+          mensaje: 'No existen estudiantes disponibles para su perfil',
+          estudiantes: [],
+        });
+      }
+
+      const cursoIds = cursos.map((c) => c.Curso_Id);
+      [rows] = await db.query(
+        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+         WHERE e.Curso_Id IN (?)
+           AND (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
+         ORDER BY e.Estudiante_Nombre_Completo ASC`,
+        [cursoIds, `%${criterio}%`, `%${criterio}%`]
+      );
+    } else {
+      [rows] = await db.query(
+        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+         WHERE (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
+         ORDER BY e.Estudiante_Nombre_Completo ASC`,
+        [`%${criterio}%`, `%${criterio}%`]
+      );
+    }
+
+    // CU36 - Excepción "Sin coincidencias"
+    if (rows.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No se encontraron estudiantes con el criterio ingresado',
+        estudiantes: [],
+      });
+    }
+
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'No fue posible completar la consulta, reintente más tarde' });
+  }
+};
+
 // Obtener un estudiante por ID
 const getEstudianteById = async (req, res) => {
   const { id } = req.params;
@@ -592,6 +665,7 @@ const getDetalleEstudiante = async (req, res) => {
 
 module.exports = {
   getEstudiantes,
+  buscarEstudiantes, // CU36
   getEstudianteById,
   createEstudiante,
   updateEstudiante,

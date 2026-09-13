@@ -5,6 +5,8 @@ const estudianteController = require('../controllers/estudianteController');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 
 router.get('/',               verifyToken,             estudianteController.getEstudiantes);
+// CU36: búsqueda por nombre completo o RUT — debe estar ANTES de /:id
+router.get('/buscar',        verifyToken,             estudianteController.buscarEstudiantes);
 router.get('/verificar-rut', verifyToken, verifyAdmin, estudianteController.verificarRut);
 router.get('/sin-apoderado', verifyToken, verifyAdmin, estudianteController.getEstudiantesSinApoderado);
 router.get('/:id',           verifyToken,             estudianteController.getEstudianteById);
