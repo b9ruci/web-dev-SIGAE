@@ -124,11 +124,12 @@ const createBloque = async (req, res) => {
       });
     }
 
-    // Verificar conflicto con bloques existentes
+    // Verificar conflicto con bloques existentes (CU49: solo dentro de la misma jornada)
     const [conflicto] = await pool.execute(
       `SELECT Bloque_Horario_Id FROM bloque_horario
-       WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?`,
-      [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio]
+       WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?
+         AND Bloque_Horario_Jornada = ?`,
+      [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, Bloque_Horario_Jornada]
     );
     if (conflicto.length > 0) {
       return res.status(409).json({ error: 'El horario se superpone con un bloque existente' });
@@ -175,12 +176,12 @@ const updateBloque = async (req, res) => {
       return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
     }
 
-    // CU49 - Excepción "Conflicto con bloque existente"
+    // CU49 - Excepción "Conflicto con bloque existente" (solo dentro de la misma jornada)
     const [conflicto] = await pool.execute(
       `SELECT Bloque_Horario_Id FROM bloque_horario
        WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?
-         AND Bloque_Horario_Id != ?`,
-      [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, id]
+         AND Bloque_Horario_Jornada = ? AND Bloque_Horario_Id != ?`,
+      [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, Bloque_Horario_Jornada, id]
     );
     if (conflicto.length > 0) return res.status(409).json({ error: 'Conflicto con bloque existente' });
 
