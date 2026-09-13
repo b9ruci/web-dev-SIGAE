@@ -203,3 +203,92 @@ describe('Pruebas Unitarias - CU39: Editar Asociaciones de un Estudiante', () =>
     expect(db.query).not.toHaveBeenCalled();
   });
 });
+
+describe('Pruebas Unitarias - CU41: Detalle de Estudiante desde la Lista de Asociados', () => {
+  let req;
+  let res;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    req = { params: {}, user: {} };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+  });
+
+  test('El apoderado ve el detalle de un estudiante propio', async () => {
+    req.user = { id: 4, roles: ['Apoderado'] };
+    req.params = { apoderadoId: '4', estudianteId: '1' };
+
+    db.query.mockResolvedValueOnce([[
+      { Estudiante_Id: 1, Estudiante_Nombre_Completo: 'Diego Perez', Estudiante_RUT: '1-9', Estudiante_Estado_Academico: 'Regular', Curso_Nombre: '1ero Básico A' },
+    ]]);
+
+    await estudianteController.getDetalleEstudiante(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ Estudiante_Nombre_Completo: 'Diego Perez' })
+    );
+  });
+
+  test('Un Administrador puede consultar el detalle desde el contexto de cualquier apoderado', async () => {
+    req.user = { id: 1, roles: ['Administrador'] };
+    req.params = { apoderadoId: '4', estudianteId: '1' };
+
+    db.query.mockResolvedValueOnce([[
+      { Estudiante_Id: 1, Estudiante_Nombre_Completo: 'Diego Perez', Estudiante_RUT: '1-9', Estudiante_Estado_Academico: 'Regular', Curso_Nombre: '1ero Básico A' },
+    ]]);
+
+    await estudianteController.getDetalleEstudiante(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ Estudiante_Nombre_Completo: 'Diego Perez' })
+    );
+  });
+
+  test('Retorna 403 si el actor no es Apoderado ni Administrador', async () => {
+    req.user = { id: 3, roles: ['Docente'] };
+    req.params = { apoderadoId: '4', estudianteId: '1' };
+
+    await estudianteController.getDetalleEstudiante(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('Excepción "Acceso directo sin permisos": un Apoderado no puede pedir el detalle bajo el contexto de otro apoderado, sin tocar la BD', async () => {
+    req.user = { id: 4, roles: ['Apoderado'] };
+    req.params = { apoderadoId: '999', estudianteId: '1' };
+
+    await estudianteController.getDetalleEstudiante(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ mensaje: 'No tienes permiso para visualizar este estudiante' });
+    expect(db.query).not.toHaveBeenCalled();
+  });
+
+  test('Excepción: el estudiante ya no se encuentra asociado a esa cuenta', async () => {
+    req.user = { id: 4, roles: ['Apoderado'] };
+    req.params = { apoderadoId: '4', estudianteId: '1' };
+
+    db.query.mockResolvedValueOnce([[]]);
+
+    await estudianteController.getDetalleEstudiante(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ mensaje: 'El estudiante ya no se encuentra asociado a esta cuenta' });
+  });
+
+  test('Excepción: error técnico retorna 500', async () => {
+    req.user = { id: 4, roles: ['Apoderado'] };
+    req.params = { apoderadoId: '4', estudianteId: '1' };
+
+    db.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+    await estudianteController.getDetalleEstudiante(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ mensaje: 'No fue posible cargar la ficha estudiantil, reintente más tarde' });
+  });
+});

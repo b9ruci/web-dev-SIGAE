@@ -224,6 +224,15 @@ export async function getEstudiantesAsociados(apoderadoId) {
   return handleResponse(res);
 }
 
+// ── CU41: Detalle de un estudiante desde la lista de asociados ──
+
+export async function getDetalleEstudiante(apoderadoId, estudianteId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/apoderado/${apoderadoId}/asociados/${estudianteId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── CU39: Editar (reasignar/quitar) el apoderado de un estudiante ──
 
 export async function editarAsociacionEstudiante(estudianteId, apoderadoId) {

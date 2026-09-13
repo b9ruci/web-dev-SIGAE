@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
-import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados } from "../../services/api";
+import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados, getDetalleEstudiante } from "../../services/api";
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -33,6 +33,12 @@ function Perfil() {
   const [errorEstudiantes, setErrorEstudiantes] = useState("");
   const [cargandoEstudiantes, setCargandoEstudiantes] = useState(false);
   const [ordenEstudiantes, setOrdenEstudiantes] = useState("nombre");
+
+  // CU41: Detalle de un estudiante asociado
+  const [detalleEstudiante, setDetalleEstudiante] = useState(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState("");
+  const [avisoLista, setAvisoLista] = useState("");
 
   useEffect(() => {
     if (!idObjetivo) return;
@@ -89,6 +95,32 @@ function Perfil() {
       })
       .finally(() => setCargandoEstudiantes(false));
   }, [datos?.Es_Apoderado, idObjetivo]);
+
+  // CU41: abrir/cerrar el detalle de un estudiante desde la lista de asociados
+  const abrirDetalleEstudiante = async (estudianteId) => {
+    setCargandoDetalle(true);
+    setErrorDetalle("");
+    setDetalleEstudiante(null);
+    try {
+      const data = await getDetalleEstudiante(idObjetivo, estudianteId);
+      setDetalleEstudiante(data);
+    } catch (error) {
+      if (error.message === "El estudiante ya no se encuentra asociado a esta cuenta") {
+        // Excepción: no se abre el detalle; se redirige a la lista ya actualizada
+        setAvisoLista(error.message);
+        setEstudiantesAsociados((prev) => prev.filter((e) => e.Estudiante_Id !== estudianteId));
+      } else {
+        setErrorDetalle(error.message || "No fue posible cargar la ficha estudiantil, reintente más tarde");
+      }
+    } finally {
+      setCargandoDetalle(false);
+    }
+  };
+
+  const cerrarDetalleEstudiante = () => {
+    setDetalleEstudiante(null);
+    setErrorDetalle("");
+  };
 
   const recargarDatos = () => {
     apiFetch(`/api/usuarios/${idObjetivo}`)
@@ -341,6 +373,20 @@ function Perfil() {
             <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorEstudiantes}</div>
           )}
 
+          {avisoLista && (
+            <div className="usuarios-empty" style={{ marginBottom: "12px" }}>
+              {avisoLista}
+              <button
+                type="button"
+                className="btn-roles"
+                style={{ marginLeft: "10px", fontSize: "0.8rem", padding: "2px 8px" }}
+                onClick={() => setAvisoLista("")}
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
+
           {!cargandoEstudiantes && !errorEstudiantes && mensajeEstudiantes && (
             <div className="usuarios-empty">{mensajeEstudiantes}</div>
           )}
@@ -365,6 +411,7 @@ function Perfil() {
                     <th>RUT</th>
                     <th>Curso</th>
                     <th>Estado</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -385,6 +432,15 @@ function Perfil() {
                           ) : (
                             <span className="badge-inactivo">{est.Estudiante_Estado_Academico}</span>
                           )}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-roles"
+                            onClick={() => abrirDetalleEstudiante(est.Estudiante_Id)}
+                          >
+                            Ver detalle
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -446,6 +502,66 @@ function Perfil() {
         <div className="perfil-card">
           <h2>Editar Datos</h2>
           <FormEditarUsuario datos={datos} onGuardado={recargarDatos} />
+        </div>
+      )}
+
+      {/* CU41: Detalle de estudiante desde la lista de asociados — modal de solo lectura */}
+      {(cargandoDetalle || errorDetalle || detalleEstudiante) && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+          }}
+        >
+          <div className="form-card" style={{ width: "420px", maxWidth: "95vw" }}>
+            <h2 style={{ marginBottom: "16px" }}>Ficha del estudiante</h2>
+
+            {cargandoDetalle && <p>Cargando ficha estudiantil...</p>}
+
+            {!cargandoDetalle && errorDetalle && (
+              <p style={{ color: "#dc2626", marginBottom: "16px" }}>{errorDetalle}</p>
+            )}
+
+            {!cargandoDetalle && detalleEstudiante && (
+              <div className="perfil-grid" style={{ marginBottom: "16px" }}>
+                <div className="perfil-campo">
+                  <label>Nombre Completo</label>
+                  <span>{detalleEstudiante.Estudiante_Nombre_Completo}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>RUT</label>
+                  <span>{detalleEstudiante.Estudiante_RUT}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>Curso</label>
+                  <span>{detalleEstudiante.Curso_Nombre}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>Estado Académico</label>
+                  <span>
+                    {detalleEstudiante.Estudiante_Estado_Academico === "Regular" ? (
+                      <span className="badge-activo">Regular</span>
+                    ) : (
+                      <span className="badge-inactivo">{detalleEstudiante.Estudiante_Estado_Academico}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Opción adicional para Admin/SuperAdmin: gestionar la asociación (CU39) */}
+            {!cargandoDetalle && detalleEstudiante && (usuario?.roles || []).includes("Administrador") && (
+              <p style={{ marginBottom: "16px" }}>
+                <Link to="/apoderados" onClick={cerrarDetalleEstudiante}>
+                  Gestionar asociación de este estudiante →
+                </Link>
+              </p>
+            )}
+
+            <button type="button" className="btn-roles" onClick={cerrarDetalleEstudiante}>
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 

@@ -514,6 +514,48 @@ const editarAsociaciones = async (req, res) => {
   }
 };
 
+// CU41: Visualizar detalle de estudiante desde la lista de asociados del apoderado
+// GET /api/estudiantes/apoderado/:apoderadoId/asociados/:estudianteId
+const getDetalleEstudiante = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esApoderadoSinAdmin = roles.includes('Apoderado') && !esAdmin;
+
+    if (!esApoderadoSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    const apoderadoId = Number(req.params.apoderadoId);
+    const { estudianteId } = req.params;
+
+    // Excepción "Acceso directo sin permisos": un Apoderado solo puede pedir
+    // el detalle bajo su propio contexto. Se rechaza ANTES de tocar la BD.
+    if (esApoderadoSinAdmin && apoderadoId !== userId) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para visualizar este estudiante' });
+    }
+
+    const [estudiante] = await db.query(
+      `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+              e.Estudiante_Estado_Academico, c.Curso_Nombre
+       FROM estudiante e
+       JOIN curso c ON c.Curso_Id = e.Curso_Id
+       WHERE e.Estudiante_Id = ? AND e.Apoderado_Usuario_Id = ?`,
+      [estudianteId, apoderadoId]
+    );
+
+    // Excepción "Estudiante ya no se encuentra asociado"
+    if (estudiante.length === 0) {
+      return res.status(404).json({ mensaje: 'El estudiante ya no se encuentra asociado a esta cuenta' });
+    }
+
+    return res.json(estudiante[0]);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar la ficha estudiantil, reintente más tarde' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
   getEstudianteById,
@@ -527,4 +569,5 @@ module.exports = {
   eliminarAsociacionEspecifica,       // CU10
   getEstudiantesAsociados,            // CU40
   editarAsociaciones,                 // CU39
+  getDetalleEstudiante,                // CU41
 };

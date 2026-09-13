@@ -13,6 +13,8 @@ router.post('/asignar-apoderado', verifyToken, verifyAdmin, estudianteController
 router.delete('/apoderado/:apoderadoId/todas', verifyToken, verifyAdmin, estudianteController.eliminarTodasAsociacionesApoderado);
 // CU40: el propio Apoderado o un Admin/SuperAdmin (autorización fina dentro del controlador)
 router.get('/apoderado/:apoderadoId/asociados', verifyToken, estudianteController.getEstudiantesAsociados);
+// CU41: detalle de un estudiante desde la lista de asociados del apoderado
+router.get('/apoderado/:apoderadoId/asociados/:estudianteId', verifyToken, estudianteController.getDetalleEstudiante);
 router.delete('/:estudianteId/apoderado', verifyToken, verifyAdmin, estudianteController.eliminarAsociacionEspecifica);
 // CU39: reasignar o quitar el apoderado de un estudiante puntual
 router.put('/:estudianteId/apoderado', verifyToken, verifyAdmin, estudianteController.editarAsociaciones);
