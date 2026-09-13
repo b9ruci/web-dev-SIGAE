@@ -1,6 +1,7 @@
+const path = require('path');
 const bcrypt = require('bcrypt');
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 (async () => {
   const conn = await mysql.createConnection({

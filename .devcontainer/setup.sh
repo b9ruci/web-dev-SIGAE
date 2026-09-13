@@ -26,9 +26,13 @@ else
   echo "⚠️  SIGAE.sql no encontrado, saltando importación"
 fi
 
+echo "=== Instalando Chromium (dependencia de sistema para Puppeteer) ==="
+sudo apt-get install -y -q chromium
+
 echo "=== Instalando dependencias Backend ==="
 cd "$ROOT/webSIGAE/BackEnd"
 npm install
+npm install exceljs pdfkit puppeteer
 
 echo "=== Instalando dependencias Frontend ==="
 cd "$ROOT/webSIGAE/FrontEnd"
