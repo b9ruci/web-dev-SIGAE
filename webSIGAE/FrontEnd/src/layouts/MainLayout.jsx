@@ -82,6 +82,7 @@ function MainLayout() {
                   {gestionAbierto && (
                     <div className="submenu">
                       <Link to="/usuarios">Gestión de Usuarios</Link>
+                      {esSuperAdmin && <Link to="/administradores">Gestión de Administradores</Link>}
                       {esSuperAdmin && <Link to="/gestion-roles">Gestión de Roles</Link>}
                       <Link to="/apoderados">Gestión de Apoderados</Link>
                     </div>
