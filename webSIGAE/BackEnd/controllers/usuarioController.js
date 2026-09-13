@@ -15,13 +15,14 @@ const getUsuarios = async (req, res) => {
   }
 };
 
-// Obtener un usuario por ID
+// CU17 y CU18: Obtener un usuario por ID (perfil propio o, si el rol lo autoriza, el de otro usuario)
 const getUsuarioById = async (req, res) => {
   const { id } = req.params;
   const solicitante = req.user;
 
   const esPropioUsuario = String(solicitante.id) === String(id);
   const esAdmin = (solicitante.roles || []).includes('Administrador');
+  const esSuperAdmin = solicitante.administradorTipo === 'Super Admin';
 
   if (!esPropioUsuario && !esAdmin) {
     return res.status(403).json({ mensaje: 'No tienes permiso para ver este perfil' });
@@ -30,7 +31,17 @@ const getUsuarioById = async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [id]);
     if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
-    const { Usuario_Contraseña, ...usuario } = rows[0];
+    const objetivo = rows[0];
+
+    // CU18 - Excepción "Falta de permisos": un Administrador normal no puede ver el
+    // perfil de una cuenta Super Admin, aunque haya llegado hasta acá (p. ej. por un
+    // enlace directo o un resultado de búsqueda desactualizado).
+    const objetivoEsSuperAdmin = objetivo.Es_Administrador && objetivo.Administrador_Tipo === 'Super Admin';
+    if (!esPropioUsuario && objetivoEsSuperAdmin && !esSuperAdmin) {
+      return res.status(403).json({ mensaje: 'No está autorizado' });
+    }
+
+    const { Usuario_Contraseña, ...usuario } = objetivo;
     res.json(usuario);
   } catch (error) {
     console.error(error);
