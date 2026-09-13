@@ -22,6 +22,9 @@ router.post('/buscar', verifyToken, verifyAdmin, usuarioController.buscarUsuario
 // Cualquier usuario autenticado puede leer su propio perfil
 router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
 
+// CU29: Búsqueda de usuarios con filtros avanzados por rol y estado de cuenta — debe estar ANTES de /:id
+router.get('/filtrar', verifyToken, verifyAdmin, usuarioController.getUsuariosPorFiltro);
+
 // CU30 y CU31: Listado y filtros de docentes — Super Admin/Admin
 router.get('/docentes', verifyToken, verifyAdmin, usuarioController.getDocentes);
 

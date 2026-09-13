@@ -3,7 +3,7 @@ const db = require('../config/db');
 
 jest.mock('../config/db');
 
-describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apoderados', () => {
+describe('Pruebas Unitarias - CU29 a CU33: Listados y Filtros de Usuarios, Docentes y Apoderados', () => {
   let req;
   let res;
 
@@ -239,6 +239,88 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.json).toHaveBeenCalledWith({
         mensaje: 'Los datos no pudieron ser cargados, reintente más tarde',
       });
+    });
+  });
+
+  // CU29: Búsqueda de usuarios con filtros avanzados por rol y estado de cuenta
+  describe('CU29 - getUsuariosPorFiltro', () => {
+    test('Flujo correcto: Super Admin filtra por rol y estado', async () => {
+      req.query = { rol: 'Docente', estado: '1' };
+      req.user = { id: 1, administradorTipo: 'Super Admin' };
+
+      const mockUsuarios = [
+        { Usuario_Id: 5, Usuario_Nombre_Completo: 'Carlos Ruiz', Es_Docente: 1, Usuario_Estado_Cuenta: 1 },
+      ];
+      db.query.mockResolvedValueOnce([mockUsuarios]);
+
+      await usuarioController.getUsuariosPorFiltro(req, res);
+
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('AND Es_Docente = 1'),
+        expect.arrayContaining([1])
+      );
+      expect(res.json).toHaveBeenCalledWith(mockUsuarios);
+    });
+
+    test('Flujo correcto: un Administrador normal puede filtrar por Docente o Apoderado', async () => {
+      req.query = { rol: 'Apoderado' };
+      req.user = { id: 2, administradorTipo: 'Administrador Normal' };
+
+      db.query.mockResolvedValueOnce([[{ Usuario_Id: 6, Es_Apoderado: 1 }]]);
+
+      await usuarioController.getUsuariosPorFiltro(req, res);
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith([{ Usuario_Id: 6, Es_Apoderado: 1 }]);
+    });
+
+    test('Excepción "Sin coincidencias": retorna mensaje si no hay usuarios con esos filtros', async () => {
+      req.query = { rol: 'Docente', estado: '0' };
+      req.user = { id: 1, administradorTipo: 'Super Admin' };
+      db.query.mockResolvedValueOnce([[]]);
+
+      await usuarioController.getUsuariosPorFiltro(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mensaje: 'No se encontraron usuarios con esos filtros',
+          usuarios: [],
+        })
+      );
+    });
+
+    test('Excepción "Filtros fuera de privilegios": Administrador normal no puede filtrar por rol Administrador', async () => {
+      req.query = { rol: 'Administrador' };
+      req.user = { id: 2, administradorTipo: 'Administrador Normal' };
+
+      await usuarioController.getUsuariosPorFiltro(req, res);
+
+      expect(db.query).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ mensaje: 'Filtros no autorizados' });
+    });
+
+    test('Un Super Admin sí puede filtrar por rol Administrador', async () => {
+      req.query = { rol: 'Administrador' };
+      req.user = { id: 1, administradorTipo: 'Super Admin' };
+      db.query.mockResolvedValueOnce([[{ Usuario_Id: 1, Es_Administrador: 1 }]]);
+
+      await usuarioController.getUsuariosPorFiltro(req, res);
+
+      expect(res.status).not.toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith([{ Usuario_Id: 1, Es_Administrador: 1 }]);
+    });
+
+    test('Excepción "Problema técnico": retorna 500 si la consulta falla', async () => {
+      req.query = { rol: 'Docente' };
+      req.user = { id: 1, administradorTipo: 'Super Admin' };
+      db.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await usuarioController.getUsuariosPorFiltro(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ mensaje: 'Ocurrió un problema técnico' });
     });
   });
 });

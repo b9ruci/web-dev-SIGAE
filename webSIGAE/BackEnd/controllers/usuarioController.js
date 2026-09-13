@@ -748,6 +748,55 @@ const getApoderados = async (req, res) => {
   }
 };
 
+// CU29: Buscar usuarios con filtros avanzados por rol y estado de cuenta
+// Endpoint: GET /api/usuarios/filtrar?rol=Administrador|Docente|Apoderado&estado=1|0
+const getUsuariosPorFiltro = async (req, res) => {
+  const { rol, estado } = req.query;
+  const solicitante = req.user;
+  const esSuperAdmin = solicitante.administradorTipo === 'Super Admin';
+
+  // CU29 - Excepción "Filtros fuera de privilegios": un Administrador normal no puede
+  // filtrar por rol Administrador, ya que el resultado incluiría cuentas Super Admin.
+  if (rol === 'Administrador' && !esSuperAdmin) {
+    return res.status(403).json({ mensaje: 'Filtros no autorizados' });
+  }
+
+  try {
+    let sql = 'SELECT * FROM usuario WHERE 1 = 1';
+    const params = [];
+
+    if (rol === 'Administrador') {
+      sql += ' AND Es_Administrador = 1';
+    } else if (rol === 'Docente') {
+      sql += ' AND Es_Docente = 1';
+    } else if (rol === 'Apoderado') {
+      sql += ' AND Es_Apoderado = 1';
+    }
+
+    if (estado !== undefined && estado !== '') {
+      sql += ' AND Usuario_Estado_Cuenta = ?';
+      params.push(estado === '1' || estado === 'true' ? 1 : 0);
+    }
+
+    sql += ' ORDER BY Usuario_Nombre_Completo ASC';
+
+    const [rows] = await db.query(sql, params);
+    const usuarios = rows.map(({ Usuario_Contraseña, ...resto }) => resto);
+
+    if (usuarios.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No se encontraron usuarios con esos filtros',
+        usuarios: [],
+      });
+    }
+
+    return res.json(usuarios);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Ocurrió un problema técnico' });
+  }
+};
+
 // CU2: Visualizar administradores registrados
 // Endpoint: GET /api/usuarios/administradores
 const getAdministradores = async (req, res) => {
@@ -859,4 +908,5 @@ module.exports = {
   buscarUsuario,
   getDocentes,   // CU30 y CU31
   getApoderados, // CU32 y CU33
+  getUsuariosPorFiltro, // CU29
 };
