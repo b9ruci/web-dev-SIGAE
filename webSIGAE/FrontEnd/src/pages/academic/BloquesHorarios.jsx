@@ -315,6 +315,7 @@ function TabBloques() {
   const [bloques,      setBloques]      = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
+  const [exito,        setExito]        = useState("");
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [editando,     setEditando]     = useState(null);
   const [form,         setForm]         = useState(EMPTY_BLOQUE);
@@ -413,6 +414,9 @@ function TabBloques() {
       if (!res.ok) throw new Error(data.error);
       cerrarPanel();
       cargar();
+      // CU49: confirmar al usuario que el bloque quedó actualizado
+      setExito(data.mensaje || "Bloque actualizado correctamente");
+      setTimeout(() => setExito(""), 3500);
     } catch (e) {
       setErrorPanel(e.message || "Error al guardar");
     } finally {
@@ -428,6 +432,9 @@ function TabBloques() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       cargar();
+      // CU50: confirmar al usuario que el bloque fue eliminado
+      setExito(data.mensaje || "Bloque eliminado exitosamente");
+      setTimeout(() => setExito(""), 3500);
     } catch (e) {
       setError(e.message || "Error al eliminar");
     } finally {
@@ -480,6 +487,7 @@ function TabBloques() {
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
+      {exito && <div style={s.exitoBanner}>✅ {exito}</div>}
 
       {loading ? (
         <p style={s.loadingText}>Cargando bloques...</p>
