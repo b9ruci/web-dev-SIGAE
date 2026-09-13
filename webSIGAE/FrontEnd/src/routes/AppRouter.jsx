@@ -69,15 +69,15 @@ function AppRouter() {
 
       <Routes>
 
-        {/* AUTH — públicas */}
+        {/* AUTH — publicas */}
 
-        <Route path="/"                element={<Login />} />
+        <Route path="/"                 element={<Login />} />
         <Route path="/seleccionar-rol" element={<SelectRole />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
         <Route path="/session-expired" element={<SessionExpired />} />
 
-        {/* RUTAS PRIVADAS — requieren sesión */}
+        {/* RUTAS PRIVADAS — requieren sesion */}
 
         <Route
           element={
@@ -94,10 +94,10 @@ function AppRouter() {
             path="/perfil/:id"
             element={
               <RoleRoute roles={["Administrador"]}>
-              <Perfil />
+                <Perfil />
               </RoleRoute>
             }
-        />
+          />
           {/* Accesibles por Docente y Apoderado */}
           <Route path="/citaciones" element={<Citaciones />} />
           <Route path="/mensajes"   element={<Mensajes />} />
@@ -123,22 +123,22 @@ function AppRouter() {
           />
           
           <Route
-          path="/gestion-roles"
-          element={
-          <RoleRoute roles={["Administrador"]}>
-            <GestionRoles />
-            </RoleRoute>
-          }
+            path="/gestion-roles"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <GestionRoles />
+              </RoleRoute>
+            }
           />
 
-<Route
-  path="/gestion-roles/:id"
-  element={
-    <RoleRoute roles={["Administrador"]}>
-      <GestionRoles />
-    </RoleRoute>
-  }
-/>
+          <Route
+            path="/gestion-roles/:id"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <GestionRoles />
+              </RoleRoute>
+            }
+          />
 
           <Route
             path="/registrar-admin"
