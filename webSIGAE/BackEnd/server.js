@@ -2,6 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
+const helmet  = require('helmet');
 const path    = require('path');
 
 const app = express();
@@ -11,6 +12,24 @@ const corsOptions = {
   credentials: true,
 };
 app.set('trust proxy', 1);
+
+// RNF01: HTTPS obligatorio + cabeceras de seguridad (HSTS incluido).
+// El certificado/terminación TLS la entrega el proxy/hosting; aquí solo
+// forzamos que el tráfico ya autenticado como HTTPS lo siga siendo.
+// crossOriginResourcePolicy en 'same-origin' (default de helmet) bloquearía que
+// el FrontEnd (otro origen: distinto puerto/dominio) cargue imágenes de /uploads
+// vía <img>, lo que rompe las fotografías de perfil (RF14/CU20) en este esquema
+// de CORS explícito entre FrontEnd y BackEnd.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.secure || req.headers['x-forwarded-proto'] === 'https') {
+      return next();
+    }
+    res.redirect(301, `https://${req.headers.host}${req.url}`);
+  });
+}
+
 app.use(cors(corsOptions));
 app.use(express.json());
 

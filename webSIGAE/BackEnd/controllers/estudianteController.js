@@ -43,7 +43,7 @@ const getEstudiantes = async (req, res) => {
                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
         FROM estudiante e
         JOIN curso c ON c.Curso_Id = e.Curso_Id
-        WHERE e.Curso_Id IN (?)
+        WHERE e.Curso_Id IN (?) AND e.Estudiante_Fecha_Eliminacion IS NULL
       `;
       const params = [cursoIds];
 
@@ -65,7 +65,7 @@ const getEstudiantes = async (req, res) => {
                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
         FROM estudiante e
         JOIN curso c ON c.Curso_Id = e.Curso_Id
-        WHERE 1 = 1
+        WHERE e.Estudiante_Fecha_Eliminacion IS NULL
       `;
       const params = [];
 
@@ -147,7 +147,7 @@ const buscarEstudiantes = async (req, res) => {
                 e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
          FROM estudiante e
          JOIN curso c ON c.Curso_Id = e.Curso_Id
-         WHERE e.Curso_Id IN (?)
+         WHERE e.Curso_Id IN (?) AND e.Estudiante_Fecha_Eliminacion IS NULL
            AND (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
          ORDER BY e.Estudiante_Nombre_Completo ASC`,
         [cursoIds, `%${criterio}%`, `%${criterio}%`]
@@ -158,7 +158,8 @@ const buscarEstudiantes = async (req, res) => {
                 e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
          FROM estudiante e
          JOIN curso c ON c.Curso_Id = e.Curso_Id
-         WHERE (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
+         WHERE e.Estudiante_Fecha_Eliminacion IS NULL
+           AND (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
          ORDER BY e.Estudiante_Nombre_Completo ASC`,
         [`%${criterio}%`, `%${criterio}%`]
       );
@@ -321,10 +322,17 @@ const updateEstudiante = async (req, res) => {
 };
 
 // Eliminar ficha estudiantil
+// RNF16: preserva la ficha estudiantil (eliminación lógica) en lugar de
+// borrar el registro físico, igual que ya se hace con las asociaciones
+// apoderado-estudiante, para mantener la integridad histórica.
 const deleteEstudiante = async (req, res) => {
   const { id } = req.params;
   try {
-    const [resultado] = await db.query('DELETE FROM estudiante WHERE Estudiante_Id = ?', [id]);
+    const [resultado] = await db.query(
+      `UPDATE estudiante SET Estudiante_Fecha_Eliminacion = NOW()
+       WHERE Estudiante_Id = ? AND Estudiante_Fecha_Eliminacion IS NULL`,
+      [id]
+    );
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
@@ -349,7 +357,7 @@ const getEstudiantesSinApoderado = async (req, res) => {
         c.Curso_Nombre
        FROM estudiante e
        JOIN curso c ON e.Curso_Id = c.Curso_Id
-       WHERE e.Apoderado_Usuario_Id IS NULL
+       WHERE e.Apoderado_Usuario_Id IS NULL AND e.Estudiante_Fecha_Eliminacion IS NULL
        ORDER BY e.Estudiante_Nombre_Completo ASC`
     );
     res.json(rows);
