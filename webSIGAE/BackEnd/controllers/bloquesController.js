@@ -233,6 +233,63 @@ const deleteBloque = async (req, res) => {
   }
 };
 
+// CU51: elimina varios bloques horarios a la vez. Todo o nada — si uno
+// solo de los bloques no existe o tiene asignaciones/restricciones
+// activas, no se elimina ninguno.
+const deleteMultiplesBloques = async (req, res) => {
+  const { bloques_id } = req.body;
+
+  if (!Array.isArray(bloques_id) || bloques_id.length === 0) {
+    return res.status(400).json({ error: 'Debe seleccionar al menos un bloque horario' });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // CU51 - Excepción "Uno o más bloques horarios no existen"
+    const [existentes] = await conn.query(
+      `SELECT Bloque_Horario_Id FROM bloque_horario WHERE Bloque_Horario_Id IN (?)`,
+      [bloques_id]
+    );
+    if (existentes.length !== bloques_id.length) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Uno o más bloques horarios no existen' });
+    }
+
+    // CU51 - Excepción "Tienen asignaciones o restricciones"
+    const [enHorario] = await conn.query(
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura
+       WHERE Bloque_Horario_Id IN (?) AND Horario_Asignatura_Estado = 'Activo' LIMIT 1`,
+      [bloques_id]
+    );
+    if (enHorario.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'Uno o más bloques poseen asignaciones activas o restricciones asociadas' });
+    }
+
+    const [enEvento] = await conn.query(
+      `SELECT Afecta_Id FROM afecta WHERE Bloque_Horario_Id IN (?) LIMIT 1`,
+      [bloques_id]
+    );
+    if (enEvento.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'Uno o más bloques poseen asignaciones activas o restricciones asociadas' });
+    }
+
+    await conn.query(`DELETE FROM bloque_horario WHERE Bloque_Horario_Id IN (?)`, [bloques_id]);
+
+    await conn.commit();
+    res.json({ mensaje: 'Bloques eliminados exitosamente' });
+  } catch (err) {
+    await conn.rollback();
+    console.error('deleteMultiplesBloques:', err);
+    res.status(500).json({ error: 'Ocurrió un error al eliminar' });
+  } finally {
+    conn.release();
+  }
+};
+
 // ── EVENTOS INSTITUCIONALES (CU70, CU71, CU72) ────────────────────
 //
 // Regla de negocio aplicada para calcular qué bloques horarios quedan
@@ -451,7 +508,7 @@ const deleteEvento = async (req, res) => {
 
 module.exports = {
   getParametros, updateParametros,
-  getBloques, createBloque, updateBloque, deleteBloque,
+  getBloques, createBloque, updateBloque, deleteBloque, deleteMultiplesBloques,
   getEventos, createEvento, updateEvento, deleteEvento,
   getBloquesAfectadosPorEvento,
 };

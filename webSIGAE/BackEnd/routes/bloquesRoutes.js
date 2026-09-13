@@ -2,7 +2,7 @@ const express = require('express');
 const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 const {
   getParametros, updateParametros,
-  getBloques, createBloque, updateBloque, deleteBloque,
+  getBloques, createBloque, updateBloque, deleteBloque, deleteMultiplesBloques,
   getEventos, createEvento, updateEvento, deleteEvento,
   getBloquesAfectadosPorEvento,
 } = require('../controllers/bloquesController');
@@ -15,9 +15,11 @@ router.use(verifyToken);
 router.get('/parametros',       getParametros);
 router.put('/parametros',       verifyAdmin, updateParametros);
 
-// Bloques horarios (CU49) — solo admin para escritura
+// Bloques horarios (CU49, CU50, CU51) — solo admin para escritura
+// CU51 debe ir antes de '/:id' para no ser capturada por el parámetro
 router.get('/',                 getBloques);
 router.post('/',                verifyAdmin, createBloque);
+router.delete('/multiples',     verifyAdmin, deleteMultiplesBloques);
 router.put('/:id',              verifyAdmin, updateBloque);
 router.delete('/:id',           verifyAdmin, deleteBloque);
 
