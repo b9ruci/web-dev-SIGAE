@@ -333,6 +333,12 @@ function TabBloques() {
   const [vista,        setVista]        = useState("calendario");
   const [parametros,   setParametros]   = useState(null);
 
+  /* CU51: eliminación múltiple de bloques (solo disponible en vista Lista) */
+  const [modoSeleccion,   setModoSeleccion]   = useState(false);
+  const [seleccionados,   setSeleccionados]   = useState([]);
+  const [confirmMultiple, setConfirmMultiple] = useState(false);
+  const [eliminandoVarios,setEliminandoVarios]= useState(false);
+
   /* Colapsar sidebar mientras el panel esté abierto */
   useEffect(() => {
     if (panelAbierto) document.body.classList.add("bloques-panel-open");
@@ -450,6 +456,43 @@ function TabBloques() {
     }
   };
 
+  /* CU51: alternar selección de un bloque para eliminación múltiple */
+  const toggleSeleccionado = (id) => {
+    setSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const cancelarModoSeleccion = () => {
+    setModoSeleccion(false);
+    setSeleccionados([]);
+  };
+
+  /* CU51: eliminación de múltiples bloques — todo o nada */
+  const handleEliminarMultiples = async () => {
+    setEliminandoVarios(true);
+    setError("");
+    try {
+      const res  = await fetch(`${API}/multiples`, {
+        method: "DELETE",
+        headers: authHeaders(),
+        body: JSON.stringify({ bloques_id: seleccionados }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      cargar();
+      setExito(data.mensaje || "Bloques eliminados exitosamente");
+      setTimeout(() => setExito(""), 3500);
+      setConfirmMultiple(false);
+      cancelarModoSeleccion();
+    } catch (e) {
+      setError(e.message || "Ocurrió un error al eliminar");
+      setConfirmMultiple(false);
+    } finally {
+      setEliminandoVarios(false);
+    }
+  };
+
   /* Preview naranja para el calendario */
   const previewBloque =
     panelAbierto && form.Bloque_Horario_Hora_Inicio && form.Bloque_Horario_Hora_Fin
@@ -490,6 +533,15 @@ function TabBloques() {
                 color: vista === "lista" ? "#fff" : "#6b7280",
                 fontSize: "0.82rem", fontWeight: 500 }}>☰ Lista</button>
           </div>
+          {vista === "lista" && (
+            <button
+              onClick={() => (modoSeleccion ? cancelarModoSeleccion() : setModoSeleccion(true))}
+              style={{ ...s.btnSecundario, background: modoSeleccion ? "#fee2e2" : "#f9fafb",
+                color: modoSeleccion ? "#991b1b" : "#374151" }}
+            >
+              {modoSeleccion ? "Cancelar selección" : "☑ Seleccionar varios"}
+            </button>
+          )}
           <button className="btn-primary" onClick={abrirCrear}>+ Nuevo bloque</button>
         </div>
       </div>
@@ -521,44 +573,113 @@ function TabBloques() {
               preview={previewBloque}
             />
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={s.tabla}>
-                <thead>
-                  <tr style={s.theadRow}>
-                    <th style={s.th}>Hora inicio</th>
-                    <th style={s.th}>Hora fin</th>
-                    <th style={s.th}>Duración</th>
-                    <th style={s.th}>Jornada</th>
-                    <th style={s.th}>Tipo</th>
-                    <th style={s.th}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bloques.map((b, idx) => {
-                    const durMin = calcDuracion(b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin);
-                    return (
-                      <tr key={b.Bloque_Horario_Id}
-                        style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff", borderBottom: "1px solid #e5e7eb" }}>
-                        <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Inicio)}</td>
-                        <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Fin)}</td>
-                        <td style={{ ...s.td, color: "#6b7280" }}>{durMin} min</td>
-                        <td style={s.td}>{b.Bloque_Horario_Jornada}</td>
-                        <td style={s.td}><TipoChip tipo={b.Bloque_Horario_Tipo} /></td>
-                        <td style={{ ...s.td, whiteSpace: "nowrap" }}>
-                          <button onClick={() => abrirEditar(b)} style={s.btnAccion}>✏ Editar</button>
-                          <button
-                            onClick={() => { if (window.confirm("¿Eliminar este bloque?")) handleEliminar(b.Bloque_Horario_Id); }}
-                            style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
-                            disabled={eliminando === b.Bloque_Horario_Id}
-                          >
-                            {eliminando === b.Bloque_Horario_Id ? "..." : "🗑 Eliminar"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div>
+              {modoSeleccion && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                  background: "#f0f4ff", border: "1px solid #dbeafe", borderRadius: 8,
+                  padding: "0.6rem 1rem", marginBottom: "0.75rem" }}>
+                  <span style={{ fontSize: "0.875rem", color: "#374151" }}>
+                    {seleccionados.length} bloque(s) seleccionado(s)
+                  </span>
+                  <button
+                    style={{ ...s.btnDestructivoSolido, opacity: seleccionados.length === 0 ? 0.5 : 1 }}
+                    disabled={seleccionados.length === 0}
+                    onClick={() => setConfirmMultiple(true)}
+                  >
+                    🗑 Eliminar seleccionados
+                  </button>
+                </div>
+              )}
+              <div style={{ overflowX: "auto" }}>
+                <table style={s.tabla}>
+                  <thead>
+                    <tr style={s.theadRow}>
+                      {modoSeleccion && <th style={{ ...s.th, width: 36 }}></th>}
+                      <th style={s.th}>Hora inicio</th>
+                      <th style={s.th}>Hora fin</th>
+                      <th style={s.th}>Duración</th>
+                      <th style={s.th}>Jornada</th>
+                      <th style={s.th}>Tipo</th>
+                      <th style={s.th}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bloques.map((b, idx) => {
+                      const durMin = calcDuracion(b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin);
+                      return (
+                        <tr key={b.Bloque_Horario_Id}
+                          style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff", borderBottom: "1px solid #e5e7eb" }}>
+                          {modoSeleccion && (
+                            <td style={s.td}>
+                              <input
+                                type="checkbox"
+                                checked={seleccionados.includes(b.Bloque_Horario_Id)}
+                                onChange={() => toggleSeleccionado(b.Bloque_Horario_Id)}
+                              />
+                            </td>
+                          )}
+                          <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Inicio)}</td>
+                          <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Fin)}</td>
+                          <td style={{ ...s.td, color: "#6b7280" }}>{durMin} min</td>
+                          <td style={s.td}>{b.Bloque_Horario_Jornada}</td>
+                          <td style={s.td}><TipoChip tipo={b.Bloque_Horario_Tipo} /></td>
+                          <td style={{ ...s.td, whiteSpace: "nowrap" }}>
+                            <button onClick={() => abrirEditar(b)} style={s.btnAccion}>✏ Editar</button>
+                            <button
+                              onClick={() => { if (window.confirm("¿Eliminar este bloque?")) handleEliminar(b.Bloque_Horario_Id); }}
+                              style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
+                              disabled={eliminando === b.Bloque_Horario_Id}
+                            >
+                              {eliminando === b.Bloque_Horario_Id ? "..." : "🗑 Eliminar"}
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {confirmMultiple && (
+            <div style={s.backdrop} onClick={() => !eliminandoVarios && setConfirmMultiple(false)}>
+              <div
+                style={s.modalCaja}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 style={{ margin: "0 0 0.5rem 0", color: "#1e3a5f" }}>¿Eliminar bloques seleccionados?</h3>
+                <p style={{ color: "#6b7280", fontSize: "0.875rem", margin: "0 0 0.75rem 0" }}>
+                  Se eliminarán los siguientes {seleccionados.length} bloque(s). Si alguno tiene
+                  asignaciones activas o no existe, no se eliminará ninguno.
+                </p>
+                <ul style={{ ...s.resumenList, maxHeight: 180, overflowY: "auto", margin: "0 0 1rem 0" }}>
+                  {bloques
+                    .filter((b) => seleccionados.includes(b.Bloque_Horario_Id))
+                    .map((b) => (
+                      <li key={b.Bloque_Horario_Id}>
+                        {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)} ·{" "}
+                        {b.Bloque_Horario_Jornada} · {b.Bloque_Horario_Tipo}
+                      </li>
+                    ))}
+                </ul>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+                  <button
+                    style={s.btnSecundario}
+                    disabled={eliminandoVarios}
+                    onClick={() => setConfirmMultiple(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    style={s.btnDestructivoSolido}
+                    disabled={eliminandoVarios}
+                    onClick={handleEliminarMultiples}
+                  >
+                    {eliminandoVarios ? "Eliminando..." : "Confirmar eliminación"}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </>
@@ -1482,6 +1603,8 @@ const s = {
     background: "#f9fafb", cursor: "pointer", fontSize: "0.8rem", fontWeight: 500 },
   btnSecundario:{ padding: "0.4rem 0.9rem", borderRadius: 6, border: "1px solid #d1d5db",
     background: "#f9fafb", cursor: "pointer", fontSize: "0.875rem" },
+  btnDestructivoSolido: { padding: "0.5rem 1rem", borderRadius: 8, border: "none",
+    background: "#991b1b", color: "#fff", cursor: "pointer", fontSize: "0.875rem", fontWeight: 600 },
 
   errorBanner: { color: "#dc2626", background: "#fee2e2", border: "1px solid #fecaca",
     padding: "0.7rem 1rem", borderRadius: 8, marginBottom: "1rem", fontSize: "0.9rem" },
@@ -1493,7 +1616,12 @@ const s = {
     justifyContent: "center", padding: "4rem 2rem", textAlign: "center" },
 
   /* Panel lateral */
-  backdrop: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 980 },
+  backdrop: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 980,
+    display: "flex", alignItems: "center", justifyContent: "center" },
+  modalCaja: {
+    background: "#fff", borderRadius: 10, padding: "1.5rem", width: "min(90vw, 420px)",
+    boxShadow: "0 12px 40px rgba(0,0,0,0.22)", zIndex: 991,
+  },
   panel: {
     position: "fixed", top: 0, right: 0, width: 440, height: "100vh",
     background: "#fff", boxShadow: "-6px 0 32px rgba(0,0,0,0.18)",
