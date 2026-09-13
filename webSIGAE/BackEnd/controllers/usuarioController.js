@@ -668,15 +668,35 @@ const getDocentes = async (req, res) => {
   }
 };
 
+// Operadores de comparación permitidos para el filtro de CU33 (whitelist contra inyección SQL)
+const OPERADORES_CANTIDAD_ESTUDIANTES = {
+  '=': '=',
+  '!=': '!=',
+  '>': '>',
+  '<': '<',
+  '>=': '>=',
+  '<=': '<=',
+};
+
 // CU32 y CU33: Listar apoderados y filtrar por cantidad de estudiantes asociados
-// Endpoint: GET /api/usuarios/apoderados?cantidadEstudiantes=...
+// Endpoint: GET /api/usuarios/apoderados?operador=...&cantidadEstudiantes=...
 const getApoderados = async (req, res) => {
   const { cantidadEstudiantes } = req.query;
+  const operador = req.query.operador || '=';
   const hayFiltros = cantidadEstudiantes !== undefined && cantidadEstudiantes !== '';
+
+  // CU33 - Excepción "Valor no entero o negativo": se valida antes de tocar la base de datos
+  if (hayFiltros) {
+    const esEnteroValido = /^\d+$/.test(String(cantidadEstudiantes).trim());
+    const esOperadorValido = Object.prototype.hasOwnProperty.call(OPERADORES_CANTIDAD_ESTUDIANTES, operador);
+    if (!esEnteroValido || !esOperadorValido) {
+      return res.status(400).json({ mensaje: 'Ingrese un número entero válido' });
+    }
+  }
 
   try {
     let sql = `
-      SELECT 
+      SELECT
         u.Usuario_Id,
         u.Usuario_RUT,
         u.Usuario_Nombre_Completo,
@@ -695,9 +715,9 @@ const getApoderados = async (req, res) => {
     `;
     const params = [];
 
-    // Filtro por cantidad de estudiantes (CU33)
+    // Filtro por cantidad de estudiantes con operador de comparación (CU33)
     if (hayFiltros) {
-      sql += ' HAVING Total_Estudiantes_Asociados = ?';
+      sql += ` HAVING Total_Estudiantes_Asociados ${OPERADORES_CANTIDAD_ESTUDIANTES[operador]} ?`;
       params.push(parseInt(cantidadEstudiantes, 10));
     }
 
@@ -707,10 +727,10 @@ const getApoderados = async (req, res) => {
 
     if (apoderados.length === 0) {
       // CU32 (sin filtros): no existen apoderados registrados en el sistema.
-      // CU33 (con filtros): ninguno coincide con los criterios ingresados.
+      // CU33 (con filtros): ninguno cumple los criterios seleccionados.
       return res.status(200).json({
         mensaje: hayFiltros
-          ? 'No existen apoderados asociados a los criterios ingresados'
+          ? 'No existen usuarios con rol apoderado que cumplan los criterios seleccionados'
           : 'No existen apoderados registrados',
         apoderados: [],
       });

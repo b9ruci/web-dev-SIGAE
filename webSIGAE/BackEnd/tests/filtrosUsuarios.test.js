@@ -131,7 +131,7 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.json).toHaveBeenCalledWith(mockApoderados);
     });
 
-    test('CU33: Debe filtrar apoderados por cantidad de estudiantes asociados', async () => {
+    test('CU33: Debe filtrar apoderados por cantidad de estudiantes asociados (operador por defecto "=")', async () => {
       req.query = { cantidadEstudiantes: '2' };
 
       const mockFiltrados = [
@@ -153,7 +153,55 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.json).toHaveBeenCalledWith(mockFiltrados);
     });
 
-    test('CU33 - Excepción "Sin coincidencias": Retorna mensaje si no hay coincidencias de apoderados', async () => {
+    test('CU33: Debe filtrar apoderados usando el operador indicado', async () => {
+      req.query = { operador: '>=', cantidadEstudiantes: '3' };
+
+      const mockFiltrados = [
+        { Usuario_Id: 11, Usuario_Nombre_Completo: 'Laura Soto', Total_Estudiantes_Asociados: 4 },
+      ];
+
+      db.query.mockResolvedValueOnce([mockFiltrados]);
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(db.query).toHaveBeenCalledWith(
+        expect.stringContaining('HAVING Total_Estudiantes_Asociados >= ?'),
+        expect.arrayContaining([3])
+      );
+      expect(res.json).toHaveBeenCalledWith(mockFiltrados);
+    });
+
+    test('CU33 - Excepción "Valor no entero o negativo": rechaza sin consultar la base de datos', async () => {
+      req.query = { operador: '=', cantidadEstudiantes: '-1' };
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(db.query).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ mensaje: 'Ingrese un número entero válido' });
+    });
+
+    test('CU33 - Excepción "Valor no entero o negativo": rechaza un valor decimal', async () => {
+      req.query = { cantidadEstudiantes: '2.5' };
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(db.query).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ mensaje: 'Ingrese un número entero válido' });
+    });
+
+    test('CU33 - Excepción "Valor no entero o negativo": rechaza un operador desconocido', async () => {
+      req.query = { operador: '<>', cantidadEstudiantes: '2' };
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(db.query).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ mensaje: 'Ingrese un número entero válido' });
+    });
+
+    test('CU33 - Excepción "Sin resultados coincidentes": Retorna mensaje si no hay coincidencias de apoderados', async () => {
       req.query = { cantidadEstudiantes: '99' };
       db.query.mockResolvedValueOnce([[]]);
 
@@ -162,7 +210,7 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          mensaje: 'No existen apoderados asociados a los criterios ingresados',
+          mensaje: 'No existen usuarios con rol apoderado que cumplan los criterios seleccionados',
           apoderados: [],
         })
       );
