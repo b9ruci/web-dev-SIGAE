@@ -2,7 +2,18 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Link, useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
-import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados, getDetalleEstudiante } from "../../services/api";
+import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados, getDetalleEstudiante, editarPerfilPropio, actualizarFotoPerfil } from "../../services/api";
+
+// CU20: placeholder cuando el usuario no tiene fotografía de perfil registrada
+const FOTO_PERFIL_PLACEHOLDER =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">' +
+      '<rect width="96" height="96" fill="#e2e8f0"/>' +
+      '<circle cx="48" cy="38" r="18" fill="#94a3b8"/>' +
+      '<path d="M16 88c0-17.7 14.3-32 32-32s32 14.3 32 32" fill="#94a3b8"/>' +
+      '</svg>'
+  );
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -40,6 +51,20 @@ function Perfil() {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [errorDetalle, setErrorDetalle] = useState("");
   const [avisoLista, setAvisoLista] = useState("");
+
+  // CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección)
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [formPerfil, setFormPerfil] = useState({ correo: "", telefono: "", direccion: "" });
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [msgExitoPerfil, setMsgExitoPerfil] = useState("");
+  const [msgErrorPerfil, setMsgErrorPerfil] = useState("");
+
+  // CU20: editar fotografía de perfil mediante carga de archivo
+  const [archivoFoto, setArchivoFoto] = useState(null);
+  const [previewFoto, setPreviewFoto] = useState("");
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [msgExitoFoto, setMsgExitoFoto] = useState("");
+  const [msgErrorFoto, setMsgErrorFoto] = useState("");
 
   useEffect(() => {
     if (!idObjetivo) return;
@@ -216,6 +241,88 @@ function Perfil() {
       setMsgError("Error de conexión al servidor");
     } finally {
       setEnviando(false);
+    }
+  };
+
+  // CU19: editar datos personales del propio perfil
+  const abrirEdicionPerfil = () => {
+    setFormPerfil({
+      correo: datos?.Administrador_Correo_Institucional || datos?.Docente_Correo_Institucional || datos?.Apoderado_Correo_Natural || "",
+      telefono: datos?.Usuario_Telefono || "",
+      direccion: datos?.Apoderado_Direccion || "",
+    });
+    setMsgExitoPerfil("");
+    setMsgErrorPerfil("");
+    setEditandoPerfil(true);
+  };
+
+  const cancelarEdicionPerfil = () => {
+    setEditandoPerfil(false);
+    setMsgErrorPerfil("");
+    setMsgExitoPerfil("");
+  };
+
+  const handleGuardarPerfil = async (e) => {
+    e.preventDefault();
+    setMsgErrorPerfil("");
+    setMsgExitoPerfil("");
+    setGuardandoPerfil(true);
+    try {
+      const tieneCorreo = !!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado);
+      const payload = { telefono: formPerfil.telefono };
+      if (tieneCorreo) payload.correo = formPerfil.correo;
+      if (datos?.Es_Apoderado) payload.direccion = formPerfil.direccion;
+
+      const data = await editarPerfilPropio(payload);
+      setMsgExitoPerfil(data.mensaje || "Cambios guardados correctamente");
+      recargarDatos();
+    } catch (error) {
+      // CU19 - Excepciones "Formato de datos incorrecto" y "Correo ya registrado"
+      setMsgErrorPerfil(error.message || "No fue posible actualizar tu perfil, reintente más tarde");
+    } finally {
+      setGuardandoPerfil(false);
+    }
+  };
+
+  // CU20: editar fotografía de perfil mediante carga de archivo
+  const handleSeleccionArchivo = (e) => {
+    const archivo = e.target.files?.[0];
+    setMsgExitoFoto("");
+    setMsgErrorFoto("");
+    if (!archivo) {
+      // CU20 - Excepción "Cancela selección": no se eligió ningún archivo, se mantiene la fotografía actual
+      setArchivoFoto(null);
+      setPreviewFoto("");
+      return;
+    }
+    setArchivoFoto(archivo);
+    setPreviewFoto(URL.createObjectURL(archivo));
+  };
+
+  const cancelarSeleccionFoto = () => {
+    setArchivoFoto(null);
+    setPreviewFoto("");
+    setMsgExitoFoto("");
+    setMsgErrorFoto("");
+  };
+
+  const handleSubirFoto = async (e) => {
+    e.preventDefault();
+    if (!archivoFoto) return;
+    setMsgExitoFoto("");
+    setMsgErrorFoto("");
+    setSubiendoFoto(true);
+    try {
+      const data = await actualizarFotoPerfil(archivoFoto);
+      setMsgExitoFoto(data.mensaje || "Fotografía actualizada correctamente");
+      setArchivoFoto(null);
+      setPreviewFoto("");
+      recargarDatos();
+    } catch (error) {
+      // CU20 - Excepciones "Formato o tamaño inválido" y "Error técnico de almacenamiento"
+      setMsgErrorFoto(error.message || "No fue posible guardar la fotografía, reintente más tarde");
+    } finally {
+      setSubiendoFoto(false);
     }
   };
 
@@ -516,6 +623,100 @@ function Perfil() {
               {enviando ? "Actualizando..." : "Actualizar contraseña"}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección) */}
+      {esPerfilPropio && (
+        <div className="perfil-card">
+          <h2>Editar Perfil</h2>
+          {!editandoPerfil ? (
+            <button className="btn-roles" onClick={abrirEdicionPerfil}>Editar perfil</button>
+          ) : (
+            <form className="cambiar-pwd-form" onSubmit={handleGuardarPerfil}>
+              <div className="campo-pwd">
+                <label>Nombre Completo</label>
+                <input value={datos?.Usuario_Nombre_Completo || ""} readOnly disabled />
+              </div>
+              <div className="campo-pwd">
+                <label>RUT</label>
+                <input value={datos?.Usuario_RUT || ""} readOnly disabled />
+              </div>
+              {!!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado) && (
+                <div className="campo-pwd">
+                  <label htmlFor="correoPerfil">Correo</label>
+                  <input
+                    id="correoPerfil"
+                    value={formPerfil.correo}
+                    onChange={(e) => setFormPerfil((f) => ({ ...f, correo: e.target.value }))}
+                  />
+                </div>
+              )}
+              <div className="campo-pwd">
+                <label htmlFor="telefonoPerfil">Teléfono</label>
+                <input
+                  id="telefonoPerfil"
+                  value={formPerfil.telefono}
+                  onChange={(e) => setFormPerfil((f) => ({ ...f, telefono: e.target.value }))}
+                />
+              </div>
+              {!!datos?.Es_Apoderado && (
+                <div className="campo-pwd">
+                  <label htmlFor="direccionPerfil">Dirección</label>
+                  <input
+                    id="direccionPerfil"
+                    value={formPerfil.direccion}
+                    onChange={(e) => setFormPerfil((f) => ({ ...f, direccion: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              {msgExitoPerfil && <div className="msg-exito">{msgExitoPerfil}</div>}
+              {msgErrorPerfil && <div className="msg-error-form">{msgErrorPerfil}</div>}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                <button type="submit" className="btn-primario" disabled={guardandoPerfil}>
+                  {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button type="button" className="btn-desactivar" onClick={cancelarEdicionPerfil} disabled={guardandoPerfil}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* CU20: editar fotografía de perfil mediante carga de archivo */}
+      {esPerfilPropio && (
+        <div className="perfil-card">
+          <h2>Fotografía de Perfil</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+            <img
+              src={previewFoto || datos?.Usuario_Foto_Perfil || FOTO_PERFIL_PLACEHOLDER}
+              alt="Fotografía de perfil"
+              style={{ width: "96px", height: "96px", borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
+            />
+            <form style={{ display: "flex", flexDirection: "column", gap: "10px" }} onSubmit={handleSubirFoto}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleSeleccionArchivo}
+              />
+              {msgExitoFoto && <div className="msg-exito">{msgExitoFoto}</div>}
+              {msgErrorFoto && <div className="msg-error-form">{msgErrorFoto}</div>}
+              {archivoFoto && (
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button type="submit" className="btn-primario" disabled={subiendoFoto}>
+                    {subiendoFoto ? "Guardando..." : "Guardar fotografía"}
+                  </button>
+                  <button type="button" className="btn-desactivar" onClick={cancelarSeleccionFoto} disabled={subiendoFoto}>
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
         </div>
       )}
 

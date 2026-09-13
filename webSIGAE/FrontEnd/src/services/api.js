@@ -61,6 +61,31 @@ throw error;
   return data;
 }
 
+// ── CU19: Editar datos personales del propio perfil ──
+
+export async function editarPerfilPropio({ correo, telefono, direccion }) {
+  const res = await fetch(`${BASE_URL}/usuarios/perfil`, {
+    method : 'PUT',
+    headers: authHeaders(),
+    body   : JSON.stringify({ correo, telefono, direccion }),
+  });
+  return handleResponse(res);
+}
+
+// ── CU20: Editar fotografía de perfil mediante carga de archivo ──
+
+export async function actualizarFotoPerfil(archivo) {
+  const formData = new FormData();
+  formData.append('foto', archivo);
+  const res = await fetch(`${BASE_URL}/usuarios/perfil/foto`, {
+    method : 'PUT',
+    // Sin Content-Type: el navegador arma el boundary multipart automáticamente
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body   : formData,
+  });
+  return handleResponse(res);
+}
+
 // ── ADMINISTRADOR ────────────────────────────
 export async function registrarAdmin({ nombre, rut, correo, telefono, password, estado }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
