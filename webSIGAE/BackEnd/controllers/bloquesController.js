@@ -316,18 +316,28 @@ const getBloquesAfectadosPorEvento = async (req, res) => {
 const createEvento = async (req, res) => {
   const { Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases } = req.body;
 
-  if (!Evento_Institucional_Nombre || !Evento_Institucional_Fecha || !Evento_Institucional_Descripcion || !Evento_Institucional_Impacto_Clases) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
-  }
-
   const impactosValidos = ['Sin impacto', 'Salida anticipada', 'Suspensión total'];
-  if (!impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
-    return res.status(400).json({ error: 'Impacto en clases inválido' });
+
+  // CU70 - Excepción "Datos incompletos o inválidos"
+  if (!Evento_Institucional_Nombre || !Evento_Institucional_Fecha || !Evento_Institucional_Descripcion ||
+      !Evento_Institucional_Impacto_Clases || !impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
+    return res.status(400).json({ error: 'Datos incompletos o inválidos en el formulario' });
   }
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    // CU70 - Excepción "Conflicto con planificación o bloque inexistente":
+    // no se permite más de un evento institucional registrado para la misma fecha
+    const [conflictos] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Fecha = ?`,
+      [Evento_Institucional_Fecha]
+    );
+    if (conflictos.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'El evento genera conflictos con la planificación' });
+    }
 
     const [result] = await conn.execute(
       `INSERT INTO evento_institucional
@@ -342,7 +352,7 @@ const createEvento = async (req, res) => {
 
     await conn.commit();
     res.status(201).json({
-      mensaje: 'Evento creado correctamente',
+      mensaje: 'Evento registrado correctamente',
       id: eventoId,
       bloques_afectados: bloquesAfectados,
     });

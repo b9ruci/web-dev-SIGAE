@@ -33,38 +33,54 @@ describe('Pruebas Unitarias - CU70: Registrando Eventos Institucionales', () => 
     };
   });
 
-  test('Excepción 1: retorna 400 si faltan campos obligatorios', async () => {
+  test('Excepción "Datos incompletos o inválidos": retorna 400 si faltan campos obligatorios', async () => {
     req.body = { Evento_Institucional_Nombre: 'Feriado' };
 
     await bloquesController.createEvento(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Todos los campos son obligatorios' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Datos incompletos o inválidos en el formulario' });
     expect(pool.getConnection).not.toHaveBeenCalled();
   });
 
-  test('Excepción 1: retorna 400 si el impacto en clases es inválido', async () => {
+  test('Excepción "Datos incompletos o inválidos": retorna 400 si el impacto en clases es inválido', async () => {
     req.body = { ...EVENTO_VALIDO, Evento_Institucional_Impacto_Clases: 'Impacto inventado' };
 
     await bloquesController.createEvento(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Impacto en clases inválido' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Datos incompletos o inválidos en el formulario' });
+  });
+
+  test('Excepción "Conflicto con planificación": retorna 409 si ya existe un evento en esa fecha', async () => {
+    req.body = EVENTO_VALIDO;
+    const conn = crearConnMock();
+    conn.execute.mockResolvedValueOnce([[{ Evento_Institucional_Id: 3 }]]); // SELECT conflicto: ya existe
+
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.createEvento(req, res);
+
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: 'El evento genera conflictos con la planificación' });
   });
 
   test('Debe crear el evento sin marcar bloques cuando el impacto es "Sin impacto"', async () => {
     req.body = { ...EVENTO_VALIDO, Evento_Institucional_Impacto_Clases: 'Sin impacto' };
     const conn = crearConnMock();
-    conn.execute.mockResolvedValueOnce([{ insertId: 10 }]); // INSERT evento_institucional
+    conn.execute
+      .mockResolvedValueOnce([[]]) // SELECT conflicto: sin coincidencias
+      .mockResolvedValueOnce([{ insertId: 10 }]); // INSERT evento_institucional
     pool.getConnection.mockResolvedValueOnce(conn);
 
     await bloquesController.createEvento(req, res);
 
-    expect(conn.execute).toHaveBeenCalledTimes(1); // no consulta bloques ni inserta en `afecta`
+    expect(conn.execute).toHaveBeenCalledTimes(2); // no consulta bloques ni inserta en `afecta`
     expect(conn.commit).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ mensaje: 'Evento creado correctamente', id: 10, bloques_afectados: [] })
+      expect.objectContaining({ mensaje: 'Evento registrado correctamente', id: 10, bloques_afectados: [] })
     );
   });
 
@@ -72,6 +88,7 @@ describe('Pruebas Unitarias - CU70: Registrando Eventos Institucionales', () => 
     req.body = EVENTO_VALIDO;
     const conn = crearConnMock();
     conn.execute
+      .mockResolvedValueOnce([[]]) // SELECT conflicto: sin coincidencias
       .mockResolvedValueOnce([{ insertId: 11 }]) // INSERT evento_institucional
       .mockResolvedValueOnce([[{ Bloque_Horario_Id: 1 }, { Bloque_Horario_Id: 2 }]]) // SELECT bloques Clase
       .mockResolvedValueOnce([{}]); // INSERT INTO afecta
@@ -79,7 +96,7 @@ describe('Pruebas Unitarias - CU70: Registrando Eventos Institucionales', () => 
 
     await bloquesController.createEvento(req, res);
 
-    expect(conn.execute).toHaveBeenCalledTimes(3);
+    expect(conn.execute).toHaveBeenCalledTimes(4);
     expect(conn.commit).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ bloques_afectados: [1, 2] })
