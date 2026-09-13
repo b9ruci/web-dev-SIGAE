@@ -1,16 +1,25 @@
-import { useState } from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../pages/context/AuthContext";
 
 function MainLayout() {
   const { usuario, rolActivo, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mostrarModalLogout, setMostrarModalLogout] = useState(false);
-  
+
+  // Sidebar responsiva: en pantallas angostas se comporta como panel deslizable
+  const [sidebarMovilAbierta, setSidebarMovilAbierta] = useState(false);
+
   // Estados para los dropdowns
   const [gestionAbierto, setGestionAbierto] = useState(false);
   const [registrarAbierto, setRegistrarAbierto] = useState(false);
   const [gestionAcademicaAbierto, setGestionAcademicaAbierto] = useState(false);
+
+  // Cierra la sidebar móvil automáticamente al navegar a otra página
+  useEffect(() => {
+    setSidebarMovilAbierta(false);
+  }, [location.pathname]);
 
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
   const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
@@ -46,13 +55,37 @@ function MainLayout() {
         </div>
       )}
 
+      {/* BARRA SUPERIOR MÓVIL — solo visible en pantallas angostas */}
+      <header className="mobile-topbar">
+        <button
+          className="mobile-menu-toggle"
+          onClick={() => setSidebarMovilAbierta(true)}
+          aria-label="Abrir menú"
+        >
+          ☰
+        </button>
+        <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="mobile-topbar-logo" />
+      </header>
+
+      {/* Fondo oscuro al abrir la sidebar en móvil */}
+      {sidebarMovilAbierta && (
+        <div className="sidebar-overlay" onClick={() => setSidebarMovilAbierta(false)} />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${sidebarMovilAbierta ? "sidebar-abierta" : ""}`}>
+        <button
+          className="sidebar-close"
+          onClick={() => setSidebarMovilAbierta(false)}
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
         <div>
           <div className="logo-row">
             <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="sidebar-logo-img" />
           </div>
-          
+
           {usuario && (
             <div className="sidebar-user-info">
               <div className="nombre">

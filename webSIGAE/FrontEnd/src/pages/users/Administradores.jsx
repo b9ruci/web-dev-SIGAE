@@ -212,16 +212,24 @@ function Administradores() {
               </div>
 
               <div className="campo-pwd">
-                <label>
-                  <input
-                    type="checkbox"
-                    name="estado"
-                    checked={form.estado}
-                    onChange={handleChange}
-                    style={{ marginRight: "8px" }}
-                  />
-                  Cuenta activa
-                </label>
+                <label>Estado de Cuenta</label>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span>
+                    Estado de cuenta:{" "}
+                    {form.estado ? (
+                      <span className="badge-activo">Activa</span>
+                    ) : (
+                      <span className="badge-inactivo">Inactiva</span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    className={form.estado ? "btn-desactivar" : "btn-reactivar"}
+                    onClick={() => setForm((f) => ({ ...f, estado: !f.estado }))}
+                  >
+                    {form.estado ? "Desactivar" : "Activar"}
+                  </button>
+                </div>
               </div>
 
               {msgExitoForm && <div className="msg-exito">{msgExitoForm}</div>}
