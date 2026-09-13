@@ -383,7 +383,26 @@ const updateEvento = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    const [result] = await conn.execute(
+    // CU71 - Excepción "Evento no existe"
+    const [existe] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Id = ?`, [id]
+    );
+    if (existe.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'El evento no existe o fue eliminado' });
+    }
+
+    // CU71 - Excepción "Cambios generan conflictos": otro evento ya registrado en la misma fecha
+    const [conflictos] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Fecha = ? AND Evento_Institucional_Id != ?`,
+      [Evento_Institucional_Fecha, id]
+    );
+    if (conflictos.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'El evento genera conflictos con la planificación' });
+    }
+
+    await conn.execute(
       `UPDATE evento_institucional SET
          Evento_Institucional_Nombre        = ?,
          Evento_Institucional_Fecha         = ?,
@@ -392,11 +411,6 @@ const updateEvento = async (req, res) => {
        WHERE Evento_Institucional_Id = ?`,
       [Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases, id]
     );
-
-    if (result.affectedRows === 0) {
-      await conn.rollback();
-      return res.status(404).json({ error: 'Evento no encontrado' });
-    }
 
     // Excepción (CU71): el impacto pudo haber cambiado → se recalculan
     // los bloques afectados desde cero (se descartan los previos).
@@ -421,10 +435,11 @@ const updateEvento = async (req, res) => {
 const deleteEvento = async (req, res) => {
   const { id } = req.params;
   try {
+    // CU72 - Excepción "Evento no existe"
     const [result] = await pool.execute(
       `DELETE FROM evento_institucional WHERE Evento_Institucional_Id = ?`, [id]
     );
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Evento no encontrado' });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'El evento no existe o ya fue eliminado' });
     res.json({ mensaje: 'Evento eliminado correctamente. Los bloques afectados fueron liberados.' });
   } catch (err) {
     console.error('deleteEvento:', err);

@@ -139,23 +139,40 @@ describe('Pruebas Unitarias - CU71: Modificando Eventos Institucionales', () => 
     expect(pool.getConnection).not.toHaveBeenCalled();
   });
 
-  test('Excepción: el evento seleccionado no existe', async () => {
+  test('Excepción "Evento no existe": el evento seleccionado no existe', async () => {
     req.body = EVENTO_VALIDO;
     const conn = crearConnMock();
-    conn.execute.mockResolvedValueOnce([{ affectedRows: 0 }]); // UPDATE sin filas afectadas
+    conn.execute.mockResolvedValueOnce([[]]); // SELECT existe: vacío
     pool.getConnection.mockResolvedValueOnce(conn);
 
     await bloquesController.updateEvento(req, res);
 
     expect(conn.rollback).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Evento no encontrado' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'El evento no existe o fue eliminado' });
+  });
+
+  test('Excepción "Cambios generan conflictos": otro evento ya está registrado en la nueva fecha', async () => {
+    req.body = EVENTO_VALIDO;
+    const conn = crearConnMock();
+    conn.execute
+      .mockResolvedValueOnce([[{ Evento_Institucional_Id: 10 }]]) // SELECT existe: encontrado
+      .mockResolvedValueOnce([[{ Evento_Institucional_Id: 99 }]]); // SELECT conflicto: otro evento
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.updateEvento(req, res);
+
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: 'El evento genera conflictos con la planificación' });
   });
 
   test('Debe actualizar el evento y recalcular los bloques afectados', async () => {
     req.body = EVENTO_VALIDO;
     const conn = crearConnMock();
     conn.execute
+      .mockResolvedValueOnce([[{ Evento_Institucional_Id: 10 }]]) // SELECT existe: encontrado
+      .mockResolvedValueOnce([[]])                  // SELECT conflicto: sin coincidencias
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE evento_institucional
       .mockResolvedValueOnce([{}])                  // DELETE FROM afecta (previos)
       .mockResolvedValueOnce([[{ Bloque_Horario_Id: 3 }]]) // SELECT bloques Clase
@@ -184,13 +201,13 @@ describe('Pruebas Unitarias - CU72: Eliminando Eventos Institucionales', () => {
     };
   });
 
-  test('Excepción 1: retorna 404 si el evento no existe o ya fue eliminado', async () => {
+  test('Excepción "Evento no existe": retorna 404 si el evento no existe o ya fue eliminado', async () => {
     pool.execute.mockResolvedValueOnce([{ affectedRows: 0 }]);
 
     await bloquesController.deleteEvento(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Evento no encontrado' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'El evento no existe o ya fue eliminado' });
   });
 
   test('Debe eliminar el evento exitosamente (los bloques afectados se liberan por CASCADE)', async () => {
