@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { getEstudiantes } from "../../services/api";
 
 function Estudiantes() {
@@ -7,24 +7,33 @@ function Estudiantes() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroCurso, setFiltroCurso] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [cursosDisponibles, setCursosDisponibles] = useState([]);
+  const [estadosDisponibles, setEstadosDisponibles] = useState([]);
   const [orden, setOrden] = useState({ campo: "Estudiante_Nombre_Completo", ascendente: true });
   const [mensajeInfo, setMensajeInfo] = useState("");
   const [errorCarga, setErrorCarga] = useState("");
 
   useEffect(() => {
-    cargarEstudiantes();
+    cargarEstudiantes({}, true);
   }, []);
 
-  const cargarEstudiantes = async () => {
+  // CU34 y CU35: listado con filtros opcionales de curso y estado académico, resueltos en el backend
+  const cargarEstudiantes = async (filtros, esInicial = false) => {
     setLoading(true);
     setErrorCarga("");
     setMensajeInfo("");
     try {
-      const data = await getEstudiantes();
+      const data = await getEstudiantes(filtros);
       if (Array.isArray(data)) {
         setEstudiantes(data);
+        // Las opciones de los selects se fijan solo en la carga inicial (sin filtros),
+        // para que no se reduzcan a medida que se aplican filtros posteriores.
+        if (esInicial) {
+          setCursosDisponibles([...new Set(data.map((e) => e.Curso_Nombre).filter(Boolean))].sort());
+          setEstadosDisponibles([...new Set(data.map((e) => e.Estudiante_Estado_Academico).filter(Boolean))].sort());
+        }
       } else {
-        // Excepciones: sin estudiantes registrados / docente sin cursos asignados
+        // Excepciones: sin estudiantes registrados / sin coincidencias / docente sin cursos asignados
         setEstudiantes(data.estudiantes || []);
         setMensajeInfo(data.mensaje || "No hay estudiantes registrados.");
       }
@@ -36,16 +45,6 @@ function Estudiantes() {
     }
   };
 
-  const cursosDisponibles = useMemo(
-    () => [...new Set(estudiantes.map((e) => e.Curso_Nombre).filter(Boolean))].sort(),
-    [estudiantes]
-  );
-
-  const estadosDisponibles = useMemo(
-    () => [...new Set(estudiantes.map((e) => e.Estudiante_Estado_Academico).filter(Boolean))].sort(),
-    [estudiantes]
-  );
-
   const alternarOrden = (campo) => {
     setOrden((prev) => ({
       campo,
@@ -53,22 +52,24 @@ function Estudiantes() {
     }));
   };
 
+  const aplicarFiltros = () => cargarEstudiantes({ curso: filtroCurso, estado: filtroEstado });
+
   const limpiarFiltros = () => {
     setBusqueda("");
     setFiltroCurso("");
     setFiltroEstado("");
+    cargarEstudiantes({});
   };
 
+  // El filtro por curso/estado ya lo resuelve el backend (CU35); acá solo queda la búsqueda de texto libre
   const estudiantesFiltrados = estudiantes
     .filter((e) => {
       const texto = busqueda.toLowerCase();
-      const coincideTexto =
+      return (
         !busqueda ||
         e.Estudiante_Nombre_Completo?.toLowerCase().includes(texto) ||
-        e.Estudiante_RUT?.toLowerCase().includes(texto);
-      const coincideCurso = !filtroCurso || e.Curso_Nombre === filtroCurso;
-      const coincideEstado = !filtroEstado || e.Estudiante_Estado_Academico === filtroEstado;
-      return coincideTexto && coincideCurso && coincideEstado;
+        e.Estudiante_RUT?.toLowerCase().includes(texto)
+      );
     })
     .sort((a, b) => {
       const factor = orden.ascendente ? 1 : -1;
@@ -94,6 +95,42 @@ function Estudiantes() {
         <p>Listado de estudiantes registrados en el sistema</p>
       </div>
 
+      <div className="usuarios-filtros">
+        <input
+          type="text"
+          className="usuarios-search"
+          placeholder="Buscar por nombre o RUT..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+        />
+        <select
+          className="usuarios-select"
+          value={filtroCurso}
+          onChange={(e) => setFiltroCurso(e.target.value)}
+        >
+          <option value="">Todos los cursos</option>
+          {cursosDisponibles.map((curso) => (
+            <option key={curso} value={curso}>{curso}</option>
+          ))}
+        </select>
+        <select
+          className="usuarios-select"
+          value={filtroEstado}
+          onChange={(e) => setFiltroEstado(e.target.value)}
+        >
+          <option value="">Todos los estados</option>
+          {estadosDisponibles.map((estado) => (
+            <option key={estado} value={estado}>{estado}</option>
+          ))}
+        </select>
+        <button type="button" className="btn-roles" onClick={aplicarFiltros}>
+          Filtrar
+        </button>
+        <button type="button" className="btn-roles" onClick={limpiarFiltros}>
+          Limpiar
+        </button>
+      </div>
+
       {errorCarga && (
         <div className="usuarios-empty" style={{ color: "#dc2626" }}>
           {errorCarga}
@@ -106,39 +143,6 @@ function Estudiantes() {
 
       {!errorCarga && !mensajeInfo && (
         <>
-          <div className="usuarios-filtros">
-            <input
-              type="text"
-              className="usuarios-search"
-              placeholder="Buscar por nombre o RUT..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-            />
-            <select
-              className="usuarios-select"
-              value={filtroCurso}
-              onChange={(e) => setFiltroCurso(e.target.value)}
-            >
-              <option value="">Todos los cursos</option>
-              {cursosDisponibles.map((curso) => (
-                <option key={curso} value={curso}>{curso}</option>
-              ))}
-            </select>
-            <select
-              className="usuarios-select"
-              value={filtroEstado}
-              onChange={(e) => setFiltroEstado(e.target.value)}
-            >
-              <option value="">Todos los estados</option>
-              {estadosDisponibles.map((estado) => (
-                <option key={estado} value={estado}>{estado}</option>
-              ))}
-            </select>
-            <button type="button" className="btn-roles" onClick={limpiarFiltros}>
-              Limpiar
-            </button>
-          </div>
-
           {estudiantesFiltrados.length === 0 ? (
             <div className="usuarios-empty">No se encontraron estudiantes</div>
           ) : (

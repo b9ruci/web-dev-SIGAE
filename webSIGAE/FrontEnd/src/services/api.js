@@ -148,10 +148,14 @@ export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico 
   return handleResponse(res);
 }
 
-// ── CU34: Listado completo de estudiantes registrados ──
+// ── CU34 y CU35: Listado y filtros de estudiantes ──
 
-export async function getEstudiantes() {
-  const res = await fetch(`${BASE_URL}/estudiantes`, {
+export async function getEstudiantes({ curso, estado } = {}) {
+  const params = new URLSearchParams();
+  if (curso) params.set('curso', curso);
+  if (estado) params.set('estado', estado);
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/estudiantes${query ? `?${query}` : ''}`, {
     headers: authHeaders(),
   });
   return handleResponse(res);
