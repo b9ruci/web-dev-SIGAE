@@ -14,6 +14,7 @@ const {
   getResumenCursos,
   getAsignacionesDocente,
   getHorarioDocente,
+  getHorarioMaestro,
 } = require('../controllers/horarioController');
 
 // CU 60-62 — Exportación de horarios (maestro / por docente / por curso)
@@ -42,6 +43,9 @@ router.get('/docente/:docenteId/asignaciones', getAsignacionesDocente);
 
 // CU43: Horario semanal de un docente a partir de sus cursos asociados (propio o desde su perfil)
 router.get('/docente/:docenteId/horario', getHorarioDocente);
+
+// CU57: vista consolidada del horario de toda la institución — solo Super Admin/Admin
+router.get('/maestro', verifyAdmin, getHorarioMaestro);
 
 // Exportación de horarios (CU60, CU61, CU62) — Super Admin/Admin.
 // exportarPorDocente permite además que un Docente exporte su propio

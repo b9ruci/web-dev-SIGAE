@@ -906,10 +906,51 @@ const getHorarioDocente = async (req, res) => {
   }
 };
 
+// ── GET /api/horarios/maestro — CU57: vista consolidada del horario de toda la institución ──
+const getHorarioMaestro = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+        ha.Horario_Asignatura_Id,
+        ha.Horario_Asignatura_Dia_Semana  AS dia,
+        ha.Curso_Id,
+        c.Curso_Nombre                    AS curso,
+        c.Curso_Seccion                   AS seccion,
+        ha.Bloque_Horario_Id,
+        bh.Bloque_Horario_Hora_Inicio     AS hora_inicio,
+        bh.Bloque_Horario_Hora_Fin        AS hora_fin,
+        bh.Bloque_Horario_Jornada         AS jornada,
+        ha.Asignatura_Id,
+        a.Asignatura_Nombre               AS asignatura,
+        ha.Usuario_Id,
+        u.Usuario_Nombre_Completo         AS docente
+      FROM horario_asignatura ha
+      JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
+      WHERE ha.Horario_Asignatura_Estado = 'Activo'
+      ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, "Lunes","Martes","Miércoles","Jueves","Viernes"),
+               bh.Bloque_Horario_Hora_Inicio, c.Curso_Nombre
+    `);
+
+    // CU57 - Excepción "No existen datos suficientes"
+    if (rows.length === 0) {
+      return res.status(404).json({ mensaje: 'No es posible generar el horario maestro' });
+    }
+
+    return res.json(rows);
+  } catch (error) {
+    console.error('getHorarioMaestro:', error);
+    return res.status(500).json({ mensaje: 'No fue posible generar el horario maestro, reintente más tarde' });
+  }
+};
+
 module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
   getAsignacionesDocente, // CU42
   getHorarioDocente, // CU43
+  getHorarioMaestro, // CU57
 };

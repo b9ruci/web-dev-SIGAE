@@ -203,11 +203,12 @@ const updateBloque = async (req, res) => {
 const deleteBloque = async (req, res) => {
   const { id } = req.params;
   try {
+    // CU50 - Excepción "Bloque posee asignaciones activas"
     const [enHorario] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ? LIMIT 1`, [id]
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ? AND Horario_Asignatura_Estado = 'Activo' LIMIT 1`, [id]
     );
     if (enHorario.length > 0) {
-      return res.status(409).json({ error: 'No se puede eliminar: el bloque está asignado a un horario de curso' });
+      return res.status(409).json({ error: 'El bloque posee asignaciones activas' });
     }
 
     const [enEvento] = await pool.execute(
@@ -225,8 +226,9 @@ const deleteBloque = async (req, res) => {
     if (err.code === 'ER_ROW_IS_REFERENCED_2') {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está referenciado por otros registros' });
     }
+    // CU50 - Excepción "Error durante la eliminación en BD"
     console.error('deleteBloque:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Ocurrió un error al eliminar' });
   }
 };
 

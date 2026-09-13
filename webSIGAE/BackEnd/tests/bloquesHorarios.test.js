@@ -140,13 +140,13 @@ describe('Pruebas Unitarias - CU50: Eliminando Bloques Horarios Individuales', (
     expect(res.json).toHaveBeenCalledWith({ error: 'El bloque horario no existe' });
   });
 
-  test('Retorna 409 si el bloque está asignado a un horario de curso', async () => {
-    pool.execute.mockResolvedValueOnce([[{ Horario_Asignatura_Id: 1 }]]); // horario_asignatura: en uso
+  test('Excepción "Bloque posee asignaciones activas"', async () => {
+    pool.execute.mockResolvedValueOnce([[{ Horario_Asignatura_Id: 1 }]]); // horario_asignatura: asignación activa
 
     await bloquesController.deleteBloque(req, res);
 
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith({ error: 'No se puede eliminar: el bloque está asignado a un horario de curso' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'El bloque posee asignaciones activas' });
   });
 
   test('Retorna 409 si el bloque está asociado a un evento institucional', async () => {
@@ -160,12 +160,12 @@ describe('Pruebas Unitarias - CU50: Eliminando Bloques Horarios Individuales', (
     expect(res.json).toHaveBeenCalledWith({ error: 'No se puede eliminar: el bloque está asociado a un evento institucional' });
   });
 
-  test('Retorna 500 si ocurre un error de base de datos', async () => {
+  test('Excepción "Error durante la eliminación en BD"', async () => {
     pool.execute.mockRejectedValueOnce(new Error('Fallo de conexión'));
 
     await bloquesController.deleteBloque(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Error interno del servidor' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error al eliminar' });
   });
 });
