@@ -32,6 +32,10 @@ import Apoderados from "../pages/users/Apoderados";
 import Perfil from "../pages/users/Perfil";
 import EstudiantesListado from "../pages/EstudiantesListado";
 
+/* NUEVOS COMPONENTES */
+import EditarFicha from "../components/EditarFicha";
+import ListaEstudiantesApoderado from "../components/ListaEstudiantesApoderado";
+
 /* ACADEMIC */
 
 import Cursos from "../pages/academic/Cursos";
@@ -39,6 +43,9 @@ import Horarios from "../pages/academic/Horarios";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import PlanEducativo from "../pages/academic/PlanEducativo";
 import Asignaturas from "../pages/academic/Asignaturas";
+
+/* NUEVO COMPONENTE */
+import HorarioDocente from "../components/HorarioDocente";
 
 /* COMMUNICATION */
 

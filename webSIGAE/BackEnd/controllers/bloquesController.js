@@ -229,12 +229,58 @@ const deleteBloque = async (req, res) => {
   }
 };
 
-// ── EVENTOS INSTITUCIONALES ───────────────────────────────────────
+// ── EVENTOS INSTITUCIONALES (CU70, CU71, CU72) ────────────────────
+//
+// Regla de negocio aplicada para calcular qué bloques horarios quedan
+// "afectados" por un evento (tabla `afecta`). Los bloques (bloque_horario)
+// son plantillas de horario genéricas — no están ligadas a una fecha ni
+// a un día de la semana — por lo que NO se modifica el horario semanal
+// recurrente (horario_asignatura). En su lugar, se deja constancia en
+// `afecta` de qué bloques quedan suspendidos ese día puntual del evento:
+//
+//   - "Sin impacto"       → no se registra ningún bloque afectado.
+//   - "Salida anticipada" → se afectan los bloques tipo 'Clase' de la
+//                           jornada 'Tarde'.
+//   - "Suspensión total"  → se afectan TODOS los bloques tipo 'Clase'.
+//
+// Si tu equipo definió una regla distinta en el informe, ajusten la
+// función registrarBloquesAfectados() más abajo — es el único lugar
+// donde vive esta decisión.
 
+async function registrarBloquesAfectados(conn, eventoId, impacto) {
+  if (impacto === 'Sin impacto') return [];
+
+  let query = `SELECT Bloque_Horario_Id FROM bloque_horario WHERE Bloque_Horario_Tipo = 'Clase'`;
+  if (impacto === 'Salida anticipada') {
+    query += ` AND Bloque_Horario_Jornada = 'Tarde'`;
+  }
+  // 'Suspensión total' → todos los bloques de tipo Clase, sin filtro adicional
+
+  const [bloques] = await conn.execute(query);
+  if (bloques.length === 0) return [];
+
+  const placeholders = bloques.map(() => '(?, ?, ?)').join(', ');
+  const params = [];
+  bloques.forEach((b) => params.push('Suspendido', b.Bloque_Horario_Id, eventoId));
+
+  await conn.execute(
+    `INSERT INTO afecta (Estado_Bloque, Bloque_Horario_Id, Evento_Institucional_Id) VALUES ${placeholders}`,
+    params
+  );
+
+  return bloques.map((b) => b.Bloque_Horario_Id);
+}
+
+// GET /api/bloques/eventos — incluye el conteo de bloques afectados por evento
 const getEventos = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT * FROM evento_institucional ORDER BY Evento_Institucional_Fecha DESC`
+      `SELECT ei.*,
+              COUNT(af.Afecta_Id) AS bloques_afectados_count
+       FROM evento_institucional ei
+       LEFT JOIN afecta af ON af.Evento_Institucional_Id = ei.Evento_Institucional_Id
+       GROUP BY ei.Evento_Institucional_Id
+       ORDER BY ei.Evento_Institucional_Fecha DESC`
     );
     res.json(rows);
   } catch (err) {
@@ -243,6 +289,27 @@ const getEventos = async (req, res) => {
   }
 };
 
+// GET /api/bloques/eventos/:id/afectados — detalle de bloques afectados (CU70/71)
+const getBloquesAfectadosPorEvento = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [rows] = await pool.execute(
+      `SELECT af.Afecta_Id, af.Estado_Bloque, bh.Bloque_Horario_Id,
+              bh.Bloque_Horario_Hora_Inicio, bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Jornada
+       FROM afecta af
+       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = af.Bloque_Horario_Id
+       WHERE af.Evento_Institucional_Id = ?
+       ORDER BY bh.Bloque_Horario_Hora_Inicio`,
+      [id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('getBloquesAfectadosPorEvento:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// POST /api/bloques/eventos — CU70 Registrando eventos institucionales
 const createEvento = async (req, res) => {
   const { Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases } = req.body;
 
@@ -250,21 +317,42 @@ const createEvento = async (req, res) => {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
 
+  const impactosValidos = ['Sin impacto', 'Salida anticipada', 'Suspensión total'];
+  if (!impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
+    return res.status(400).json({ error: 'Impacto en clases inválido' });
+  }
+
+  const conn = await pool.getConnection();
   try {
-    const [result] = await pool.execute(
+    await conn.beginTransaction();
+
+    const [result] = await conn.execute(
       `INSERT INTO evento_institucional
        (Evento_Institucional_Nombre, Evento_Institucional_Fecha,
         Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases)
        VALUES (?, ?, ?, ?)`,
       [Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases]
     );
-    res.status(201).json({ mensaje: 'Evento creado correctamente', id: result.insertId });
+    const eventoId = result.insertId;
+
+    const bloquesAfectados = await registrarBloquesAfectados(conn, eventoId, Evento_Institucional_Impacto_Clases);
+
+    await conn.commit();
+    res.status(201).json({
+      mensaje: 'Evento creado correctamente',
+      id: eventoId,
+      bloques_afectados: bloquesAfectados,
+    });
   } catch (err) {
+    await conn.rollback();
     console.error('createEvento:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    conn.release();
   }
 };
 
+// PUT /api/bloques/eventos/:id — CU71 Modificando eventos institucionales
 const updateEvento = async (req, res) => {
   const { id } = req.params;
   const { Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases } = req.body;
@@ -273,8 +361,16 @@ const updateEvento = async (req, res) => {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
 
+  const impactosValidos = ['Sin impacto', 'Salida anticipada', 'Suspensión total'];
+  if (!impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
+    return res.status(400).json({ error: 'Impacto en clases inválido' });
+  }
+
+  const conn = await pool.getConnection();
   try {
-    const [result] = await pool.execute(
+    await conn.beginTransaction();
+
+    const [result] = await conn.execute(
       `UPDATE evento_institucional SET
          Evento_Institucional_Nombre        = ?,
          Evento_Institucional_Fecha         = ?,
@@ -283,14 +379,32 @@ const updateEvento = async (req, res) => {
        WHERE Evento_Institucional_Id = ?`,
       [Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases, id]
     );
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Evento no encontrado' });
-    res.json({ mensaje: 'Evento actualizado correctamente' });
+
+    if (result.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Evento no encontrado' });
+    }
+
+    // Excepción (CU71): el impacto pudo haber cambiado → se recalculan
+    // los bloques afectados desde cero (se descartan los previos).
+    await conn.execute(`DELETE FROM afecta WHERE Evento_Institucional_Id = ?`, [id]);
+    const bloquesAfectados = await registrarBloquesAfectados(conn, id, Evento_Institucional_Impacto_Clases);
+
+    await conn.commit();
+    res.json({ mensaje: 'Evento actualizado correctamente', bloques_afectados: bloquesAfectados });
   } catch (err) {
+    await conn.rollback();
     console.error('updateEvento:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    conn.release();
   }
 };
 
+// DELETE /api/bloques/eventos/:id — CU72 Eliminando eventos institucionales
+// Nota: la FK fk_Afecta_Evento_Institucional tiene ON DELETE CASCADE,
+// por lo que al borrar el evento la BD elimina automáticamente sus
+// registros en `afecta` (los bloques quedan liberados sin más acción).
 const deleteEvento = async (req, res) => {
   const { id } = req.params;
   try {
@@ -298,7 +412,7 @@ const deleteEvento = async (req, res) => {
       `DELETE FROM evento_institucional WHERE Evento_Institucional_Id = ?`, [id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Evento no encontrado' });
-    res.json({ mensaje: 'Evento eliminado correctamente' });
+    res.json({ mensaje: 'Evento eliminado correctamente. Los bloques afectados fueron liberados.' });
   } catch (err) {
     console.error('deleteEvento:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -309,4 +423,5 @@ module.exports = {
   getParametros, updateParametros,
   getBloques, createBloque, updateBloque, deleteBloque,
   getEventos, createEvento, updateEvento, deleteEvento,
+  getBloquesAfectadosPorEvento,
 };

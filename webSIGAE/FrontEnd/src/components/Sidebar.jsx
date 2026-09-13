@@ -16,6 +16,9 @@ function Sidebar() {
   const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin = rolEfectivo === "Administrador";
 
+  // Dependiendo de cómo guardaron el ID en el token, puede llamarse id o Usuario_Id
+  const usuarioId = usuario?.id || usuario?.Usuario_Id;
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -90,6 +93,8 @@ function Sidebar() {
             <Link to="/cursos">Mis Cursos</Link>
             <Link to="/estudiantes">Mis Estudiantes</Link>
             <Link to="/horarios">Mi Horario</Link>
+            {/* CU43: Se envía el ID del docente logueado por la URL */}
+            <Link to={`/mi-horario/${usuarioId}`}>Mi Horario</Link>
             <Link to="/citaciones">Citaciones</Link>
             <Link to="/mensajes">Mensajes</Link>
           </>
@@ -97,6 +102,8 @@ function Sidebar() {
 
         {rolEfectivo === "Apoderado" && (
           <>
+            {/* CU40: Nuevo enlace para ver los estudiantes a su cargo */}
+            <Link to={`/mis-estudiantes/${usuarioId}`}>Mis Estudiantes</Link>
             <Link to="/citaciones">Citaciones</Link>
             <Link to="/mensajes">Mensajes</Link>
           </>
