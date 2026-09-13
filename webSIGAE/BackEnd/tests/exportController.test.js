@@ -134,7 +134,7 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       expect(res.json).toHaveBeenCalledWith({ error: 'Docente no encontrado' });
     });
 
-    test('Excepción 1: retorna 404 si el docente no posee asignaciones horarias', async () => {
+    test('Excepción "Docente sin horario": retorna 404 si el docente no posee asignaciones horarias', async () => {
       req.user = { id: 1, roles: ['Administrador'] };
       req.params.usuarioId = '5';
 
@@ -145,7 +145,48 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       await exportController.exportarPorDocente(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ error: 'El docente no posee asignaciones horarias registradas' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'El docente no posee asignaciones horarias' });
+    });
+
+    test('Excepción "No se selecciona docente": retorna 400 sin consultar la BD si no llega un id válido', async () => {
+      req.user = { id: 1, roles: ['Administrador'] };
+      req.params.usuarioId = 'null';
+
+      await exportController.exportarPorDocente(req, res);
+
+      expect(pool.execute).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Debes seleccionar un docente para exportar su horario' });
+    });
+
+    test('Excepción "Error de base de datos": retorna 500 si falla la consulta', async () => {
+      req.user = { id: 1, roles: ['Administrador'] };
+      req.params.usuarioId = '5';
+
+      pool.execute.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await exportController.exportarPorDocente(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error en la base de datos al generar el horario del docente' });
+    });
+
+    test('Excepción "Error al generar archivo": retorna 500 y no descarga nada si falla el render', async () => {
+      req.user = { id: 1, roles: ['Administrador'] };
+      req.params.usuarioId = '5';
+      req.query.formato = 'excel';
+
+      pool.execute
+        .mockResolvedValueOnce([[{ Usuario_Nombre_Completo: 'Juan Perez' }]])
+        .mockResolvedValueOnce([[{ dia: 'Lunes', hora_inicio: '09:00:00', hora_fin: '09:45:00', curso: '1ero A', asignatura: 'Matemáticas' }]]);
+      const ExcelJS = require('exceljs');
+      const writeSpy = jest.spyOn(ExcelJS.Workbook.prototype.xlsx, 'write').mockRejectedValueOnce(new Error('Fallo al escribir'));
+
+      await exportController.exportarPorDocente(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error al generar el archivo del horario' });
+      writeSpy.mockRestore();
     });
   });
 
