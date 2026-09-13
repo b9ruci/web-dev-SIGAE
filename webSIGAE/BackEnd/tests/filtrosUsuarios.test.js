@@ -59,7 +59,7 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.json).toHaveBeenCalledWith(mockDocentesFiltrados);
     });
 
-    test('Excepción 1: Retorna mensaje si no hay coincidencias de docentes', async () => {
+    test('CU31 - Excepción 1: Retorna mensaje si no hay coincidencias con los filtros', async () => {
       req.query = { especialidad: 'Inexistente' };
       db.query.mockResolvedValueOnce([[]]);
 
@@ -72,6 +72,31 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
           docentes: [],
         })
       );
+    });
+
+    test('CU30 - Excepción: sin filtros, retorna mensaje de que no existen docentes registrados', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await usuarioController.getDocentes(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mensaje: 'No existen docentes registrados',
+          docentes: [],
+        })
+      );
+    });
+
+    test('CU30 - Excepción: error técnico retorna 500 con mensaje de reintento', async () => {
+      db.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await usuarioController.getDocentes(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        mensaje: 'No fue posible obtener el listado, reintente posteriormente',
+      });
     });
   });
 

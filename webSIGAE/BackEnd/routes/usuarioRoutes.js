@@ -22,8 +22,8 @@ router.post('/buscar', verifyToken, verifyAdmin, usuarioController.buscarUsuario
 // Cualquier usuario autenticado puede leer su propio perfil
 router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
 
-// CU30 y CU31: Listado y filtros de docentes
-router.get('/docentes', verifyToken, usuarioController.getDocentes);
+// CU30 y CU31: Listado y filtros de docentes — Super Admin/Admin
+router.get('/docentes', verifyToken, verifyAdmin, usuarioController.getDocentes);
 
 // CU32 y CU33: Listado y filtros de apoderados
 router.get('/apoderados', verifyToken, usuarioController.getApoderados);

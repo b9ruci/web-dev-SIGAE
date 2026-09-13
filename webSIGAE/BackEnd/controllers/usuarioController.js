@@ -643,10 +643,14 @@ const getDocentes = async (req, res) => {
 
     const [docentes] = await db.query(sql, params);
 
-    // Excepción 1: No hay coincidencias con los filtros
     if (docentes.length === 0) {
+      const hayFiltros = (especialidad && especialidad.trim() !== '') || (estado !== undefined && estado !== '');
+      // CU30 (sin filtros): no existen docentes registrados en el sistema.
+      // CU31 (Excepción 1, con filtros): ninguno coincide con los criterios.
       return res.status(200).json({
-        mensaje: 'No existen docentes asociados a los criterios ingresados',
+        mensaje: hayFiltros
+          ? 'No existen docentes asociados a los criterios ingresados'
+          : 'No existen docentes registrados',
         docentes: [],
       });
     }
@@ -654,7 +658,7 @@ const getDocentes = async (req, res) => {
     return res.json(docentes);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ mensaje: 'Error al obtener el listado de docentes' });
+    return res.status(500).json({ mensaje: 'No fue posible obtener el listado, reintente posteriormente' });
   }
 };
 
