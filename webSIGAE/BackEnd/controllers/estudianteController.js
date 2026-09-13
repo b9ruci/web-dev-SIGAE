@@ -264,7 +264,7 @@ const CAMPOS_EDITABLES_ESTUDIANTE = new Set([
   'Apoderado_Usuario_Id',
 ]);
 
-// Actualizar ficha estudiantil
+// CU38: Editar curso asociado y estado académico (y otros campos editables) de un estudiante
 const updateEstudiante = async (req, res) => {
   const { id } = req.params;
   const datos = { ...req.body };
@@ -279,9 +279,29 @@ const updateEstudiante = async (req, res) => {
   }
 
   try {
-    const [existe] = await db.query('SELECT Estudiante_Id FROM estudiante WHERE Estudiante_Id = ?', [id]);
+    const [existe] = await db.query('SELECT * FROM estudiante WHERE Estudiante_Id = ?', [id]);
     if (existe.length === 0) {
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
+    }
+    const actual = existe[0];
+
+    // CU38 - Excepción "Curso no existe o inactivo" (solo si el curso realmente cambia)
+    if (
+      Object.prototype.hasOwnProperty.call(datosFiltrados, 'Curso_Id') &&
+      String(datosFiltrados.Curso_Id) !== String(actual.Curso_Id)
+    ) {
+      const [curso] = await db.query('SELECT Curso_Id FROM curso WHERE Curso_Id = ?', [datosFiltrados.Curso_Id]);
+      if (curso.length === 0) {
+        return res.status(400).json({ mensaje: 'El curso seleccionado no existe o se encuentra inactivo' });
+      }
+    }
+
+    // CU38 - Excepción "Sin modificaciones"
+    const hayCambios = Object.entries(datosFiltrados).some(
+      ([campo, valor]) => String(actual[campo] ?? '') !== String(valor ?? '')
+    );
+    if (!hayCambios) {
+      return res.status(200).json({ mensaje: 'No existen cambios para actualizar' });
     }
 
     const campos  = Object.keys(datosFiltrados).map(c => `${c} = ?`);
@@ -293,7 +313,7 @@ const updateEstudiante = async (req, res) => {
     );
 
     const [actualizado] = await db.query('SELECT * FROM estudiante WHERE Estudiante_Id = ?', [id]);
-    res.json(actualizado[0]);
+    res.json({ mensaje: 'Ficha actualizada correctamente', estudiante: actualizado[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensaje: 'Error al actualizar el estudiante' });
