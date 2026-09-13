@@ -253,22 +253,31 @@ async function responder(res, formato, payload) {
 // GET /api/horarios/exportar/maestro?formato=pdf|excel|png
 const exportarMaestro = async (req, res) => {
   const formato = (req.query.formato || 'pdf').toLowerCase();
+
+  // CU60 - Excepción "Error base de datos": falla la consulta antes de llegar a generar el archivo
+  let filas;
   try {
-    const filas = await fetchMaestro();
+    filas = await fetchMaestro();
+  } catch (error) {
+    console.error('Error en exportarMaestro (BD):', error);
+    return res.status(500).json({ error: 'Ocurrió un error en la base de datos al generar el horario maestro' });
+  }
 
-    // Excepción 1 (CU60): no existe horario maestro disponible para exportar
-    if (filas.length === 0) {
-      return res.status(404).json({ error: 'No existe horario maestro disponible para exportar' });
-    }
+  // CU60 - Excepción "No existe horario"
+  if (filas.length === 0) {
+    return res.status(404).json({ error: 'No existe horario maestro disponible' });
+  }
 
-    const columnas = [
-      { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
-      { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
-      { key: 'curso',      label: 'Curso',      value: (f) => f.curso,                                      width: 18 },
-      { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 20 },
-      { key: 'docente',    label: 'Docente',    value: (f) => f.docente || '—',                             width: 26 },
-    ];
+  const columnas = [
+    { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
+    { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
+    { key: 'curso',      label: 'Curso',      value: (f) => f.curso,                                      width: 18 },
+    { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 20 },
+    { key: 'docente',    label: 'Docente',    value: (f) => f.docente || '—',                             width: 26 },
+  ];
 
+  // CU60 - Excepción "Error en la generación del archivo": la descarga se cancela (no se envía archivo)
+  try {
     await responder(res, formato, {
       titulo: 'Horario Maestro Institucional — SIGAE',
       columnas,
@@ -276,8 +285,8 @@ const exportarMaestro = async (req, res) => {
       filename: 'horario_maestro',
     });
   } catch (error) {
-    console.error('Error en exportarMaestro:', error);
-    if (!res.headersSent) res.status(500).json({ error: 'Error al generar el archivo de exportación' });
+    console.error('Error en exportarMaestro (archivo):', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Ocurrió un error al generar el archivo. La descarga fue cancelada' });
   }
 };
 

@@ -19,17 +19,43 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
     res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis(),
+      setHeader: jest.fn(),
+      end: jest.fn(),
     };
   });
 
   describe('CU60 - exportarMaestro', () => {
-    test('Excepción 1: retorna 404 si no existe horario maestro disponible', async () => {
+    test('Excepción "No existe horario": retorna 404 si no existe horario maestro disponible', async () => {
       pool.execute.mockResolvedValueOnce([[]]);
 
       await exportController.exportarMaestro(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ error: 'No existe horario maestro disponible para exportar' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'No existe horario maestro disponible' });
+    });
+
+    test('Excepción "Error base de datos": retorna 500 si falla la consulta', async () => {
+      pool.execute.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await exportController.exportarMaestro(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error en la base de datos al generar el horario maestro' });
+    });
+
+    test('Excepción "Error en la generación del archivo": retorna 500 y no descarga nada si falla el render', async () => {
+      req.query.formato = 'excel';
+      pool.execute.mockResolvedValueOnce([[
+        { dia: 'Lunes', hora_inicio: '09:00:00', hora_fin: '09:45:00', curso: '1ero A', asignatura: 'Matemáticas', docente: 'Juan Perez' },
+      ]]);
+      const ExcelJS = require('exceljs');
+      const writeSpy = jest.spyOn(ExcelJS.Workbook.prototype.xlsx, 'write').mockRejectedValueOnce(new Error('Fallo al escribir'));
+
+      await exportController.exportarMaestro(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error al generar el archivo. La descarga fue cancelada' });
+      writeSpy.mockRestore();
     });
 
     test('Retorna 400 si el formato solicitado no es válido', async () => {
