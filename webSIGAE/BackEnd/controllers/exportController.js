@@ -282,9 +282,19 @@ const exportarMaestro = async (req, res) => {
 };
 
 // GET /api/horarios/exportar/docente/:usuarioId?formato=pdf|excel|png
+// CU61: actor es Super Administrador o Administrador; se extiende como
+// autoservicio para que un Docente exporte únicamente su propio horario.
 const exportarPorDocente = async (req, res) => {
   const { usuarioId } = req.params;
   const formato = (req.query.formato || 'pdf').toLowerCase();
+  const { roles, id: solicitanteId } = req.user;
+  const esAdmin = roles.includes('Administrador');
+  const esDocente = roles.includes('Docente') && !esAdmin;
+
+  if (!esAdmin && !(esDocente && Number(usuarioId) === solicitanteId)) {
+    return res.status(403).json({ error: 'No tienes permiso para exportar este horario' });
+  }
+
   try {
     const { docente, filas } = await fetchPorDocente(usuarioId);
 
