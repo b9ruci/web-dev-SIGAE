@@ -1,6 +1,8 @@
 // controllers/usuarioController.js
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
+const path = require('path');
+const fs = require('fs');
 const { validarCorreoInstitucional, validarTelefonoChileno } = require('../middleware/validation');
 
 // Obtener todos los usuarios
@@ -46,6 +48,125 @@ const getUsuarioById = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensaje: 'Error al obtener el usuario' });
+  }
+};
+
+const CAMPOS_PROTEGIDOS_PERFIL = ['Usuario_Nombre_Completo', 'Usuario_RUT', 'Usuario_Id'];
+const REGEX_CORREO_GENERICO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// CU19: Editar datos personales del propio perfil (correo, teléfono y/o dirección)
+// PUT /api/usuarios/perfil  { correo, telefono, direccion }
+const editarPerfilPropio = async (req, res) => {
+  const userId = req.user.id;
+  const datos = req.body || {};
+
+  // CU19 - Excepción "Intento modificación campo protegido": Nombre y RUT son de solo
+  // lectura en el formulario; si igual llegan en el body (bypass), se rechaza todo el
+  // intento sin tocar la base de datos, sin aplicar ni siquiera los cambios permitidos.
+  const intentaCampoProtegido = CAMPOS_PROTEGIDOS_PERFIL.some((campo) =>
+    Object.prototype.hasOwnProperty.call(datos, campo)
+  );
+  if (intentaCampoProtegido) {
+    return res.status(400).json({ mensaje: 'No está permitido modificar el nombre o el RUT desde tu perfil' });
+  }
+
+  const { correo, telefono, direccion } = datos;
+
+  // CU19 - Excepción "Formato de datos incorrecto": teléfono, validado antes de tocar la BD
+  if (telefono !== undefined && !validarTelefonoChileno(telefono)) {
+    return res.status(400).json({ mensaje: 'Datos no cumplen con el formato' });
+  }
+
+  try {
+    const [rows] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [userId]);
+    if (rows.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    const actual = rows[0];
+
+    // El correo vive en una columna distinta según el rol principal de la cuenta
+    let columnaCorreo = null;
+    if (actual.Es_Administrador) columnaCorreo = 'Administrador_Correo_Institucional';
+    else if (actual.Es_Docente) columnaCorreo = 'Docente_Correo_Institucional';
+    else if (actual.Es_Apoderado) columnaCorreo = 'Apoderado_Correo_Natural';
+
+    if (correo !== undefined && columnaCorreo) {
+      // Administrador/Docente usan correo institucional; Apoderado, uno propio
+      const correoValido = (actual.Es_Administrador || actual.Es_Docente)
+        ? validarCorreoInstitucional(correo)
+        : REGEX_CORREO_GENERICO.test(correo);
+      if (!correoValido) {
+        return res.status(400).json({ mensaje: 'Datos no cumplen con el formato' });
+      }
+
+      // CU19 - Excepción "Correo ya registrado"
+      const [duplicado] = await db.query(
+        `SELECT Usuario_Id FROM usuario WHERE ${columnaCorreo} = ? AND Usuario_Id != ?`,
+        [correo, userId]
+      );
+      if (duplicado.length > 0) {
+        return res.status(400).json({ mensaje: 'El correo ingresado ya se encuentra registrado' });
+      }
+    }
+
+    const campos = [];
+    const valores = [];
+    if (correo !== undefined && columnaCorreo) {
+      campos.push(`${columnaCorreo} = ?`);
+      valores.push(correo);
+    }
+    if (telefono !== undefined) {
+      campos.push('Usuario_Telefono = ?');
+      valores.push(telefono);
+    }
+    // La dirección solo existe como campo para el rol Apoderado
+    if (direccion !== undefined && actual.Es_Apoderado) {
+      campos.push('Apoderado_Direccion = ?');
+      valores.push(direccion);
+    }
+
+    if (campos.length === 0) {
+      return res.status(400).json({ mensaje: 'No hay campos válidos para actualizar' });
+    }
+
+    valores.push(userId);
+    await db.query(`UPDATE usuario SET ${campos.join(', ')} WHERE Usuario_Id = ?`, valores);
+
+    const [actualizado] = await db.query('SELECT * FROM usuario WHERE Usuario_Id = ?', [userId]);
+    const { Usuario_Contraseña, ...usuario } = actualizado[0];
+    return res.json({ mensaje: 'Cambios guardados correctamente', usuario });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible actualizar tu perfil, reintente más tarde' });
+  }
+};
+
+// CU20: Editar fotografía de perfil mediante carga de archivo
+// PUT /api/usuarios/perfil/foto  (multipart/form-data, campo "foto")
+// El formato/tamaño ya se valida en el middleware uploadFotoPerfil, antes de llegar acá.
+const actualizarFotografiaPerfil = async (req, res) => {
+  const userId = req.user.id;
+
+  if (!req.file) {
+    return res.status(400).json({ mensaje: 'Debes seleccionar un archivo de imagen' });
+  }
+
+  const rutaFoto = `/uploads/perfiles/${req.file.filename}`;
+
+  try {
+    const [rows] = await db.query('SELECT Usuario_Foto_Perfil FROM usuario WHERE Usuario_Id = ?', [userId]);
+    const fotoAnterior = rows[0]?.Usuario_Foto_Perfil;
+
+    await db.query('UPDATE usuario SET Usuario_Foto_Perfil = ? WHERE Usuario_Id = ?', [rutaFoto, userId]);
+
+    // Elimina la fotografía anterior del disco para no acumular archivos huérfanos
+    if (fotoAnterior && fotoAnterior !== rutaFoto) {
+      const rutaAbsolutaAnterior = path.join(__dirname, '..', fotoAnterior);
+      fs.unlink(rutaAbsolutaAnterior, () => {});
+    }
+
+    return res.json({ mensaje: 'Fotografía actualizada correctamente', Usuario_Foto_Perfil: rutaFoto });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible guardar la fotografía, reintente más tarde' });
   }
 };
 
@@ -927,6 +1048,8 @@ const editarAdministrador = async (req, res) => {
 module.exports = {
   getUsuarios,
   getUsuarioById,
+  editarPerfilPropio, // CU19
+  actualizarFotografiaPerfil, // CU20
   createUsuario,
   updateUsuario,
   deleteUsuario,

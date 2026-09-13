@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const usuarioController = require('../controllers/usuarioController');
+const uploadFotoPerfil = require('../middleware/uploadFotoPerfil');
 
 const {
   verifyToken,
@@ -18,6 +19,20 @@ const { validateCrearUsuario } = require('../middleware/validation');
 
 // Búsqueda de usuario existente (CU 25) — debe estar ANTES de /:id
 router.post('/buscar', verifyToken, verifyAdmin, usuarioController.buscarUsuario);
+
+// CU19: editar datos personales del propio perfil — cualquier usuario autenticado, debe estar ANTES de /:id
+router.put('/perfil', verifyToken, usuarioController.editarPerfilPropio);
+
+// CU20: editar fotografía de perfil mediante carga de archivo
+router.put('/perfil/foto', verifyToken, (req, res, next) => {
+  uploadFotoPerfil(req, res, (err) => {
+    // CU20 - Excepción "Formato o tamaño inválido": rechazado por el middleware antes de tocar la BD
+    if (err) {
+      return res.status(400).json({ mensaje: 'El archivo debe ser una imagen (JPG, PNG o WEBP) de máximo 5MB' });
+    }
+    next();
+  });
+}, usuarioController.actualizarFotografiaPerfil);
 
 // Cualquier usuario autenticado puede leer su propio perfil
 router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
