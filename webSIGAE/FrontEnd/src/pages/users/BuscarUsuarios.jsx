@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { buscarUsuarioExistente } from "../../services/api";
 
 function BuscarUsuarios() {
+  const navigate = useNavigate();
   const [rut, setRut] = useState("");
   const [nombre, setNombre] = useState("");
   const [correo, setCorreo] = useState("");
@@ -122,6 +124,7 @@ function BuscarUsuarios() {
               <th>Roles</th>
               <th>Correo</th>
               <th>Estado</th>
+              <th>Perfil</th>
             </tr>
           </thead>
           <tbody>
@@ -140,6 +143,12 @@ function BuscarUsuarios() {
                   {u.Usuario_Estado_Cuenta
                     ? <span className="badge-activo">Activo</span>
                     : <span className="badge-inactivo">Inactivo</span>}
+                </td>
+                <td>
+                  {/* CU18: seleccionar el usuario cuyo perfil desea visualizar */}
+                  <button className="btn-roles" onClick={() => navigate(`/perfil/${u.Usuario_Id}`)}>
+                    Ver Perfil
+                  </button>
                 </td>
               </tr>
             ))}

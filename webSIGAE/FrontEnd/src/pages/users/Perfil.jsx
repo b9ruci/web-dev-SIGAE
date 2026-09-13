@@ -12,6 +12,7 @@ function Perfil() {
 
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [errorPerfil, setErrorPerfil] = useState("");
 
   const [contrasenaActual, setContrasenaActual] = useState("");
   const [nuevaContrasena, setNuevaContrasena] = useState("");
@@ -42,13 +43,20 @@ function Perfil() {
 
   useEffect(() => {
     if (!idObjetivo) return;
+    setCargando(true);
+    setErrorPerfil("");
     apiFetch(`/api/usuarios/${idObjetivo}`)
-      .then((r) => {
-        if (!r || !r.ok) throw new Error(`HTTP ${r?.status}`);
-        return r.json();
+      .then(async (r) => {
+        if (!r) return; // sesión expirada: apiFetch ya redirigió
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          // CU18 - Excepción "Falta de permisos" u otro rechazo del backend
+          setErrorPerfil(data.mensaje || "No fue posible cargar el perfil");
+          return;
+        }
+        setDatos(data);
       })
-      .then((data) => setDatos(data))
-      .catch(console.error)
+      .catch(() => setErrorPerfil("No fue posible cargar el perfil"))
       .finally(() => setCargando(false));
   }, [idObjetivo]);
 
@@ -212,6 +220,13 @@ function Perfil() {
   };
 
   if (cargando) return <div className="perfil-container"><p>Cargando perfil...</p></div>;
+  if (errorPerfil) {
+    return (
+      <div className="perfil-container">
+        <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorPerfil}</div>
+      </div>
+    );
+  }
   if (!datos) return <div className="perfil-container"><p>No se pudo cargar el perfil.</p></div>;
 
   const roles = getRoles();
