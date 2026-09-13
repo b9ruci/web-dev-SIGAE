@@ -20,6 +20,10 @@ function validarCorreoInstitucional(correo) {
   return correo.toLowerCase().endsWith(DOMINIO_INSTITUCIONAL);
 }
 
+function validarTelefonoChileno(telefono) {
+  return /^\d{9}$/.test(String(telefono));
+}
+
 const validateLogin = [
   body('rut')
     .notEmpty()
@@ -74,4 +78,4 @@ const validateCrearUsuario = [
   }
 ];
 
-module.exports = { validateLogin, validateCrearUsuario, validarRut, validarCorreoInstitucional };
+module.exports = { validateLogin, validateCrearUsuario, validarRut, validarCorreoInstitucional, validarTelefonoChileno };

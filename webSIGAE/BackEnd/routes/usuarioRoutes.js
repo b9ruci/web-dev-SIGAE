@@ -10,6 +10,10 @@ const {
   verifyPuedeCrearRol,
 } = require('../middleware/authMiddleware');
 
+// CU2 y CU3: Visualizar y editar administradores — exclusivo del Super Administrador
+router.get('/administradores', verifyToken, verifySuperAdmin, usuarioController.getAdministradores);
+router.put('/administradores/:id', verifyToken, verifySuperAdmin, usuarioController.editarAdministrador);
+
 const { validateCrearUsuario } = require('../middleware/validation');
 
 // Búsqueda de usuario existente (CU 25) — debe estar ANTES de /:id

@@ -29,6 +29,7 @@ import RegisterTeacher from "../pages/users/RegisterTeacher";
 import RegisterGuardian from "../pages/users/RegisterGuardian";
 import RegisterStudent from "../pages/users/RegisterStudent";
 import Apoderados from "../pages/users/Apoderados";
+import Administradores from "../pages/users/Administradores";
 import Perfil from "../pages/users/Perfil";
 
 /* NUEVOS COMPONENTES */
@@ -143,6 +144,16 @@ function AppRouter() {
             element={
               <RoleRoute superAdminOnly={true}>
                 <RegisterAdmin />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU2 y CU3: Visualizar y editar administradores — exclusivo del Super Administrador */}
+          <Route
+            path="/administradores"
+            element={
+              <RoleRoute superAdminOnly={true}>
+                <Administradores />
               </RoleRoute>
             }
           />

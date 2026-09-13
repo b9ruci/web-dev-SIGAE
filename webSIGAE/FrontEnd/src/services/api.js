@@ -177,6 +177,26 @@ export async function asignarApoderado({ apoderadoId, estudianteIds }) {
   });
   return handleResponse(res);
 }
+// ── ADMINISTRADORES (CU2 y CU3) ───────────────
+
+// Obtener el listado de administradores registrados
+export async function getAdministradores() {
+  const res = await fetch(`${BASE_URL}/usuarios/administradores`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// Editar correo institucional, teléfono y/o estado de cuenta de un administrador
+export async function editarAdministrador(id, datos) {
+  const res = await fetch(`${BASE_URL}/usuarios/administradores/${id}`, {
+    method : 'PUT',
+    headers: authHeaders(),
+    body   : JSON.stringify(datos),
+  });
+  return handleResponse(res);
+}
+
 // Buscar usuario existente por RUT, nombre o correo
 export async function buscarUsuarioExistente({ rut, nombre, correo }) {
 

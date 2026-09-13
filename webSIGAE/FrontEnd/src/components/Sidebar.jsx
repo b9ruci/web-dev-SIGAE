@@ -80,6 +80,7 @@ function Sidebar() {
         {esAdmin && (
           <>
             <Link to="/usuarios">Gestión de Usuarios</Link>
+            {esSuperAdmin && <Link to="/administradores">Gestión de Administradores</Link>}
             <Link to="/gestion-roles">Gestión de Roles</Link>
             <Link to="/apoderados">Gestión de Apoderados</Link>
             <Link to="/reportes">Reportes</Link>

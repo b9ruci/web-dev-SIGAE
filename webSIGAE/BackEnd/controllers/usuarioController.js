@@ -1,7 +1,7 @@
 // controllers/usuarioController.js
 const db = require('../config/db');
 const bcrypt = require('bcrypt');
-const { validarCorreoInstitucional } = require('../middleware/validation');
+const { validarCorreoInstitucional, validarTelefonoChileno } = require('../middleware/validation');
 
 // Obtener todos los usuarios
 const getUsuarios = async (req, res) => {
@@ -709,6 +709,103 @@ const getApoderados = async (req, res) => {
   }
 };
 
+// CU2: Visualizar administradores registrados
+// Endpoint: GET /api/usuarios/administradores
+const getAdministradores = async (req, res) => {
+  try {
+    const [administradores] = await db.query(
+      `SELECT
+        Usuario_Id,
+        Usuario_Nombre_Completo,
+        Usuario_Telefono,
+        Administrador_Correo_Institucional,
+        Usuario_Estado_Cuenta,
+        Administrador_Tipo
+      FROM usuario
+      WHERE Es_Administrador = 1
+      ORDER BY Usuario_Nombre_Completo ASC`
+    );
+
+    // Excepción 1: no existen administradores creados
+    if (administradores.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen administradores registrados en la plataforma',
+        administradores: [],
+      });
+    }
+
+    return res.json(administradores);
+  } catch (error) {
+    console.error(error);
+    // Excepción 2: interrupción técnica crítica con la base de datos
+    return res.status(500).json({ mensaje: 'La información no pudo ser encontrada' });
+  }
+};
+
+// CU3: Editar administradores registrados
+// Endpoint: PUT /api/usuarios/administradores/:id
+const editarAdministrador = async (req, res) => {
+  const { id } = req.params;
+  const { Administrador_Correo_Institucional, Usuario_Telefono, Usuario_Estado_Cuenta } = req.body;
+
+  try {
+    const [existe] = await db.query(
+      'SELECT Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]
+    );
+
+    if (existe.length === 0 || !existe[0].Es_Administrador) {
+      return res.status(404).json({ mensaje: 'Administrador no encontrado' });
+    }
+
+    if (existe[0].Administrador_Tipo === 'Super Admin') {
+      return res.status(403).json({ mensaje: 'No tienes permiso para editar a un Super Administrador' });
+    }
+
+    // Excepción 1: validar formato antes de tocar la base de datos
+    if (Administrador_Correo_Institucional !== undefined && !validarCorreoInstitucional(Administrador_Correo_Institucional)) {
+      return res.status(400).json({ mensaje: 'Ingresa un correo electrónico insitucional @jacquescousteau' });
+    }
+    if (Usuario_Telefono !== undefined && !validarTelefonoChileno(Usuario_Telefono)) {
+      return res.status(400).json({ mensaje: 'El número telefónico debe tener el formato chileno de 9 dígitos numéricos' });
+    }
+
+    const campos  = [];
+    const valores = [];
+
+    if (Administrador_Correo_Institucional !== undefined) {
+      campos.push('Administrador_Correo_Institucional = ?');
+      valores.push(Administrador_Correo_Institucional);
+    }
+    if (Usuario_Telefono !== undefined) {
+      campos.push('Usuario_Telefono = ?');
+      valores.push(Usuario_Telefono);
+    }
+    if (Usuario_Estado_Cuenta !== undefined) {
+      campos.push('Usuario_Estado_Cuenta = ?');
+      valores.push(Usuario_Estado_Cuenta);
+    }
+
+    if (campos.length === 0) {
+      return res.status(400).json({ mensaje: 'No hay campos para actualizar' });
+    }
+
+    valores.push(id);
+    await db.query(`UPDATE usuario SET ${campos.join(', ')} WHERE Usuario_Id = ?`, valores);
+
+    const [actualizado] = await db.query(
+      `SELECT Usuario_Id, Usuario_Nombre_Completo, Usuario_Telefono,
+              Administrador_Correo_Institucional, Usuario_Estado_Cuenta, Administrador_Tipo
+       FROM usuario WHERE Usuario_Id = ?`,
+      [id]
+    );
+
+    return res.json({ mensaje: 'Cambios guardados correctamente', administrador: actualizado[0] });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al actualizar el administrador' });
+  }
+};
+
 module.exports = {
   getUsuarios,
   getUsuarioById,
@@ -717,6 +814,8 @@ module.exports = {
   deleteUsuario,
   updateRoles,
   toggleEstado,
+  getAdministradores, // CU2
+  editarAdministrador, // CU3
   asignarRol,
   buscarUsuario,
   getDocentes,   // CU30 y CU31
