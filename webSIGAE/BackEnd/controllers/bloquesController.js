@@ -153,11 +153,12 @@ const updateBloque = async (req, res) => {
   const { id } = req.params;
   const { Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada, Bloque_Horario_Tipo } = req.body;
 
+  // CU49 - Excepción "Datos inválidos o fuera de rango"
   if (!Bloque_Horario_Hora_Inicio || !Bloque_Horario_Hora_Fin || !Bloque_Horario_Jornada || !Bloque_Horario_Tipo) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
   }
   if (Bloque_Horario_Hora_Inicio >= Bloque_Horario_Hora_Fin) {
-    return res.status(400).json({ error: 'La hora de inicio debe ser anterior a la hora de fin' });
+    return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
   }
 
   try {
@@ -171,18 +172,17 @@ const updateBloque = async (req, res) => {
 
     if (Bloque_Horario_Hora_Inicio < p.Parametro_Institucional_Inicio_Jornada ||
         Bloque_Horario_Hora_Fin    > p.Parametro_Institucional_Fin_Jornada) {
-      return res.status(400).json({
-        error: `El bloque debe estar dentro del rango institucional: ${p.Parametro_Institucional_Inicio_Jornada.slice(0,5)} – ${p.Parametro_Institucional_Fin_Jornada.slice(0,5)}`
-      });
+      return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
     }
 
+    // CU49 - Excepción "Conflicto con bloque existente"
     const [conflicto] = await pool.execute(
       `SELECT Bloque_Horario_Id FROM bloque_horario
        WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?
          AND Bloque_Horario_Id != ?`,
       [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, id]
     );
-    if (conflicto.length > 0) return res.status(409).json({ error: 'El horario se superpone con un bloque existente' });
+    if (conflicto.length > 0) return res.status(409).json({ error: 'Conflicto con bloque existente' });
 
     await pool.execute(
       `UPDATE bloque_horario SET
@@ -217,9 +217,10 @@ const deleteBloque = async (req, res) => {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está asociado a un evento institucional' });
     }
 
+    // CU50 - Excepción "Bloque horario no existe"
     const [result] = await pool.execute(`DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?`, [id]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Bloque no encontrado' });
-    res.json({ mensaje: 'Bloque eliminado correctamente' });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'El bloque horario no existe' });
+    res.json({ mensaje: 'Bloque eliminado exitosamente' });
   } catch (err) {
     if (err.code === 'ER_ROW_IS_REFERENCED_2') {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está referenciado por otros registros' });
