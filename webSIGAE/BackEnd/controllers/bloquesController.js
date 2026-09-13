@@ -442,8 +442,9 @@ const deleteEvento = async (req, res) => {
     if (result.affectedRows === 0) return res.status(404).json({ error: 'El evento no existe o ya fue eliminado' });
     res.json({ mensaje: 'Evento eliminado correctamente. Los bloques afectados fueron liberados.' });
   } catch (err) {
+    // CU72 - Excepción "Error actualizando planificación"
     console.error('deleteEvento:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'No fue posible completar la eliminación solicitada' });
   }
 };
 

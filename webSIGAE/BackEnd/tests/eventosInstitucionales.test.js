@@ -220,11 +220,12 @@ describe('Pruebas Unitarias - CU72: Eliminando Eventos Institucionales', () => {
     });
   });
 
-  test('Retorna 500 ante un error técnico', async () => {
+  test('Excepción "Error actualizando planificación": retorna 500 ante un error técnico', async () => {
     pool.execute.mockRejectedValueOnce(new Error('Fallo de conexión'));
 
     await bloquesController.deleteEvento(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'No fue posible completar la eliminación solicitada' });
   });
 });
