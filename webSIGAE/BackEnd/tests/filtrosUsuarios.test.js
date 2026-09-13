@@ -153,7 +153,7 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.json).toHaveBeenCalledWith(mockFiltrados);
     });
 
-    test('Excepción 1: Retorna mensaje si no hay coincidencias de apoderados', async () => {
+    test('CU33 - Excepción "Sin coincidencias": Retorna mensaje si no hay coincidencias de apoderados', async () => {
       req.query = { cantidadEstudiantes: '99' };
       db.query.mockResolvedValueOnce([[]]);
 
@@ -166,6 +166,31 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
           apoderados: [],
         })
       );
+    });
+
+    test('CU32 - Excepción: sin filtros, retorna mensaje de que no existen apoderados registrados', async () => {
+      db.query.mockResolvedValueOnce([[]]);
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mensaje: 'No existen apoderados registrados',
+          apoderados: [],
+        })
+      );
+    });
+
+    test('CU32 - Excepción "Interrupción técnica crítica": sin filtros, retorna 500 con mensaje de reintento', async () => {
+      db.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        mensaje: 'Los datos no pudieron ser cargados, reintente más tarde',
+      });
     });
   });
 });

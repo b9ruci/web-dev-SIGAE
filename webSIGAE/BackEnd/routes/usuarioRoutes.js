@@ -25,8 +25,8 @@ router.get('/', verifyToken, verifyAdmin, usuarioController.getUsuarios);
 // CU30 y CU31: Listado y filtros de docentes — Super Admin/Admin
 router.get('/docentes', verifyToken, verifyAdmin, usuarioController.getDocentes);
 
-// CU32 y CU33: Listado y filtros de apoderados
-router.get('/apoderados', verifyToken, usuarioController.getApoderados);
+// CU32 y CU33: Listado y filtros de apoderados — Super Admin/Admin
+router.get('/apoderados', verifyToken, verifyAdmin, usuarioController.getApoderados);
 router.get('/:id', verifyToken, usuarioController.getUsuarioById);
 
 // Solo Administrador puede crear, modificar estado o eliminar usuarios

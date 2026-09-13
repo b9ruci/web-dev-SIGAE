@@ -671,9 +671,10 @@ const getDocentes = async (req, res) => {
 // CU32 y CU33: Listar apoderados y filtrar por cantidad de estudiantes asociados
 // Endpoint: GET /api/usuarios/apoderados?cantidadEstudiantes=...
 const getApoderados = async (req, res) => {
-  try {
-    const { cantidadEstudiantes } = req.query;
+  const { cantidadEstudiantes } = req.query;
+  const hayFiltros = cantidadEstudiantes !== undefined && cantidadEstudiantes !== '';
 
+  try {
     let sql = `
       SELECT 
         u.Usuario_Id,
@@ -695,7 +696,7 @@ const getApoderados = async (req, res) => {
     const params = [];
 
     // Filtro por cantidad de estudiantes (CU33)
-    if (cantidadEstudiantes !== undefined && cantidadEstudiantes !== '') {
+    if (hayFiltros) {
       sql += ' HAVING Total_Estudiantes_Asociados = ?';
       params.push(parseInt(cantidadEstudiantes, 10));
     }
@@ -704,10 +705,13 @@ const getApoderados = async (req, res) => {
 
     const [apoderados] = await db.query(sql, params);
 
-    // Excepción 1: No hay coincidencias
     if (apoderados.length === 0) {
+      // CU32 (sin filtros): no existen apoderados registrados en el sistema.
+      // CU33 (con filtros): ninguno coincide con los criterios ingresados.
       return res.status(200).json({
-        mensaje: 'No existen apoderados asociados a los criterios ingresados',
+        mensaje: hayFiltros
+          ? 'No existen apoderados asociados a los criterios ingresados'
+          : 'No existen apoderados registrados',
         apoderados: [],
       });
     }
@@ -715,7 +719,12 @@ const getApoderados = async (req, res) => {
     return res.json(apoderados);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ mensaje: 'Error al obtener el listado de apoderados' });
+    // CU32: "Los datos no pudieron ser cargados, reintente más tarde"
+    return res.status(500).json({
+      mensaje: hayFiltros
+        ? 'Error al obtener el listado de apoderados'
+        : 'Los datos no pudieron ser cargados, reintente más tarde',
+    });
   }
 };
 
