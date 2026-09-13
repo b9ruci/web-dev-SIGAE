@@ -37,7 +37,7 @@ function MiHorario() {
       } else {
         // Excepción "Horario sin planificar"
         setHorario(data.horario || []);
-        setMensajeInfo(data.mensaje || "El horario aún no ha sido planificado");
+        setMensajeInfo(data.mensaje || "No hay horario disponible para mostrar");
       }
     } catch (error) {
       // Excepciones "Docente no existe" y "Error técnico"
