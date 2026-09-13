@@ -61,6 +61,7 @@ function DashboardAdmin({ esSuperAdmin }) {
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
           <Link to="/usuarios">Gestión de Usuarios</Link>
+          {esSuperAdmin && <Link to="/administradores">Gestión de Administradores</Link>}
           {esSuperAdmin && <Link to="/registrar-admin">Registrar Administrador</Link>}
           <Link to="/registrar-docente">Registrar Docente</Link>
           <Link to="/registrar-apoderado">Registrar Apoderado</Link>
@@ -93,6 +94,7 @@ function DashboardAdmin({ esSuperAdmin }) {
             links={[
               { label: "Gestión de Usuarios",   to: "/usuarios" },
               { label: "Gestión de Apoderados", to: "/apoderados" },
+              esSuperAdmin && { label: "Gestión de Administradores", to: "/administradores" },
               esSuperAdmin && { label: "Gestión de Roles", to: "/gestion-roles" },
             ]}
           />
