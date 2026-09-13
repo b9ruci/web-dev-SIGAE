@@ -1,5 +1,5 @@
 const express = require('express');
-const { verifyToken } = require('../middleware/authMiddleware');
+const { verifyToken, verifyAdmin } = require('../middleware/authMiddleware');
 const {
   getHorarios,
   getCursos,
@@ -12,6 +12,9 @@ const {
   updateHorario,
   cambiarEstado,
   getResumenCursos,
+  getAsignacionesDocente,
+  getHorarioDocente,
+  getHorarioMaestro,
 } = require('../controllers/horarioController');
 
 // CU 60-62 — Exportación de horarios (maestro / por docente / por curso)
@@ -35,16 +38,28 @@ router.get('/asignaturas-curso',     getAsignaturasCurso);
 router.get('/docentes',              getDocentes);
 router.get('/docentes-disponibles',  getDocentesDisponibles);
 
-// Exportación de horarios (CU60, CU61, CU62)
-// formato = pdf | excel | png  (query param, ?formato=pdf por defecto)
-router.get('/exportar/maestro',            exportarMaestro);
-router.get('/exportar/docente/:usuarioId', exportarPorDocente);
-router.get('/exportar/curso/:cursoId',     exportarPorCurso);
+// CU42: Cursos y asignaturas asignadas a un docente (propias o vistas desde su perfil)
+router.get('/docente/:docenteId/asignaciones', getAsignacionesDocente);
 
-// CRUD horario
+// CU43: Horario semanal de un docente a partir de sus cursos asociados (propio o desde su perfil)
+router.get('/docente/:docenteId/horario', getHorarioDocente);
+
+// CU57: vista consolidada del horario de toda la institución — solo Super Admin/Admin
+router.get('/maestro', verifyAdmin, getHorarioMaestro);
+
+// Exportación de horarios (CU60, CU61, CU62) — Super Admin/Admin.
+// exportarPorDocente permite además que un Docente exporte su propio
+// horario (autorización fina dentro del controlador).
+// formato = pdf | excel | png  (query param, ?formato=pdf por defecto)
+router.get('/exportar/maestro',            verifyAdmin, exportarMaestro);
+router.get('/exportar/docente/:usuarioId', exportarPorDocente);
+router.get('/exportar/curso/:cursoId',     verifyAdmin, exportarPorCurso);
+
+// CRUD horario — solo admin puede crear/editar (CU54); la lectura permite
+// el filtrado por rol ya implementado dentro de getHorarios.
 router.get('/',            getHorarios);
-router.post('/',           createHorario);
-router.put('/:id',         updateHorario);
-router.patch('/:id/estado', cambiarEstado);
+router.post('/',           verifyAdmin, createHorario);
+router.put('/:id',         verifyAdmin, updateHorario);
+router.patch('/:id/estado', verifyAdmin, cambiarEstado);
 
 module.exports = router;

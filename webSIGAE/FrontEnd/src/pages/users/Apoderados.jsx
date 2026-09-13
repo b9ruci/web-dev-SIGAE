@@ -4,6 +4,9 @@ import {
   getApoderados,
   getEstudiantesSinApoderado,
   asignarApoderado,
+  editarAsociacionEstudiante,
+  eliminarAsociacionEspecifica,
+  eliminarTodasAsociaciones,
 } from "../../services/api";
 
 function Apoderados() {
@@ -15,6 +18,12 @@ function Apoderados() {
   const [apoderados, setApoderados]           = useState([]);
   const [loading, setLoading]                 = useState(true);
   const [busqueda, setBusqueda]               = useState("");
+  const [mensajeInfo, setMensajeInfo]         = useState("");
+  const [errorCarga, setErrorCarga]           = useState("");
+
+  // CU33: filtro por operador y cantidad de estudiantes asociados
+  const [operadorFiltro, setOperadorFiltro]   = useState("=");
+  const [cantidadFiltro, setCantidadFiltro]   = useState("");
 
   // Modal
   const [apoderadoSeleccionado, setApoderadoSeleccionado] = useState(null);
@@ -25,17 +34,38 @@ function Apoderados() {
   const [errorModal, setErrorModal]                       = useState(null);
   const [resultado, setResultado]                         = useState(null);
 
+  // CU39: editar asociación (reasignar/quitar) de un estudiante puntual
+  const [reasignando, setReasignando]                     = useState(null); // Estudiante_Id en edición
+  const [nuevoApoderadoId, setNuevoApoderadoId]            = useState("");
+  const [confirmarQuitar, setConfirmarQuitar]              = useState(null); // Estudiante_Id pendiente de doble confirmación
+  const [loadingAsociacion, setLoadingAsociacion]          = useState(false);
+  const [errorAsociacion, setErrorAsociacion]              = useState(null);
+
+  // CU9: eliminar todas las asociaciones activas del apoderado seleccionado
+  const [confirmarEliminarTodas, setConfirmarEliminarTodas] = useState(false);
+  const [loadingEliminarTodas, setLoadingEliminarTodas]      = useState(false);
+  const [avisoEliminarTodas, setAvisoEliminarTodas]          = useState(null);
+
   useEffect(() => {
-    cargarApoderados();
+    cargarApoderados({});
   }, []);
 
-  const cargarApoderados = async () => {
+  const cargarApoderados = async (filtros) => {
     setLoading(true);
+    setErrorCarga("");
+    setMensajeInfo("");
     try {
-      const data = await getApoderados();
-      setApoderados(data);
+      const data = await getApoderados(filtros);
+      if (Array.isArray(data)) {
+        setApoderados(data);
+      } else {
+        // CU32 - Excepción "Sin apoderados registrados"
+        setApoderados(data.apoderados || []);
+        setMensajeInfo(data.mensaje || "No existen apoderados registrados");
+      }
     } catch (error) {
-      console.error(error);
+      // CU32 - Excepción "Interrupción técnica crítica"
+      setErrorCarga(error.message || "Los datos no pudieron ser cargados, reintente más tarde");
     } finally {
       setLoading(false);
     }
@@ -82,6 +112,11 @@ function Apoderados() {
     setSeleccionados([]);
     setErrorModal(null);
     setResultado(null);
+    setReasignando(null);
+    setConfirmarQuitar(null);
+    setErrorAsociacion(null);
+    setConfirmarEliminarTodas(false);
+    setAvisoEliminarTodas(null);
   };
 
   const toggleSeleccion = (id) => {
@@ -118,6 +153,85 @@ function Apoderados() {
     }
   };
 
+  // CU39: recargar ambas listas del modal tras editar una asociación puntual
+  const recargarListasModal = async () => {
+    const [sinApo, delApo] = await Promise.all([
+      getEstudiantesSinApoderado(),
+      cargarEstudiantesDelApoderado(apoderadoSeleccionado.Usuario_Id),
+    ]);
+    setEstudiantesSinApo(sinApo);
+    setEstudiantesDelApo(delApo);
+  };
+
+  const iniciarReasignacion = (estudianteId) => {
+    setReasignando(estudianteId);
+    setNuevoApoderadoId("");
+    setErrorAsociacion(null);
+  };
+
+  const confirmarReasignacion = async (estudianteId) => {
+    if (!nuevoApoderadoId) {
+      setErrorAsociacion("Selecciona un apoderado para reasignar.");
+      return;
+    }
+    setLoadingAsociacion(true);
+    setErrorAsociacion(null);
+    try {
+      await editarAsociacionEstudiante(estudianteId, Number(nuevoApoderadoId));
+      setReasignando(null);
+      await recargarListasModal();
+    } catch (error) {
+      setErrorAsociacion(error.message || "Error al reasignar el apoderado");
+    } finally {
+      setLoadingAsociacion(false);
+    }
+  };
+
+  // Doble confirmación en el modal (sin segunda llamada al backend): el primer
+  // clic solo muestra la advertencia; recién el segundo ejecuta la eliminación.
+  const solicitarQuitarApoderado = (estudianteId) => {
+    setConfirmarQuitar(estudianteId);
+    setErrorAsociacion(null);
+  };
+
+  const confirmarQuitarApoderado = async (estudianteId) => {
+    setLoadingAsociacion(true);
+    setErrorAsociacion(null);
+    try {
+      // CU10: eliminación de la asociación específica (endpoint dedicado,
+      // no el de edición/reasignación de CU39)
+      await eliminarAsociacionEspecifica(estudianteId);
+      setConfirmarQuitar(null);
+      await recargarListasModal();
+    } catch (error) {
+      setErrorAsociacion(error.message || "No fue posible completar la eliminación");
+    } finally {
+      setLoadingAsociacion(false);
+    }
+  };
+
+  // CU9: eliminar todas las asociaciones activas del apoderado en una sola operación
+  const cancelarEliminarTodas = () => {
+    setConfirmarEliminarTodas(false);
+    setAvisoEliminarTodas("Operación cancelada");
+  };
+
+  const confirmarEliminarTodasAsociaciones = async () => {
+    setLoadingEliminarTodas(true);
+    setAvisoEliminarTodas(null);
+    try {
+      const res = await eliminarTodasAsociaciones(apoderadoSeleccionado.Usuario_Id);
+      setConfirmarEliminarTodas(false);
+      setAvisoEliminarTodas(res.mensaje || `${res.eliminadas} asociación(es) eliminada(s) correctamente.`);
+      await recargarListasModal();
+    } catch (error) {
+      setAvisoEliminarTodas(error.message || "No existen asociaciones disponibles para eliminar");
+      setConfirmarEliminarTodas(false);
+    } finally {
+      setLoadingEliminarTodas(false);
+    }
+  };
+
   const apoderadosFiltrados = apoderados.filter((u) => {
     const txt = busqueda.toLowerCase();
     return (
@@ -126,6 +240,27 @@ function Apoderados() {
       u.Usuario_RUT?.toLowerCase().includes(txt)
     );
   });
+
+  // CU33: filtrar por operador y cantidad de estudiantes asociados
+  const aplicarFiltroCantidad = (e) => {
+    e.preventDefault();
+    cargarApoderados({ operador: operadorFiltro, cantidadEstudiantes: cantidadFiltro });
+  };
+
+  const limpiarFiltroCantidad = () => {
+    setOperadorFiltro("=");
+    setCantidadFiltro("");
+    cargarApoderados({});
+  };
+
+  // CU32: roles del usuario y estudiantes vinculados en el listado de apoderados
+  const getBadgesRoles = (u) => {
+    const badges = [];
+    if (u.Es_Administrador) badges.push(<span key="adm" className="badge-rol badge-admin">Administrador</span>);
+    if (u.Es_Docente) badges.push(<span key="doc" className="badge-rol badge-docente">Docente</span>);
+    if (u.Es_Apoderado) badges.push(<span key="apo" className="badge-rol badge-apoderado">Apoderado</span>);
+    return badges.length > 0 ? badges : <span style={{ color: "#94a3b8" }}>Sin roles</span>;
+  };
 
   if (loading) {
     return (
@@ -153,10 +288,52 @@ function Apoderados() {
         />
       </div>
 
+      {/* CU33: filtro por cantidad de estudiantes asociados */}
+      {/* noValidate: el diagrama exige que un valor no entero o negativo llegue al backend
+          para que sea éste quien lo rechace, en vez de bloquearlo en el navegador */}
+      <form className="usuarios-filtros" onSubmit={aplicarFiltroCantidad} noValidate>
+        <span style={{ alignSelf: "center", color: "#475569", fontSize: "0.9rem" }}>
+          Estudiantes asociados:
+        </span>
+        <select
+          className="usuarios-select"
+          value={operadorFiltro}
+          onChange={(e) => setOperadorFiltro(e.target.value)}
+        >
+          <option value="=">=</option>
+          <option value="!=">≠</option>
+          <option value=">">&gt;</option>
+          <option value="<">&lt;</option>
+          <option value=">=">&gt;=</option>
+          <option value="<=">&lt;=</option>
+        </select>
+        <input
+          type="text"
+          inputMode="numeric"
+          className="usuarios-search"
+          style={{ maxWidth: "120px" }}
+          placeholder="Cantidad"
+          value={cantidadFiltro}
+          onChange={(e) => setCantidadFiltro(e.target.value)}
+        />
+        <button type="submit" className="btn-roles">Filtrar</button>
+        <button type="button" className="btn-roles" onClick={limpiarFiltroCantidad}>Limpiar</button>
+      </form>
+
       {/* Tabla */}
-      {apoderadosFiltrados.length === 0 ? (
+      {errorCarga && (
+        <div className="usuarios-empty" style={{ color: "#dc2626" }}>
+          {errorCarga}
+        </div>
+      )}
+
+      {!errorCarga && mensajeInfo && (
+        <div className="usuarios-empty">{mensajeInfo}</div>
+      )}
+
+      {!errorCarga && !mensajeInfo && apoderadosFiltrados.length === 0 ? (
         <div className="usuarios-empty">No se encontraron apoderados registrados</div>
-      ) : (
+      ) : !errorCarga && !mensajeInfo && (
         <table className="tabla-usuarios">
           <thead>
             <tr>
@@ -166,6 +343,8 @@ function Apoderados() {
               <th>Correo</th>
               <th>Teléfono</th>
               <th>Estado</th>
+              <th>Roles</th>
+              <th>Estudiantes vinculados</th>
               {esAdmin && <th>Acciones</th>}
             </tr>
           </thead>
@@ -184,6 +363,8 @@ function Apoderados() {
                     <span className="badge-inactivo">Inactivo</span>
                   )}
                 </td>
+                <td>{getBadgesRoles(u)}</td>
+                <td>{u.Total_Estudiantes_Asociados ?? 0}</td>
                 {esAdmin && (
                   <td>
                     <button
@@ -230,9 +411,58 @@ function Apoderados() {
               <>
                 {/* Estudiantes ya asociados */}
                 <div style={{ marginBottom: "20px" }}>
-                  <h3 style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Estudiantes ya asociados ({estudiantesDelApo.length})
-                  </h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h3 style={{ fontSize: "0.9rem", color: "#475569", margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Estudiantes ya asociados ({estudiantesDelApo.length})
+                    </h3>
+                    {/* CU9: eliminar todas las asociaciones activas del apoderado */}
+                    {estudiantesDelApo.length > 0 && !confirmarEliminarTodas && (
+                      <button
+                        type="button"
+                        className="btn-desactivar"
+                        style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+                        onClick={() => { setConfirmarEliminarTodas(true); setAvisoEliminarTodas(null); }}
+                      >
+                        Eliminar todas las asociaciones
+                      </button>
+                    )}
+                  </div>
+
+                  {avisoEliminarTodas && (
+                    <p style={{ color: "#166534", fontSize: "0.85rem", marginBottom: "8px" }}>{avisoEliminarTodas}</p>
+                  )}
+
+                  {confirmarEliminarTodas && (
+                    <div style={{ marginBottom: "12px", padding: "10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
+                      <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#991b1b" }}>
+                        ¿Confirmas eliminar las {estudiantesDelApo.length} asociación(es) activa(s) de este apoderado?
+                        Los estudiantes quedarán sin apoderado asignado.
+                      </p>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          type="button"
+                          className="btn-desactivar"
+                          style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                          disabled={loadingEliminarTodas}
+                          onClick={confirmarEliminarTodasAsociaciones}
+                        >
+                          {loadingEliminarTodas ? "Eliminando..." : "Sí, eliminar todas"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-roles"
+                          style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                          onClick={cancelarEliminarTodas}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {errorAsociacion && (
+                    <p style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: "8px" }}>{errorAsociacion}</p>
+                  )}
                   {estudiantesDelApo.length === 0 ? (
                     <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
                       Este apoderado aún no tiene estudiantes asignados.
@@ -248,12 +478,97 @@ function Apoderados() {
                             borderRadius  : "6px",
                             padding       : "8px 12px",
                             fontSize      : "0.9rem",
-                            display       : "flex",
-                            justifyContent: "space-between",
                           }}
                         >
-                          <span>{e.Estudiante_Nombre_Completo}</span>
-                          <span style={{ color: "#64748b" }}>{e.Estudiante_RUT}</span>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>{e.Estudiante_Nombre_Completo} <span style={{ color: "#64748b" }}>({e.Estudiante_RUT})</span></span>
+                            {confirmarQuitar !== e.Estudiante_Id && reasignando !== e.Estudiante_Id && (
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  className="btn-roles"
+                                  style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+                                  onClick={() => iniciarReasignacion(e.Estudiante_Id)}
+                                >
+                                  Cambiar apoderado
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-desactivar"
+                                  style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+                                  onClick={() => solicitarQuitarApoderado(e.Estudiante_Id)}
+                                >
+                                  Quitar apoderado
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* CU39 - Flujo correcto: reasignar a otro apoderado */}
+                          {reasignando === e.Estudiante_Id && (
+                            <div style={{ marginTop: "8px", display: "flex", gap: "6px", alignItems: "center" }}>
+                              <select
+                                className="usuarios-select"
+                                style={{ fontSize: "0.85rem" }}
+                                value={nuevoApoderadoId}
+                                onChange={(ev) => setNuevoApoderadoId(ev.target.value)}
+                              >
+                                <option value="">Selecciona un nuevo apoderado...</option>
+                                {apoderados
+                                  .filter((a) => a.Usuario_Id !== apoderadoSeleccionado.Usuario_Id && a.Usuario_Estado_Cuenta)
+                                  .map((a) => (
+                                    <option key={a.Usuario_Id} value={a.Usuario_Id}>
+                                      {a.Usuario_Nombre_Completo}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                className="btn-primario"
+                                style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                disabled={loadingAsociacion}
+                                onClick={() => confirmarReasignacion(e.Estudiante_Id)}
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-roles"
+                                style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                onClick={() => setReasignando(null)}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+
+                          {/* CU39 - Excepción "elimina última asociación": doble confirmación, sin segunda llamada al backend */}
+                          {confirmarQuitar === e.Estudiante_Id && (
+                            <div style={{ marginTop: "8px", padding: "8px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
+                              <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#991b1b" }}>
+                                ¿Confirmas quitar el apoderado? El estudiante quedará sin apoderado asociado.
+                              </p>
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  className="btn-desactivar"
+                                  style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                  disabled={loadingAsociacion}
+                                  onClick={() => confirmarQuitarApoderado(e.Estudiante_Id)}
+                                >
+                                  {loadingAsociacion ? "Quitando..." : "Sí, quitar apoderado"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-roles"
+                                  style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                  onClick={() => setConfirmarQuitar(null)}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

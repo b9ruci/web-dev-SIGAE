@@ -42,4 +42,8 @@ export function validarCorreo(correo) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo.trim());
 }
 
+export function validarTelefonoChileno(telefono) {
+  return /^\d{9}$/.test(telefono.trim());
+}
+
 export { DOMINIO_INSTITUCIONAL };

@@ -29,23 +29,24 @@ import RegisterTeacher from "../pages/users/RegisterTeacher";
 import RegisterGuardian from "../pages/users/RegisterGuardian";
 import RegisterStudent from "../pages/users/RegisterStudent";
 import Apoderados from "../pages/users/Apoderados";
+import Administradores from "../pages/users/Administradores";
+import Docentes from "../pages/users/Docentes";
+import BuscarUsuarios from "../pages/users/BuscarUsuarios";
 import Perfil from "../pages/users/Perfil";
-import EstudiantesListado from "../pages/EstudiantesListado";
 
 /* NUEVOS COMPONENTES */
-import EditarFicha from "../components/EditarFicha";
 import ListaEstudiantesApoderado from "../components/ListaEstudiantesApoderado";
 
 /* ACADEMIC */
 
 import Cursos from "../pages/academic/Cursos";
+import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
+import MiHorario from "../pages/academic/MiHorario";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
+import HorarioMaestro from "../pages/academic/HorarioMaestro";
 import PlanEducativo from "../pages/academic/PlanEducativo";
 import Asignaturas from "../pages/academic/Asignaturas";
-
-/* NUEVO COMPONENTE */
-import HorarioDocente from "../components/HorarioDocente";
 
 /* COMMUNICATION */
 
@@ -75,7 +76,6 @@ function AppRouter() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
         <Route path="/session-expired" element={<SessionExpired />} />
-        <Route path="/estudiantes"     element={<EstudiantesListado />} />
 
         {/* RUTAS PRIVADAS — requieren sesion */}
 
@@ -108,6 +108,26 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Docente", "Administrador"]}>
                 <Horarios />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU43: horario semanal propio (Docente) o de cualquier docente (Admin/Super Admin) */}
+          <Route
+            path="/mi-horario"
+            element={
+              <RoleRoute roles={["Docente", "Administrador"]}>
+                <MiHorario />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU57: vista consolidada del horario de toda la institución (Super Admin/Admin) */}
+          <Route
+            path="/horario-maestro"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <HorarioMaestro />
               </RoleRoute>
             }
           />
@@ -149,6 +169,36 @@ function AppRouter() {
             }
           />
 
+          {/* CU2 y CU3: Visualizar y editar administradores — exclusivo del Super Administrador */}
+          <Route
+            path="/administradores"
+            element={
+              <RoleRoute superAdminOnly={true}>
+                <Administradores />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU30 y CU31: Listado y filtros de docentes — Super Admin/Admin */}
+          <Route
+            path="/docentes"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Docentes />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU28: Búsqueda de usuarios por nombre, RUT o correo — Super Admin/Admin */}
+          <Route
+            path="/buscar-usuarios"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <BuscarUsuarios />
+              </RoleRoute>
+            }
+          />
+
           <Route
             path="/registrar-docente"
             element={
@@ -172,16 +222,6 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Administrador"]}>
                 <RegisterStudent />
-              </RoleRoute>
-            }
-          />
-
-          {/* Gestion y Listado de Estudiantes (CU34 - CU37) */}
-          <Route
-            path="/estudiantes"
-            element={
-              <RoleRoute roles={["Administrador", "Docente"]}>
-                <EstudiantesListado />
               </RoleRoute>
             }
           />
@@ -211,6 +251,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Administrador"]}>
                 <Cursos />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU34: Listado completo de estudiantes — Administrador y Docente */}
+          <Route
+            path="/estudiantes"
+            element={
+              <RoleRoute roles={["Administrador", "Docente"]}>
+                <Estudiantes />
               </RoleRoute>
             }
           />

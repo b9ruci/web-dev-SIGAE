@@ -216,6 +216,14 @@ function TabParametros() {
 
   if (loading) return <p style={s.loadingText}>Cargando parámetros...</p>;
 
+  if (!form) {
+    return (
+      <div style={s.seccion}>
+        <div style={s.errorBanner}>{error || "No fue posible cargar los parámetros institucionales"}</div>
+      </div>
+    );
+  }
+
   return (
     <div style={s.seccion}>
       <div style={s.seccionHeader}>
@@ -315,6 +323,7 @@ function TabBloques() {
   const [bloques,      setBloques]      = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
+  const [exito,        setExito]        = useState("");
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [editando,     setEditando]     = useState(null);
   const [form,         setForm]         = useState(EMPTY_BLOQUE);
@@ -413,6 +422,9 @@ function TabBloques() {
       if (!res.ok) throw new Error(data.error);
       cerrarPanel();
       cargar();
+      // CU49: confirmar al usuario que el bloque quedó actualizado
+      setExito(data.mensaje || "Bloque actualizado correctamente");
+      setTimeout(() => setExito(""), 3500);
     } catch (e) {
       setErrorPanel(e.message || "Error al guardar");
     } finally {
@@ -428,6 +440,9 @@ function TabBloques() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       cargar();
+      // CU50: confirmar al usuario que el bloque fue eliminado
+      setExito(data.mensaje || "Bloque eliminado exitosamente");
+      setTimeout(() => setExito(""), 3500);
     } catch (e) {
       setError(e.message || "Error al eliminar");
     } finally {
@@ -480,6 +495,7 @@ function TabBloques() {
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
+      {exito && <div style={s.exitoBanner}>✅ {exito}</div>}
 
       {loading ? (
         <p style={s.loadingText}>Cargando bloques...</p>
@@ -701,6 +717,7 @@ function TabEventos() {
   const [eventos,      setEventos]      = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
+  const [exito,        setExito]        = useState("");
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [editando,     setEditando]     = useState(null);
   const [form,         setForm]         = useState(EMPTY_EVENTO);
@@ -783,6 +800,9 @@ function TabEventos() {
       if (!res.ok) throw new Error(data.error);
       cerrarPanel();
       cargar();
+      // CU70/71: confirmar al usuario que el evento quedó registrado/actualizado
+      setExito(data.mensaje || (editando ? "Evento actualizado correctamente" : "Evento registrado correctamente"));
+      setTimeout(() => setExito(""), 3500);
     } catch (e) {
       setErrorPanel(e.message || "Error al guardar");
     } finally {
@@ -798,6 +818,9 @@ function TabEventos() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       cargar();
+      // CU72: confirmar al usuario que el evento fue eliminado
+      setExito(data.mensaje || "Evento eliminado correctamente");
+      setTimeout(() => setExito(""), 3500);
     } catch (e) {
       setError(e.message || "Error al eliminar");
     } finally {
@@ -840,6 +863,7 @@ function TabEventos() {
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
+      {exito && <div style={s.exitoBanner}>✅ {exito}</div>}
 
       {loading ? (
         <p style={s.loadingText}>Cargando eventos...</p>

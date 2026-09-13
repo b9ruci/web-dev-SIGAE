@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { apiFetch } from "../../services/api";
+import { apiFetch, getUsuariosPorFiltro } from "../../services/api";
 import { normalizarTexto } from "../../utils/validaciones";
 
 function Usuarios() {
@@ -14,25 +14,48 @@ function Usuarios() {
   const [busqueda, setBusqueda] = useState("");
   const [filtroRol, setFiltroRol] = useState("Todos");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
+  const [mensajeInfo, setMensajeInfo] = useState("");
+  const [errorCarga, setErrorCarga] = useState("");
   const [modalConfirm, setModalConfirm]   = useState(null);
   // { usuario, conEleccion: bool, accion: 'cuenta'|'rol', rolAQuitar: string|null, rolesActivos: string[] }
   const [loadingToggle, setLoadingToggle] = useState(false);
 
   useEffect(() => {
-    cargarUsuarios();
+    cargarUsuarios("Todos", "Todos");
   }, []);
 
-  const cargarUsuarios = async () => {
+  // CU29: listado con filtros avanzados por rol y estado de cuenta, resueltos en el backend
+  const cargarUsuarios = async (rol, estado) => {
+    setLoading(true);
+    setErrorCarga("");
+    setMensajeInfo("");
     try {
-      const res = await apiFetch("/api/usuarios");
-      if (!res) return;
-      const data = await res.json();
-      setUsuarios(data);
+      const data = await getUsuariosPorFiltro({
+        rol: rol === "Todos" ? undefined : rol,
+        estado: estado === "Todos" ? undefined : (estado === "Activo" ? "1" : "0"),
+      });
+      if (Array.isArray(data)) {
+        setUsuarios(data);
+      } else {
+        // CU29 - Excepción "Sin coincidencias"
+        setUsuarios(data.usuarios || []);
+        setMensajeInfo(data.mensaje || "No se encontraron usuarios con esos filtros");
+      }
     } catch (error) {
-      console.error(error);
+      // CU29 - Excepción "Filtros fuera de privilegios" o "Problema técnico"
+      setErrorCarga(error.message || "Ocurrió un problema técnico");
     } finally {
       setLoading(false);
     }
+  };
+
+  const aplicarFiltros = () => cargarUsuarios(filtroRol, filtroEstado);
+
+  const limpiarFiltros = () => {
+    setFiltroRol("Todos");
+    setFiltroEstado("Todos");
+    setBusqueda("");
+    cargarUsuarios("Todos", "Todos");
   };
 
 const abrirConfirmToggle = (u) => {
@@ -64,7 +87,7 @@ const confirmarAccion = async () => {
       if (!res) return;
       const data = await res.json();
       if (!res.ok) alert(data.mensaje || "Error al cambiar estado");
-      else cargarUsuarios();
+      else cargarUsuarios(filtroRol, filtroEstado);
     } else {
       // Quitar un rol específico
       const body = {
@@ -81,7 +104,7 @@ const confirmarAccion = async () => {
       if (!res) return;
       const data = await res.json();
       if (!res.ok) alert(data.mensaje || "Error al quitar rol");
-      else cargarUsuarios();
+      else cargarUsuarios(filtroRol, filtroEstado);
     }
   } catch (error) {
     console.error(error);
@@ -109,28 +132,17 @@ const confirmarAccion = async () => {
     return badges.length > 0 ? badges : <span style={{ color: "#94a3b8" }}>Sin roles</span>;
   };
 
+  // El filtro por rol/estado ya lo resuelve el backend (CU29); acá solo queda la búsqueda de texto libre
   const usuariosFiltrados = usuarios.filter((u) => {
     const textoBusqueda = normalizarTexto(busqueda);
-    const coincideTexto =
+    return (
       !busqueda ||
       normalizarTexto(u.Usuario_Nombre_Completo ?? "").includes(textoBusqueda) ||
       normalizarTexto(u.Usuario_RUT ?? "").includes(textoBusqueda) ||
       normalizarTexto(u.Administrador_Correo_Institucional ?? "").includes(textoBusqueda) ||
       normalizarTexto(u.Docente_Correo_Institucional ?? "").includes(textoBusqueda) ||
-      normalizarTexto(u.Apoderado_Correo_Natural ?? "").includes(textoBusqueda);
-
-    const coincideRol =
-      filtroRol === "Todos" ||
-      (filtroRol === "Administrador" && u.Es_Administrador) ||
-      (filtroRol === "Docente" && u.Es_Docente) ||
-      (filtroRol === "Apoderado" && u.Es_Apoderado);
-
-    const coincideEstado =
-      filtroEstado === "Todos" ||
-      (filtroEstado === "Activo" && u.Usuario_Estado_Cuenta) ||
-      (filtroEstado === "Inactivo" && !u.Usuario_Estado_Cuenta);
-
-    return coincideTexto && coincideRol && coincideEstado;
+      normalizarTexto(u.Apoderado_Correo_Natural ?? "").includes(textoBusqueda)
+    );
   });
 
   if (loading) {
@@ -176,12 +188,24 @@ const confirmarAccion = async () => {
           <option value="Activo">Activo</option>
           <option value="Inactivo">Inactivo</option>
         </select>
+        <button type="button" className="btn-roles" onClick={aplicarFiltros}>Filtrar</button>
+        <button type="button" className="btn-roles" onClick={limpiarFiltros}>Limpiar</button>
       </div>
 
       {/* Tabla */}
-      {usuariosFiltrados.length === 0 ? (
+      {errorCarga && (
+        <div className="usuarios-empty" style={{ color: "#dc2626" }}>
+          {errorCarga}
+        </div>
+      )}
+
+      {!errorCarga && mensajeInfo && (
+        <div className="usuarios-empty">{mensajeInfo}</div>
+      )}
+
+      {!errorCarga && !mensajeInfo && usuariosFiltrados.length === 0 ? (
         <div className="usuarios-empty">No se encontraron usuarios</div>
-      ) : (
+      ) : !errorCarga && !mensajeInfo && (
         <table className="tabla-usuarios">
           <thead>
             <tr>

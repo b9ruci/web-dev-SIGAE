@@ -1,8 +1,19 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
-import { apiFetch } from "../../services/api";
+import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados, getDetalleEstudiante, editarPerfilPropio, actualizarFotoPerfil } from "../../services/api";
+
+// CU20: placeholder cuando el usuario no tiene fotografía de perfil registrada
+const FOTO_PERFIL_PLACEHOLDER =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">' +
+      '<rect width="96" height="96" fill="#e2e8f0"/>' +
+      '<circle cx="48" cy="38" r="18" fill="#94a3b8"/>' +
+      '<path d="M16 88c0-17.7 14.3-32 32-32s32 14.3 32 32" fill="#94a3b8"/>' +
+      '</svg>'
+  );
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -12,6 +23,7 @@ function Perfil() {
 
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [errorPerfil, setErrorPerfil] = useState("");
 
   const [contrasenaActual, setContrasenaActual] = useState("");
   const [nuevaContrasena, setNuevaContrasena] = useState("");
@@ -20,17 +32,128 @@ function Perfil() {
   const [msgError, setMsgError] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  // CU42: Cursos y asignaturas del docente
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [mensajeAsignaciones, setMensajeAsignaciones] = useState("");
+  const [errorAsignaciones, setErrorAsignaciones] = useState("");
+  const [cargandoAsignaciones, setCargandoAsignaciones] = useState(false);
+  const [ordenAsignaciones, setOrdenAsignaciones] = useState("curso");
+
+  // CU40: Estudiantes asociados al apoderado
+  const [estudiantesAsociados, setEstudiantesAsociados] = useState([]);
+  const [mensajeEstudiantes, setMensajeEstudiantes] = useState("");
+  const [errorEstudiantes, setErrorEstudiantes] = useState("");
+  const [cargandoEstudiantes, setCargandoEstudiantes] = useState(false);
+  const [ordenEstudiantes, setOrdenEstudiantes] = useState("nombre");
+
+  // CU41: Detalle de un estudiante asociado
+  const [detalleEstudiante, setDetalleEstudiante] = useState(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState("");
+  const [avisoLista, setAvisoLista] = useState("");
+
+  // CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección)
+  const [editandoPerfil, setEditandoPerfil] = useState(false);
+  const [formPerfil, setFormPerfil] = useState({ correo: "", telefono: "", direccion: "" });
+  const [guardandoPerfil, setGuardandoPerfil] = useState(false);
+  const [msgExitoPerfil, setMsgExitoPerfil] = useState("");
+  const [msgErrorPerfil, setMsgErrorPerfil] = useState("");
+
+  // CU20: editar fotografía de perfil mediante carga de archivo
+  const [archivoFoto, setArchivoFoto] = useState(null);
+  const [previewFoto, setPreviewFoto] = useState("");
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [msgExitoFoto, setMsgExitoFoto] = useState("");
+  const [msgErrorFoto, setMsgErrorFoto] = useState("");
+
   useEffect(() => {
     if (!idObjetivo) return;
+    setCargando(true);
+    setErrorPerfil("");
     apiFetch(`/api/usuarios/${idObjetivo}`)
-      .then((r) => {
-        if (!r || !r.ok) throw new Error(`HTTP ${r?.status}`);
-        return r.json();
+      .then(async (r) => {
+        if (!r) return; // sesión expirada: apiFetch ya redirigió
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          // CU18 - Excepción "Falta de permisos" u otro rechazo del backend
+          setErrorPerfil(data.mensaje || "No fue posible cargar el perfil");
+          return;
+        }
+        setDatos(data);
       })
-      .then((data) => setDatos(data))
-      .catch(console.error)
+      .catch(() => setErrorPerfil("No fue posible cargar el perfil"))
       .finally(() => setCargando(false));
   }, [idObjetivo]);
+
+  useEffect(() => {
+    if (!datos?.Es_Docente || !idObjetivo) return;
+    setCargandoAsignaciones(true);
+    setErrorAsignaciones("");
+    setMensajeAsignaciones("");
+    getAsignacionesDocente(idObjetivo)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAsignaciones(data);
+        } else {
+          // Excepción 1: sin asignaciones registradas
+          setAsignaciones(data.asignaciones || []);
+          setMensajeAsignaciones(data.mensaje || "No existen asignaciones registradas.");
+        }
+      })
+      .catch((error) => {
+        // Excepción 2 (docente no encontrado) y Excepción 3 (error técnico)
+        setErrorAsignaciones(error.message || "No fue posible cargar las asignaciones académicas, reintente más tarde");
+      })
+      .finally(() => setCargandoAsignaciones(false));
+  }, [datos?.Es_Docente, idObjetivo]);
+
+  useEffect(() => {
+    if (!datos?.Es_Apoderado || !idObjetivo) return;
+    setCargandoEstudiantes(true);
+    setErrorEstudiantes("");
+    setMensajeEstudiantes("");
+    getEstudiantesAsociados(idObjetivo)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setEstudiantesAsociados(data);
+        } else {
+          // Excepción 1: sin estudiantes asociados
+          setEstudiantesAsociados(data.estudiantes || []);
+          setMensajeEstudiantes(data.mensaje || "No existen estudiantes asociados a la cuenta.");
+        }
+      })
+      .catch((error) => {
+        // Excepción 2 (apoderado no encontrado) y Excepción 3 (error técnico)
+        setErrorEstudiantes(error.message || "No fue posible cargar estudiantes, reintente más tarde");
+      })
+      .finally(() => setCargandoEstudiantes(false));
+  }, [datos?.Es_Apoderado, idObjetivo]);
+
+  // CU41: abrir/cerrar el detalle de un estudiante desde la lista de asociados
+  const abrirDetalleEstudiante = async (estudianteId) => {
+    setCargandoDetalle(true);
+    setErrorDetalle("");
+    setDetalleEstudiante(null);
+    try {
+      const data = await getDetalleEstudiante(idObjetivo, estudianteId);
+      setDetalleEstudiante(data);
+    } catch (error) {
+      if (error.message === "El estudiante ya no se encuentra asociado a esta cuenta") {
+        // Excepción: no se abre el detalle; se redirige a la lista ya actualizada
+        setAvisoLista(error.message);
+        setEstudiantesAsociados((prev) => prev.filter((e) => e.Estudiante_Id !== estudianteId));
+      } else {
+        setErrorDetalle(error.message || "No fue posible cargar la ficha estudiantil, reintente más tarde");
+      }
+    } finally {
+      setCargandoDetalle(false);
+    }
+  };
+
+  const cerrarDetalleEstudiante = () => {
+    setDetalleEstudiante(null);
+    setErrorDetalle("");
+  };
 
   const recargarDatos = () => {
     apiFetch(`/api/usuarios/${idObjetivo}`)
@@ -121,7 +244,96 @@ function Perfil() {
     }
   };
 
+  // CU19: editar datos personales del propio perfil
+  const abrirEdicionPerfil = () => {
+    setFormPerfil({
+      correo: datos?.Administrador_Correo_Institucional || datos?.Docente_Correo_Institucional || datos?.Apoderado_Correo_Natural || "",
+      telefono: datos?.Usuario_Telefono || "",
+      direccion: datos?.Apoderado_Direccion || "",
+    });
+    setMsgExitoPerfil("");
+    setMsgErrorPerfil("");
+    setEditandoPerfil(true);
+  };
+
+  const cancelarEdicionPerfil = () => {
+    setEditandoPerfil(false);
+    setMsgErrorPerfil("");
+    setMsgExitoPerfil("");
+  };
+
+  const handleGuardarPerfil = async (e) => {
+    e.preventDefault();
+    setMsgErrorPerfil("");
+    setMsgExitoPerfil("");
+    setGuardandoPerfil(true);
+    try {
+      const tieneCorreo = !!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado);
+      const payload = { telefono: formPerfil.telefono };
+      if (tieneCorreo) payload.correo = formPerfil.correo;
+      if (datos?.Es_Apoderado) payload.direccion = formPerfil.direccion;
+
+      const data = await editarPerfilPropio(payload);
+      setMsgExitoPerfil(data.mensaje || "Cambios guardados correctamente");
+      recargarDatos();
+    } catch (error) {
+      // CU19 - Excepciones "Formato de datos incorrecto" y "Correo ya registrado"
+      setMsgErrorPerfil(error.message || "No fue posible actualizar tu perfil, reintente más tarde");
+    } finally {
+      setGuardandoPerfil(false);
+    }
+  };
+
+  // CU20: editar fotografía de perfil mediante carga de archivo
+  const handleSeleccionArchivo = (e) => {
+    const archivo = e.target.files?.[0];
+    setMsgExitoFoto("");
+    setMsgErrorFoto("");
+    if (!archivo) {
+      // CU20 - Excepción "Cancela selección": no se eligió ningún archivo, se mantiene la fotografía actual
+      setArchivoFoto(null);
+      setPreviewFoto("");
+      return;
+    }
+    setArchivoFoto(archivo);
+    setPreviewFoto(URL.createObjectURL(archivo));
+  };
+
+  const cancelarSeleccionFoto = () => {
+    setArchivoFoto(null);
+    setPreviewFoto("");
+    setMsgExitoFoto("");
+    setMsgErrorFoto("");
+  };
+
+  const handleSubirFoto = async (e) => {
+    e.preventDefault();
+    if (!archivoFoto) return;
+    setMsgExitoFoto("");
+    setMsgErrorFoto("");
+    setSubiendoFoto(true);
+    try {
+      const data = await actualizarFotoPerfil(archivoFoto);
+      setMsgExitoFoto(data.mensaje || "Fotografía actualizada correctamente");
+      setArchivoFoto(null);
+      setPreviewFoto("");
+      recargarDatos();
+    } catch (error) {
+      // CU20 - Excepciones "Formato o tamaño inválido" y "Error técnico de almacenamiento"
+      setMsgErrorFoto(error.message || "No fue posible guardar la fotografía, reintente más tarde");
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
+
   if (cargando) return <div className="perfil-container"><p>Cargando perfil...</p></div>;
+  if (errorPerfil) {
+    return (
+      <div className="perfil-container">
+        <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorPerfil}</div>
+      </div>
+    );
+  }
   if (!datos) return <div className="perfil-container"><p>No se pudo cargar el perfil.</p></div>;
 
   const roles = getRoles();
@@ -181,6 +393,12 @@ function Perfil() {
                 : <span>Sin roles asignados</span>}
             </div>
           </div>
+          {/* CU17 - Excepción "Sin información complementaria": el usuario no tiene ningún rol con datos adicionales */}
+          {roles.length === 0 && (
+            <div className="usuarios-empty" style={{ gridColumn: "1 / -1" }}>
+              No existe información complementaria disponible
+            </div>
+          )}
           {datos?.Es_Docente ? (
             <>
               <div className="perfil-campo">
@@ -201,6 +419,165 @@ function Perfil() {
           ) : null}
         </div>
       </div>
+
+      {!!datos?.Es_Docente && (
+        <div className="perfil-card">
+          <h2>{esPerfilPropio ? "Mis cursos y asignaturas" : "Cursos y asignaturas"}</h2>
+
+          {cargandoAsignaciones && <p>Cargando asignaciones académicas...</p>}
+
+          {!cargandoAsignaciones && errorAsignaciones && (
+            <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorAsignaciones}</div>
+          )}
+
+          {!cargandoAsignaciones && !errorAsignaciones && mensajeAsignaciones && (
+            <div className="usuarios-empty">{mensajeAsignaciones}</div>
+          )}
+
+          {!cargandoAsignaciones && !errorAsignaciones && !mensajeAsignaciones && (
+            <>
+              <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
+                <select
+                  className="usuarios-select"
+                  value={ordenAsignaciones}
+                  onChange={(e) => setOrdenAsignaciones(e.target.value)}
+                >
+                  <option value="curso">Ordenar por curso</option>
+                  <option value="asignatura">Ordenar por asignatura</option>
+                  <option value="horas">Ordenar por carga horaria</option>
+                  <option value="estado">Ordenar por estado de vigencia</option>
+                </select>
+              </div>
+
+              <table className="tabla-usuarios">
+                <thead>
+                  <tr>
+                    <th>Nivel Educativo</th>
+                    <th>Curso</th>
+                    <th>Asignatura</th>
+                    <th>Bloques Programados</th>
+                    <th>Horas Semanales</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...asignaciones]
+                    .sort((a, b) => {
+                      if (ordenAsignaciones === "asignatura") return a.asignatura.localeCompare(b.asignatura);
+                      if (ordenAsignaciones === "horas") return b.horasSemanales - a.horasSemanales;
+                      if (ordenAsignaciones === "estado") return a.estadoVigencia.localeCompare(b.estadoVigencia);
+                      return a.curso.localeCompare(b.curso);
+                    })
+                    .map((asig) => (
+                      <tr key={`${asig.cursoId}-${asig.asignaturaId}`}>
+                        <td>{asig.nivelEducativo}</td>
+                        <td>{asig.curso}</td>
+                        <td>{asig.asignatura}</td>
+                        <td>{asig.bloques.length}</td>
+                        <td>{asig.horasSemanales}</td>
+                        <td>
+                          {asig.estadoVigencia === "Activo" ? (
+                            <span className="badge-activo">Activo</span>
+                          ) : (
+                            <span className="badge-inactivo">Suspendido</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+
+      {!!datos?.Es_Apoderado && (
+        <div className="perfil-card">
+          <h2>{esPerfilPropio ? "Mis estudiantes asociados" : "Estudiantes asociados"}</h2>
+
+          {cargandoEstudiantes && <p>Cargando estudiantes asociados...</p>}
+
+          {!cargandoEstudiantes && errorEstudiantes && (
+            <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorEstudiantes}</div>
+          )}
+
+          {avisoLista && (
+            <div className="usuarios-empty" style={{ marginBottom: "12px" }}>
+              {avisoLista}
+              <button
+                type="button"
+                className="btn-roles"
+                style={{ marginLeft: "10px", fontSize: "0.8rem", padding: "2px 8px" }}
+                onClick={() => setAvisoLista("")}
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
+
+          {!cargandoEstudiantes && !errorEstudiantes && mensajeEstudiantes && (
+            <div className="usuarios-empty">{mensajeEstudiantes}</div>
+          )}
+
+          {!cargandoEstudiantes && !errorEstudiantes && !mensajeEstudiantes && (
+            <>
+              <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
+                <select
+                  className="usuarios-select"
+                  value={ordenEstudiantes}
+                  onChange={(e) => setOrdenEstudiantes(e.target.value)}
+                >
+                  <option value="nombre">Ordenar por nombre</option>
+                  <option value="curso">Ordenar por curso</option>
+                </select>
+              </div>
+
+              <table className="tabla-usuarios">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>RUT</th>
+                    <th>Curso</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...estudiantesAsociados]
+                    .sort((a, b) =>
+                      ordenEstudiantes === "curso"
+                        ? a.Curso_Nombre.localeCompare(b.Curso_Nombre)
+                        : a.Estudiante_Nombre_Completo.localeCompare(b.Estudiante_Nombre_Completo)
+                    )
+                    .map((est) => (
+                      <tr key={est.Estudiante_Id}>
+                        <td>{est.Estudiante_Nombre_Completo}</td>
+                        <td>{est.Estudiante_RUT}</td>
+                        <td>{est.Curso_Nombre}</td>
+                        <td>
+                          {est.Estudiante_Estado_Academico === "Regular" ? (
+                            <span className="badge-activo">Regular</span>
+                          ) : (
+                            <span className="badge-inactivo">{est.Estudiante_Estado_Academico}</span>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-roles"
+                            onClick={() => abrirDetalleEstudiante(est.Estudiante_Id)}
+                          >
+                            Ver detalle
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
 
       {esPerfilPropio && (
         <div className="perfil-card">
@@ -249,10 +626,164 @@ function Perfil() {
         </div>
       )}
 
+      {/* CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección) */}
+      {esPerfilPropio && (
+        <div className="perfil-card">
+          <h2>Editar Perfil</h2>
+          {!editandoPerfil ? (
+            <button className="btn-roles" onClick={abrirEdicionPerfil}>Editar perfil</button>
+          ) : (
+            <form className="cambiar-pwd-form" onSubmit={handleGuardarPerfil}>
+              <div className="campo-pwd">
+                <label>Nombre Completo</label>
+                <input value={datos?.Usuario_Nombre_Completo || ""} readOnly disabled />
+              </div>
+              <div className="campo-pwd">
+                <label>RUT</label>
+                <input value={datos?.Usuario_RUT || ""} readOnly disabled />
+              </div>
+              {!!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado) && (
+                <div className="campo-pwd">
+                  <label htmlFor="correoPerfil">Correo</label>
+                  <input
+                    id="correoPerfil"
+                    value={formPerfil.correo}
+                    onChange={(e) => setFormPerfil((f) => ({ ...f, correo: e.target.value }))}
+                  />
+                </div>
+              )}
+              <div className="campo-pwd">
+                <label htmlFor="telefonoPerfil">Teléfono</label>
+                <input
+                  id="telefonoPerfil"
+                  value={formPerfil.telefono}
+                  onChange={(e) => setFormPerfil((f) => ({ ...f, telefono: e.target.value }))}
+                />
+              </div>
+              {!!datos?.Es_Apoderado && (
+                <div className="campo-pwd">
+                  <label htmlFor="direccionPerfil">Dirección</label>
+                  <input
+                    id="direccionPerfil"
+                    value={formPerfil.direccion}
+                    onChange={(e) => setFormPerfil((f) => ({ ...f, direccion: e.target.value }))}
+                  />
+                </div>
+              )}
+
+              {msgExitoPerfil && <div className="msg-exito">{msgExitoPerfil}</div>}
+              {msgErrorPerfil && <div className="msg-error-form">{msgErrorPerfil}</div>}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                <button type="submit" className="btn-primario" disabled={guardandoPerfil}>
+                  {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button type="button" className="btn-desactivar" onClick={cancelarEdicionPerfil} disabled={guardandoPerfil}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* CU20: editar fotografía de perfil mediante carga de archivo */}
+      {esPerfilPropio && (
+        <div className="perfil-card">
+          <h2>Fotografía de Perfil</h2>
+          <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+            <img
+              src={previewFoto || datos?.Usuario_Foto_Perfil || FOTO_PERFIL_PLACEHOLDER}
+              alt="Fotografía de perfil"
+              style={{ width: "96px", height: "96px", borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
+            />
+            <form style={{ display: "flex", flexDirection: "column", gap: "10px" }} onSubmit={handleSubirFoto}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleSeleccionArchivo}
+              />
+              {msgExitoFoto && <div className="msg-exito">{msgExitoFoto}</div>}
+              {msgErrorFoto && <div className="msg-error-form">{msgErrorFoto}</div>}
+              {archivoFoto && (
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button type="submit" className="btn-primario" disabled={subiendoFoto}>
+                    {subiendoFoto ? "Guardando..." : "Guardar fotografía"}
+                  </button>
+                  <button type="button" className="btn-desactivar" onClick={cancelarSeleccionFoto} disabled={subiendoFoto}>
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
       {puedeEditar && (
         <div className="perfil-card">
           <h2>Editar Datos</h2>
           <FormEditarUsuario datos={datos} onGuardado={recargarDatos} />
+        </div>
+      )}
+
+      {/* CU41: Detalle de estudiante desde la lista de asociados — modal de solo lectura */}
+      {(cargandoDetalle || errorDetalle || detalleEstudiante) && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+          }}
+        >
+          <div className="form-card" style={{ width: "420px", maxWidth: "95vw" }}>
+            <h2 style={{ marginBottom: "16px" }}>Ficha del estudiante</h2>
+
+            {cargandoDetalle && <p>Cargando ficha estudiantil...</p>}
+
+            {!cargandoDetalle && errorDetalle && (
+              <p style={{ color: "#dc2626", marginBottom: "16px" }}>{errorDetalle}</p>
+            )}
+
+            {!cargandoDetalle && detalleEstudiante && (
+              <div className="perfil-grid" style={{ marginBottom: "16px" }}>
+                <div className="perfil-campo">
+                  <label>Nombre Completo</label>
+                  <span>{detalleEstudiante.Estudiante_Nombre_Completo}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>RUT</label>
+                  <span>{detalleEstudiante.Estudiante_RUT}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>Curso</label>
+                  <span>{detalleEstudiante.Curso_Nombre}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>Estado Académico</label>
+                  <span>
+                    {detalleEstudiante.Estudiante_Estado_Academico === "Regular" ? (
+                      <span className="badge-activo">Regular</span>
+                    ) : (
+                      <span className="badge-inactivo">{detalleEstudiante.Estudiante_Estado_Academico}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Opción adicional para Admin/SuperAdmin: gestionar la asociación (CU39) */}
+            {!cargandoDetalle && detalleEstudiante && (usuario?.roles || []).includes("Administrador") && (
+              <p style={{ marginBottom: "16px" }}>
+                <Link to="/apoderados" onClick={cerrarDetalleEstudiante}>
+                  Gestionar asociación de este estudiante →
+                </Link>
+              </p>
+            )}
+
+            <button type="button" className="btn-roles" onClick={cerrarDetalleEstudiante}>
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 

@@ -153,11 +153,12 @@ const updateBloque = async (req, res) => {
   const { id } = req.params;
   const { Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada, Bloque_Horario_Tipo } = req.body;
 
+  // CU49 - Excepción "Datos inválidos o fuera de rango"
   if (!Bloque_Horario_Hora_Inicio || !Bloque_Horario_Hora_Fin || !Bloque_Horario_Jornada || !Bloque_Horario_Tipo) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
   }
   if (Bloque_Horario_Hora_Inicio >= Bloque_Horario_Hora_Fin) {
-    return res.status(400).json({ error: 'La hora de inicio debe ser anterior a la hora de fin' });
+    return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
   }
 
   try {
@@ -171,18 +172,17 @@ const updateBloque = async (req, res) => {
 
     if (Bloque_Horario_Hora_Inicio < p.Parametro_Institucional_Inicio_Jornada ||
         Bloque_Horario_Hora_Fin    > p.Parametro_Institucional_Fin_Jornada) {
-      return res.status(400).json({
-        error: `El bloque debe estar dentro del rango institucional: ${p.Parametro_Institucional_Inicio_Jornada.slice(0,5)} – ${p.Parametro_Institucional_Fin_Jornada.slice(0,5)}`
-      });
+      return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
     }
 
+    // CU49 - Excepción "Conflicto con bloque existente"
     const [conflicto] = await pool.execute(
       `SELECT Bloque_Horario_Id FROM bloque_horario
        WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?
          AND Bloque_Horario_Id != ?`,
       [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, id]
     );
-    if (conflicto.length > 0) return res.status(409).json({ error: 'El horario se superpone con un bloque existente' });
+    if (conflicto.length > 0) return res.status(409).json({ error: 'Conflicto con bloque existente' });
 
     await pool.execute(
       `UPDATE bloque_horario SET
@@ -203,11 +203,12 @@ const updateBloque = async (req, res) => {
 const deleteBloque = async (req, res) => {
   const { id } = req.params;
   try {
+    // CU50 - Excepción "Bloque posee asignaciones activas"
     const [enHorario] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ? LIMIT 1`, [id]
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ? AND Horario_Asignatura_Estado = 'Activo' LIMIT 1`, [id]
     );
     if (enHorario.length > 0) {
-      return res.status(409).json({ error: 'No se puede eliminar: el bloque está asignado a un horario de curso' });
+      return res.status(409).json({ error: 'El bloque posee asignaciones activas' });
     }
 
     const [enEvento] = await pool.execute(
@@ -217,15 +218,17 @@ const deleteBloque = async (req, res) => {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está asociado a un evento institucional' });
     }
 
+    // CU50 - Excepción "Bloque horario no existe"
     const [result] = await pool.execute(`DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?`, [id]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Bloque no encontrado' });
-    res.json({ mensaje: 'Bloque eliminado correctamente' });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'El bloque horario no existe' });
+    res.json({ mensaje: 'Bloque eliminado exitosamente' });
   } catch (err) {
     if (err.code === 'ER_ROW_IS_REFERENCED_2') {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está referenciado por otros registros' });
     }
+    // CU50 - Excepción "Error durante la eliminación en BD"
     console.error('deleteBloque:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'Ocurrió un error al eliminar' });
   }
 };
 
@@ -313,18 +316,28 @@ const getBloquesAfectadosPorEvento = async (req, res) => {
 const createEvento = async (req, res) => {
   const { Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases } = req.body;
 
-  if (!Evento_Institucional_Nombre || !Evento_Institucional_Fecha || !Evento_Institucional_Descripcion || !Evento_Institucional_Impacto_Clases) {
-    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
-  }
-
   const impactosValidos = ['Sin impacto', 'Salida anticipada', 'Suspensión total'];
-  if (!impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
-    return res.status(400).json({ error: 'Impacto en clases inválido' });
+
+  // CU70 - Excepción "Datos incompletos o inválidos"
+  if (!Evento_Institucional_Nombre || !Evento_Institucional_Fecha || !Evento_Institucional_Descripcion ||
+      !Evento_Institucional_Impacto_Clases || !impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
+    return res.status(400).json({ error: 'Datos incompletos o inválidos en el formulario' });
   }
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    // CU70 - Excepción "Conflicto con planificación o bloque inexistente":
+    // no se permite más de un evento institucional registrado para la misma fecha
+    const [conflictos] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Fecha = ?`,
+      [Evento_Institucional_Fecha]
+    );
+    if (conflictos.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'El evento genera conflictos con la planificación' });
+    }
 
     const [result] = await conn.execute(
       `INSERT INTO evento_institucional
@@ -339,7 +352,7 @@ const createEvento = async (req, res) => {
 
     await conn.commit();
     res.status(201).json({
-      mensaje: 'Evento creado correctamente',
+      mensaje: 'Evento registrado correctamente',
       id: eventoId,
       bloques_afectados: bloquesAfectados,
     });
@@ -370,7 +383,26 @@ const updateEvento = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    const [result] = await conn.execute(
+    // CU71 - Excepción "Evento no existe"
+    const [existe] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Id = ?`, [id]
+    );
+    if (existe.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'El evento no existe o fue eliminado' });
+    }
+
+    // CU71 - Excepción "Cambios generan conflictos": otro evento ya registrado en la misma fecha
+    const [conflictos] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Fecha = ? AND Evento_Institucional_Id != ?`,
+      [Evento_Institucional_Fecha, id]
+    );
+    if (conflictos.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'El evento genera conflictos con la planificación' });
+    }
+
+    await conn.execute(
       `UPDATE evento_institucional SET
          Evento_Institucional_Nombre        = ?,
          Evento_Institucional_Fecha         = ?,
@@ -379,11 +411,6 @@ const updateEvento = async (req, res) => {
        WHERE Evento_Institucional_Id = ?`,
       [Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases, id]
     );
-
-    if (result.affectedRows === 0) {
-      await conn.rollback();
-      return res.status(404).json({ error: 'Evento no encontrado' });
-    }
 
     // Excepción (CU71): el impacto pudo haber cambiado → se recalculan
     // los bloques afectados desde cero (se descartan los previos).
@@ -408,14 +435,16 @@ const updateEvento = async (req, res) => {
 const deleteEvento = async (req, res) => {
   const { id } = req.params;
   try {
+    // CU72 - Excepción "Evento no existe"
     const [result] = await pool.execute(
       `DELETE FROM evento_institucional WHERE Evento_Institucional_Id = ?`, [id]
     );
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Evento no encontrado' });
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'El evento no existe o ya fue eliminado' });
     res.json({ mensaje: 'Evento eliminado correctamente. Los bloques afectados fueron liberados.' });
   } catch (err) {
+    // CU72 - Excepción "Error actualizando planificación"
     console.error('deleteEvento:', err);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ error: 'No fue posible completar la eliminación solicitada' });
   }
 };
 

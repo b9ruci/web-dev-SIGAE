@@ -253,22 +253,31 @@ async function responder(res, formato, payload) {
 // GET /api/horarios/exportar/maestro?formato=pdf|excel|png
 const exportarMaestro = async (req, res) => {
   const formato = (req.query.formato || 'pdf').toLowerCase();
+
+  // CU60 - Excepción "Error base de datos": falla la consulta antes de llegar a generar el archivo
+  let filas;
   try {
-    const filas = await fetchMaestro();
+    filas = await fetchMaestro();
+  } catch (error) {
+    console.error('Error en exportarMaestro (BD):', error);
+    return res.status(500).json({ error: 'Ocurrió un error en la base de datos al generar el horario maestro' });
+  }
 
-    // Excepción 1 (CU60): no existe horario maestro disponible para exportar
-    if (filas.length === 0) {
-      return res.status(404).json({ error: 'No existe horario maestro disponible para exportar' });
-    }
+  // CU60 - Excepción "No existe horario"
+  if (filas.length === 0) {
+    return res.status(404).json({ error: 'No existe horario maestro disponible' });
+  }
 
-    const columnas = [
-      { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
-      { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
-      { key: 'curso',      label: 'Curso',      value: (f) => f.curso,                                      width: 18 },
-      { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 20 },
-      { key: 'docente',    label: 'Docente',    value: (f) => f.docente || '—',                             width: 26 },
-    ];
+  const columnas = [
+    { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
+    { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
+    { key: 'curso',      label: 'Curso',      value: (f) => f.curso,                                      width: 18 },
+    { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 20 },
+    { key: 'docente',    label: 'Docente',    value: (f) => f.docente || '—',                             width: 26 },
+  ];
 
+  // CU60 - Excepción "Error en la generación del archivo": la descarga se cancela (no se envía archivo)
+  try {
     await responder(res, formato, {
       titulo: 'Horario Maestro Institucional — SIGAE',
       columnas,
@@ -276,33 +285,56 @@ const exportarMaestro = async (req, res) => {
       filename: 'horario_maestro',
     });
   } catch (error) {
-    console.error('Error en exportarMaestro:', error);
-    if (!res.headersSent) res.status(500).json({ error: 'Error al generar el archivo de exportación' });
+    console.error('Error en exportarMaestro (archivo):', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Ocurrió un error al generar el archivo. La descarga fue cancelada' });
   }
 };
 
 // GET /api/horarios/exportar/docente/:usuarioId?formato=pdf|excel|png
+// CU61: actor es Super Administrador o Administrador; se extiende como
+// autoservicio para que un Docente exporte únicamente su propio horario.
 const exportarPorDocente = async (req, res) => {
   const { usuarioId } = req.params;
   const formato = (req.query.formato || 'pdf').toLowerCase();
+  const { roles, id: solicitanteId } = req.user;
+  const esAdmin = roles.includes('Administrador');
+  const esDocente = roles.includes('Docente') && !esAdmin;
+
+  if (!esAdmin && !(esDocente && Number(usuarioId) === solicitanteId)) {
+    return res.status(403).json({ error: 'No tienes permiso para exportar este horario' });
+  }
+
+  // CU61 - Excepción "No se selecciona docente": validado antes de tocar la BD
+  if (!usuarioId || usuarioId === 'null' || usuarioId === 'undefined' || isNaN(Number(usuarioId))) {
+    return res.status(400).json({ error: 'Debes seleccionar un docente para exportar su horario' });
+  }
+
+  // CU61 - Excepción "Error de base de datos"
+  let docente, filas;
   try {
-    const { docente, filas } = await fetchPorDocente(usuarioId);
+    ({ docente, filas } = await fetchPorDocente(usuarioId));
+  } catch (error) {
+    console.error('Error en exportarPorDocente (BD):', error);
+    return res.status(500).json({ error: 'Ocurrió un error en la base de datos al generar el horario del docente' });
+  }
 
-    if (!docente) {
-      return res.status(404).json({ error: 'Docente no encontrado' });
-    }
-    // Excepción 1 (CU61): el docente no posee asignaciones horarias
-    if (filas.length === 0) {
-      return res.status(404).json({ error: 'El docente no posee asignaciones horarias registradas' });
-    }
+  if (!docente) {
+    return res.status(404).json({ error: 'Docente no encontrado' });
+  }
+  // CU61 - Excepción "Docente sin horario"
+  if (filas.length === 0) {
+    return res.status(404).json({ error: 'El docente no posee asignaciones horarias' });
+  }
 
-    const columnas = [
-      { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
-      { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
-      { key: 'curso',      label: 'Curso',      value: (f) => f.curso,                                      width: 18 },
-      { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 22 },
-    ];
+  const columnas = [
+    { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
+    { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
+    { key: 'curso',      label: 'Curso',      value: (f) => f.curso,                                      width: 18 },
+    { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 22 },
+  ];
 
+  // CU61 - Excepción "Error al generar archivo"
+  try {
     await responder(res, formato, {
       titulo: `Horario de ${docente} — SIGAE`,
       columnas,
@@ -310,8 +342,8 @@ const exportarPorDocente = async (req, res) => {
       filename: `horario_docente_${usuarioId}`,
     });
   } catch (error) {
-    console.error('Error en exportarPorDocente:', error);
-    if (!res.headersSent) res.status(500).json({ error: 'Error al generar el archivo de exportación' });
+    console.error('Error en exportarPorDocente (archivo):', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Ocurrió un error al generar el archivo del horario' });
   }
 };
 
@@ -319,24 +351,42 @@ const exportarPorDocente = async (req, res) => {
 const exportarPorCurso = async (req, res) => {
   const { cursoId } = req.params;
   const formato = (req.query.formato || 'pdf').toLowerCase();
+
+  // CU62 - Excepciones "No existen cursos" / "No se selecciona curso": validado antes de tocar el horario
+  if (!cursoId || cursoId === 'null' || cursoId === 'undefined' || isNaN(Number(cursoId))) {
+    const [existeAlguno] = await pool.execute('SELECT Curso_Id FROM curso LIMIT 1');
+    if (existeAlguno.length === 0) {
+      return res.status(404).json({ error: 'No existen cursos' });
+    }
+    return res.status(400).json({ error: 'No se selecciona curso' });
+  }
+
+  // CU62 - Excepción "Error de base de datos"
+  let curso, filas;
   try {
-    const { curso, filas } = await fetchPorCurso(cursoId);
+    ({ curso, filas } = await fetchPorCurso(cursoId));
+  } catch (error) {
+    console.error('Error en exportarPorCurso (BD):', error);
+    return res.status(500).json({ error: 'Error en base de datos' });
+  }
 
-    if (!curso) {
-      return res.status(404).json({ error: 'Curso no encontrado' });
-    }
-    // Excepción 1 (CU62): el curso no posee asignaciones horarias
-    if (filas.length === 0) {
-      return res.status(404).json({ error: 'El curso no posee asignaciones horarias registradas' });
-    }
+  if (!curso) {
+    return res.status(404).json({ error: 'Curso no encontrado' });
+  }
+  // CU62 - Excepción "Curso sin horario"
+  if (filas.length === 0) {
+    return res.status(404).json({ error: 'El curso no posee asignaciones horarias' });
+  }
 
-    const columnas = [
-      { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
-      { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
-      { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 20 },
-      { key: 'docente',    label: 'Docente',    value: (f) => f.docente || '—',                             width: 26 },
-    ];
+  const columnas = [
+    { key: 'dia',        label: 'Día',        value: (f) => f.dia,                                        width: 12 },
+    { key: 'hora',       label: 'Horario',    value: (f) => `${hhmm(f.hora_inicio)} - ${hhmm(f.hora_fin)}`, width: 16 },
+    { key: 'asignatura', label: 'Asignatura', value: (f) => f.asignatura,                                 width: 20 },
+    { key: 'docente',    label: 'Docente',    value: (f) => f.docente || '—',                             width: 26 },
+  ];
 
+  // CU62 - Excepción "Error al generar archivo"
+  try {
     await responder(res, formato, {
       titulo: `Horario de ${curso} — SIGAE`,
       columnas,
@@ -344,8 +394,8 @@ const exportarPorCurso = async (req, res) => {
       filename: `horario_curso_${cursoId}`,
     });
   } catch (error) {
-    console.error('Error en exportarPorCurso:', error);
-    if (!res.headersSent) res.status(500).json({ error: 'Error al generar el archivo de exportación' });
+    console.error('Error en exportarPorCurso (archivo):', error);
+    if (!res.headersSent) res.status(500).json({ error: 'Error en la generación del archivo' });
   }
 };
 

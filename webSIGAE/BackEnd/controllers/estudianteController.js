@@ -5,14 +5,177 @@
 const db = require('../config/db');
 const { validarRut } = require('../middleware/validation');
 
-// Obtener todos los estudiantes
+// CU34 y CU35: Visualizar listado de estudiantes, con filtros opcionales por curso y estado académico
+// Endpoint: GET /api/estudiantes?curso=...&estado=...
 const getEstudiantes = async (req, res) => {
+  const { curso, estado } = req.query;
+  const hayFiltros = (curso && curso.trim() !== '') || (estado && estado.trim() !== '');
+
   try {
-    const [rows] = await db.query('SELECT * FROM estudiante');
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esDocente = roles.includes('Docente') && !esAdmin;
+
+    // Actor(es) del CU34: Super Administrador, Administrador, Docente (no Apoderado)
+    if (!esAdmin && !esDocente) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    let rows;
+    if (esDocente) {
+      // Un Docente solo ve estudiantes de los cursos donde tiene asignaturas asignadas
+      const [cursos] = await db.query(
+        'SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?',
+        [userId]
+      );
+
+      // Excepción: Docente sin cursos asignados
+      if (cursos.length === 0) {
+        return res.status(200).json({
+          mensaje: 'No existen estudiantes disponibles para su perfil',
+          estudiantes: [],
+        });
+      }
+
+      const cursoIds = cursos.map((c) => c.Curso_Id);
+      let sql = `
+        SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+        FROM estudiante e
+        JOIN curso c ON c.Curso_Id = e.Curso_Id
+        WHERE e.Curso_Id IN (?)
+      `;
+      const params = [cursoIds];
+
+      // Filtros opcionales (CU35) — un Docente no puede filtrar fuera de sus propios cursos
+      if (curso && curso.trim() !== '') {
+        sql += ' AND c.Curso_Nombre = ?';
+        params.push(curso.trim());
+      }
+      if (estado && estado.trim() !== '') {
+        sql += ' AND e.Estudiante_Estado_Academico = ?';
+        params.push(estado.trim());
+      }
+
+      sql += ' ORDER BY e.Estudiante_Nombre_Completo ASC';
+      [rows] = await db.query(sql, params);
+    } else {
+      let sql = `
+        SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+        FROM estudiante e
+        JOIN curso c ON c.Curso_Id = e.Curso_Id
+        WHERE 1 = 1
+      `;
+      const params = [];
+
+      // Filtros opcionales (CU35)
+      if (curso && curso.trim() !== '') {
+        sql += ' AND c.Curso_Nombre = ?';
+        params.push(curso.trim());
+      }
+      if (estado && estado.trim() !== '') {
+        sql += ' AND e.Estudiante_Estado_Academico = ?';
+        params.push(estado.trim());
+      }
+
+      sql += ' ORDER BY e.Estudiante_Nombre_Completo ASC';
+      [rows] = await db.query(sql, params);
+    }
+
+    if (rows.length === 0) {
+      // CU34 (sin filtros): no existen estudiantes registrados en el sistema.
+      // CU35/CU37 (con filtros): ninguno cumple las condiciones seleccionadas.
+      return res.status(200).json({
+        mensaje: hayFiltros
+          ? 'No existen estudiantes que cumplan las condiciones'
+          : 'No hay estudiantes registrados',
+        estudiantes: [],
+      });
+    }
+
     res.json(rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ mensaje: 'Error al obtener estudiantes' });
+    // CU37: con filtros aplicados, mensaje distinto al de CU34 sin filtros
+    res.status(500).json({
+      mensaje: hayFiltros
+        ? 'No fue posible completar la consulta, reintente más tarde'
+        : 'No fue posible recuperar los registros',
+    });
+  }
+};
+
+// CU36: Buscar estudiantes por nombre completo o RUT
+// Endpoint: GET /api/estudiantes/buscar?criterio=...
+const buscarEstudiantes = async (req, res) => {
+  const { roles, id: userId } = req.user;
+  const esAdmin = roles.includes('Administrador');
+  const esDocente = roles.includes('Docente') && !esAdmin;
+
+  // Actor(es) del CU36: Super Administrador, Administrador, Docente (no Apoderado)
+  if (!esAdmin && !esDocente) {
+    return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+  }
+
+  // CU36 - Excepción "Criterio vacío o solo espacios"
+  const criterio = (req.query.criterio || '').trim();
+  if (!criterio) {
+    return res.status(400).json({ mensaje: 'Ingrese al menos un carácter para realizar la búsqueda' });
+  }
+
+  try {
+    let rows;
+    if (esDocente) {
+      // Un Docente solo puede buscar entre estudiantes de sus propios cursos
+      const [cursos] = await db.query(
+        'SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?',
+        [userId]
+      );
+
+      // CU36 - Excepción "Docente sin cursos asignados"
+      if (cursos.length === 0) {
+        return res.status(200).json({
+          mensaje: 'No existen estudiantes disponibles para su perfil',
+          estudiantes: [],
+        });
+      }
+
+      const cursoIds = cursos.map((c) => c.Curso_Id);
+      [rows] = await db.query(
+        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+         WHERE e.Curso_Id IN (?)
+           AND (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
+         ORDER BY e.Estudiante_Nombre_Completo ASC`,
+        [cursoIds, `%${criterio}%`, `%${criterio}%`]
+      );
+    } else {
+      [rows] = await db.query(
+        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+         WHERE (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
+         ORDER BY e.Estudiante_Nombre_Completo ASC`,
+        [`%${criterio}%`, `%${criterio}%`]
+      );
+    }
+
+    // CU36 - Excepción "Sin coincidencias"
+    if (rows.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No se encontraron estudiantes con el criterio ingresado',
+        estudiantes: [],
+      });
+    }
+
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'No fue posible completar la consulta, reintente más tarde' });
   }
 };
 
@@ -101,7 +264,7 @@ const CAMPOS_EDITABLES_ESTUDIANTE = new Set([
   'Apoderado_Usuario_Id',
 ]);
 
-// Actualizar ficha estudiantil
+// CU38: Editar curso asociado y estado académico (y otros campos editables) de un estudiante
 const updateEstudiante = async (req, res) => {
   const { id } = req.params;
   const datos = { ...req.body };
@@ -116,9 +279,29 @@ const updateEstudiante = async (req, res) => {
   }
 
   try {
-    const [existe] = await db.query('SELECT Estudiante_Id FROM estudiante WHERE Estudiante_Id = ?', [id]);
+    const [existe] = await db.query('SELECT * FROM estudiante WHERE Estudiante_Id = ?', [id]);
     if (existe.length === 0) {
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
+    }
+    const actual = existe[0];
+
+    // CU38 - Excepción "Curso no existe o inactivo" (solo si el curso realmente cambia)
+    if (
+      Object.prototype.hasOwnProperty.call(datosFiltrados, 'Curso_Id') &&
+      String(datosFiltrados.Curso_Id) !== String(actual.Curso_Id)
+    ) {
+      const [curso] = await db.query('SELECT Curso_Id FROM curso WHERE Curso_Id = ?', [datosFiltrados.Curso_Id]);
+      if (curso.length === 0) {
+        return res.status(400).json({ mensaje: 'El curso seleccionado no existe o se encuentra inactivo' });
+      }
+    }
+
+    // CU38 - Excepción "Sin modificaciones"
+    const hayCambios = Object.entries(datosFiltrados).some(
+      ([campo, valor]) => String(actual[campo] ?? '') !== String(valor ?? '')
+    );
+    if (!hayCambios) {
+      return res.status(200).json({ mensaje: 'No existen cambios para actualizar' });
     }
 
     const campos  = Object.keys(datosFiltrados).map(c => `${c} = ?`);
@@ -130,7 +313,7 @@ const updateEstudiante = async (req, res) => {
     );
 
     const [actualizado] = await db.query('SELECT * FROM estudiante WHERE Estudiante_Id = ?', [id]);
-    res.json(actualizado[0]);
+    res.json({ mensaje: 'Ficha actualizada correctamente', estudiante: actualizado[0] });
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensaje: 'Error al actualizar el estudiante' });
@@ -292,7 +475,7 @@ const eliminarTodasAsociacionesApoderado = async (req, res) => {
 
     if (asociados.length === 0) {
       return res.status(400).json({
-        mensaje: 'El apoderado seleccionado no posee asociaciones activas con estudiantes',
+        mensaje: 'No existen asociaciones disponibles para eliminar',
       });
     }
 
@@ -331,7 +514,7 @@ const eliminarAsociacionEspecifica = async (req, res) => {
     // Excepción 1: la asociación ya no se encuentra activa
     if (!estudiante[0].Apoderado_Usuario_Id) {
       return res.status(400).json({
-        mensaje: 'La asociación seleccionada ya no se encuentra disponible o activa',
+        mensaje: 'No fue posible completar la eliminación',
       });
     }
 
@@ -341,7 +524,8 @@ const eliminarAsociacionEspecifica = async (req, res) => {
     );
 
     return res.json({
-      mensaje: `Asociación eliminada exitosamente para el estudiante ${estudiante[0].Estudiante_Nombre_Completo}`,
+      mensaje: 'Asociación específica eliminada exitosamente',
+      estudiante: estudiante[0].Estudiante_Nombre_Completo,
     });
   } catch (error) {
     console.error(error);
@@ -349,8 +533,175 @@ const eliminarAsociacionEspecifica = async (req, res) => {
   }
 };
 
+// CU40: Visualizar estudiantes asociados a un apoderado
+// GET /api/estudiantes/apoderado/:apoderadoId/asociados
+const getEstudiantesAsociados = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esApoderadoSinAdmin = roles.includes('Apoderado') && !esAdmin;
+
+    // Solo el propio Apoderado o un Administrador/SuperAdmin pueden consultar esta información
+    if (!esApoderadoSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    // Si el actor es Apoderado (y no Admin), solo puede ver sus propios estudiantes asociados
+    const apoderadoId = esApoderadoSinAdmin ? userId : Number(req.params.apoderadoId);
+
+    // Excepción 2: el apoderado destino no existe (solo relevante cuando lo busca un Admin/SuperAdmin)
+    if (!esApoderadoSinAdmin) {
+      const [apoderado] = await db.query(
+        'SELECT Usuario_Id FROM usuario WHERE Usuario_Id = ? AND Es_Apoderado = 1',
+        [apoderadoId]
+      );
+      if (apoderado.length === 0) {
+        return res.status(404).json({ mensaje: 'El apoderado no fue encontrado' });
+      }
+    }
+
+    const [estudiantes] = await db.query(
+      `SELECT
+        e.Estudiante_Id,
+        e.Estudiante_Nombre_Completo,
+        e.Estudiante_RUT,
+        e.Estudiante_Estado_Academico,
+        c.Curso_Nombre
+      FROM estudiante e
+      JOIN curso c ON c.Curso_Id = e.Curso_Id
+      WHERE e.Apoderado_Usuario_Id = ?
+      ORDER BY e.Estudiante_Nombre_Completo ASC`,
+      [apoderadoId]
+    );
+
+    // Excepción 1: el apoderado no tiene estudiantes asociados
+    if (estudiantes.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen estudiantes asociados a la cuenta',
+        estudiantes: [],
+      });
+    }
+
+    return res.json(estudiantes);
+  } catch (error) {
+    console.error(error);
+    // Excepción 3: interrupción técnica durante la consulta
+    return res.status(500).json({ mensaje: 'No fue posible cargar estudiantes, reintente más tarde' });
+  }
+};
+
+// CU39: Editar asociaciones de un estudiante sin modificar sus datos personales
+// PUT /api/estudiantes/:estudianteId/apoderado  { apoderadoId: number|null }
+const editarAsociaciones = async (req, res) => {
+  const { estudianteId } = req.params;
+  const apoderadoIdBody = req.body.apoderadoId;
+  const confirmarEliminacion = req.body.confirmarEliminacion === true;
+
+  if (apoderadoIdBody === undefined) {
+    return res.status(400).json({ mensaje: 'Debe indicar un apoderadoId (o null para eliminar la asociación)' });
+  }
+
+  // Normaliza a Number o null para comparar de forma confiable contra el valor almacenado
+  const apoderadoId = apoderadoIdBody === null ? null : Number(apoderadoIdBody);
+
+  try {
+    const [estudiante] = await db.query(
+      'SELECT Estudiante_Id, Apoderado_Usuario_Id FROM estudiante WHERE Estudiante_Id = ?',
+      [estudianteId]
+    );
+
+    if (estudiante.length === 0) {
+      return res.status(404).json({ mensaje: 'Ficha de estudiante no encontrada' });
+    }
+
+    const apoderadoActual = estudiante[0].Apoderado_Usuario_Id;
+
+    // Excepción "Apoderado ya vinculado": no duplicar la asociación existente
+    if (apoderadoId === apoderadoActual) {
+      return res.status(400).json({ mensaje: 'La asociación ya existe, no se duplicará el registro' });
+    }
+
+    // CU39 - Excepción "Elimina última asociación": un estudiante solo puede tener un
+    // apoderado a la vez, así que eliminar la asociación actual siempre deja al
+    // estudiante sin ninguna. Se exige una confirmación adicional antes de aplicarlo.
+    if (apoderadoId === null && apoderadoActual !== null && !confirmarEliminacion) {
+      return res.status(200).json({
+        mensaje: 'Esta acción eliminará la única asociación registrada del estudiante. Confirme nuevamente para continuar.',
+        requiereConfirmacion: true,
+      });
+    }
+
+    // Si se asigna un nuevo apoderado (no se está eliminando), validar que exista y esté activo
+    if (apoderadoId !== null) {
+      const [apoderado] = await db.query(
+        'SELECT Usuario_Id, Usuario_Estado_Cuenta FROM usuario WHERE Usuario_Id = ? AND Es_Apoderado = 1',
+        [apoderadoId]
+      );
+      if (apoderado.length === 0) {
+        return res.status(404).json({ mensaje: 'Apoderado no encontrado' });
+      }
+      if (!apoderado[0].Usuario_Estado_Cuenta) {
+        return res.status(400).json({ mensaje: 'El apoderado seleccionado está inactivo' });
+      }
+    }
+
+    await db.query(
+      'UPDATE estudiante SET Apoderado_Usuario_Id = ? WHERE Estudiante_Id = ?',
+      [apoderadoId, estudianteId]
+    );
+
+    return res.json({ mensaje: 'Asociaciones actualizadas correctamente' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al actualizar las asociaciones del estudiante' });
+  }
+};
+
+// CU41: Visualizar detalle de estudiante desde la lista de asociados del apoderado
+// GET /api/estudiantes/apoderado/:apoderadoId/asociados/:estudianteId
+const getDetalleEstudiante = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esApoderadoSinAdmin = roles.includes('Apoderado') && !esAdmin;
+
+    if (!esApoderadoSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    const apoderadoId = Number(req.params.apoderadoId);
+    const { estudianteId } = req.params;
+
+    // Excepción "Acceso directo sin permisos": un Apoderado solo puede pedir
+    // el detalle bajo su propio contexto. Se rechaza ANTES de tocar la BD.
+    if (esApoderadoSinAdmin && apoderadoId !== userId) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para visualizar este estudiante' });
+    }
+
+    const [estudiante] = await db.query(
+      `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+              e.Estudiante_Estado_Academico, c.Curso_Nombre
+       FROM estudiante e
+       JOIN curso c ON c.Curso_Id = e.Curso_Id
+       WHERE e.Estudiante_Id = ? AND e.Apoderado_Usuario_Id = ?`,
+      [estudianteId, apoderadoId]
+    );
+
+    // Excepción "Estudiante ya no se encuentra asociado"
+    if (estudiante.length === 0) {
+      return res.status(404).json({ mensaje: 'El estudiante ya no se encuentra asociado a esta cuenta' });
+    }
+
+    return res.json(estudiante[0]);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar la ficha estudiantil, reintente más tarde' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
+  buscarEstudiantes, // CU36
   getEstudianteById,
   createEstudiante,
   updateEstudiante,
@@ -360,4 +711,7 @@ module.exports = {
   verificarRut,
   eliminarTodasAsociacionesApoderado, // CU9
   eliminarAsociacionEspecifica,       // CU10
+  getEstudiantesAsociados,            // CU40
+  editarAsociaciones,                 // CU39
+  getDetalleEstudiante,                // CU41
 };

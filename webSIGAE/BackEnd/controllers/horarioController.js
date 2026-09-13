@@ -757,8 +757,200 @@ const getResumenCursos = async (req, res) => {
   }
 };
 
+// CU42: Visualizar cursos y asignaturas asignadas a un docente
+// GET /api/horarios/docente/:docenteId/asignaciones
+const getAsignacionesDocente = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esDocenteSinAdmin = roles.includes('Docente') && !esAdmin;
+
+    // Solo el propio Docente o un Administrador/SuperAdmin pueden consultar esta información
+    if (!esDocenteSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    // Si el actor es Docente (y no Admin), solo puede ver sus propias asignaciones
+    const docenteId = esDocenteSinAdmin ? userId : Number(req.params.docenteId);
+
+    // Excepción 2: el docente destino no existe (solo relevante cuando lo busca un Admin/SuperAdmin)
+    if (!esDocenteSinAdmin) {
+      const [[docente]] = await pool.execute(
+        'SELECT Usuario_Id FROM usuario WHERE Usuario_Id = ? AND Es_Docente = 1',
+        [docenteId]
+      );
+      if (!docente) {
+        return res.status(404).json({ mensaje: 'El docente no fue encontrado' });
+      }
+    }
+
+    const [filas] = await pool.execute(
+      `SELECT
+        ne.Nivel_Educativo_Nombre        AS nivelEducativo,
+        c.Curso_Id                       AS cursoId,
+        c.Curso_Nombre                   AS curso,
+        a.Asignatura_Id                  AS asignaturaId,
+        a.Asignatura_Nombre              AS asignatura,
+        ha.Horario_Asignatura_Dia_Semana AS dia,
+        bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin       AS horaFin,
+        ha.Horario_Asignatura_Estado     AS estado
+      FROM horario_asignatura ha
+      JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+      JOIN nivel_educativo ne ON ne.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      WHERE ha.Usuario_Id = ?
+      ORDER BY c.Curso_Nombre, a.Asignatura_Nombre`,
+      [docenteId]
+    );
+
+    // Excepción 1: el docente no posee cursos, asignaturas o programaciones asociadas
+    if (filas.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen asignaciones registradas',
+        asignaciones: [],
+      });
+    }
+
+    // Agrupar por curso + asignatura (una fila por bloque horario programado)
+    const agrupado = new Map();
+    for (const f of filas) {
+      const clave = `${f.cursoId}-${f.asignaturaId}`;
+      if (!agrupado.has(clave)) {
+        agrupado.set(clave, {
+          nivelEducativo: f.nivelEducativo,
+          cursoId: f.cursoId,
+          curso: f.curso,
+          asignaturaId: f.asignaturaId,
+          asignatura: f.asignatura,
+          bloques: [],
+          horasSemanales: 0,
+          estadoVigencia: 'Suspendido',
+        });
+      }
+      const grupo = agrupado.get(clave);
+      grupo.bloques.push({ dia: f.dia, horaInicio: f.horaInicio, horaFin: f.horaFin, estado: f.estado });
+
+      const [hI, mI] = f.horaInicio.split(':').map(Number);
+      const [hF, mF] = f.horaFin.split(':').map(Number);
+      grupo.horasSemanales += (hF * 60 + mF - (hI * 60 + mI)) / 60;
+
+      if (f.estado === 'Activo') grupo.estadoVigencia = 'Activo';
+    }
+
+    return res.json(Array.from(agrupado.values()));
+  } catch (error) {
+    console.error('getAsignacionesDocente:', error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar las asignaciones académicas, reintente más tarde' });
+  }
+};
+
+// CU43: Visualizar horario semanal de un docente a partir de sus cursos asociados
+// GET /api/horarios/docente/:docenteId/horario
+const getHorarioDocente = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esDocenteSinAdmin = roles.includes('Docente') && !esAdmin;
+
+    // Solo el propio Docente o un Administrador/SuperAdmin pueden consultar esta información
+    if (!esDocenteSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    // Si el actor es Docente (y no Admin), solo puede ver su propio horario
+    const docenteId = esDocenteSinAdmin ? userId : Number(req.params.docenteId);
+
+    // Excepción "Docente no existe" (solo relevante cuando lo busca un Admin/SuperAdmin)
+    if (!esDocenteSinAdmin) {
+      const [[docente]] = await pool.execute(
+        'SELECT Usuario_Id FROM usuario WHERE Usuario_Id = ? AND Es_Docente = 1',
+        [docenteId]
+      );
+      if (!docente) {
+        return res.status(404).json({ mensaje: 'El docente no fue encontrado' });
+      }
+    }
+
+    const [filas] = await pool.execute(
+      `SELECT
+        c.Curso_Nombre                   AS curso,
+        a.Asignatura_Nombre              AS asignatura,
+        ha.Horario_Asignatura_Dia_Semana AS dia,
+        bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin       AS horaFin,
+        ha.Horario_Asignatura_Estado     AS estado
+      FROM horario_asignatura ha
+      JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      WHERE ha.Usuario_Id = ?
+      ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'),
+               bh.Bloque_Horario_Hora_Inicio`,
+      [docenteId]
+    );
+
+    // CU43/CU58 - Excepción "Horario sin planificar" / "Sin asignaciones horarias"
+    if (filas.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No hay horario disponible para mostrar',
+        horario: [],
+      });
+    }
+
+    return res.json(filas);
+  } catch (error) {
+    console.error('getHorarioDocente:', error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar el horario, reintente más tarde' });
+  }
+};
+
+// ── GET /api/horarios/maestro — CU57: vista consolidada del horario de toda la institución ──
+const getHorarioMaestro = async (req, res) => {
+  try {
+    const [rows] = await pool.execute(`
+      SELECT
+        ha.Horario_Asignatura_Id,
+        ha.Horario_Asignatura_Dia_Semana  AS dia,
+        ha.Curso_Id,
+        c.Curso_Nombre                    AS curso,
+        c.Curso_Seccion                   AS seccion,
+        ha.Bloque_Horario_Id,
+        bh.Bloque_Horario_Hora_Inicio     AS hora_inicio,
+        bh.Bloque_Horario_Hora_Fin        AS hora_fin,
+        bh.Bloque_Horario_Jornada         AS jornada,
+        ha.Asignatura_Id,
+        a.Asignatura_Nombre               AS asignatura,
+        ha.Usuario_Id,
+        u.Usuario_Nombre_Completo         AS docente
+      FROM horario_asignatura ha
+      JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
+      WHERE ha.Horario_Asignatura_Estado = 'Activo'
+      ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, "Lunes","Martes","Miércoles","Jueves","Viernes"),
+               bh.Bloque_Horario_Hora_Inicio, c.Curso_Nombre
+    `);
+
+    // CU57 - Excepción "No existen datos suficientes"
+    if (rows.length === 0) {
+      return res.status(404).json({ mensaje: 'No es posible generar el horario maestro' });
+    }
+
+    return res.json(rows);
+  } catch (error) {
+    console.error('getHorarioMaestro:', error);
+    return res.status(500).json({ mensaje: 'No fue posible generar el horario maestro, reintente más tarde' });
+  }
+};
+
 module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
+  getAsignacionesDocente, // CU42
+  getHorarioDocente, // CU43 / CU58
+  getHorarioMaestro, // CU57
 };
