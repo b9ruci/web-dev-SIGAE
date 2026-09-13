@@ -173,10 +173,11 @@ export async function getDocentes({ especialidad, estado } = {}) {
 // ── ASOCIACIÓN APODERADO-ESTUDIANTE ──────────
 
 // CU32 y CU33: Listado y filtros de apoderados (incluye roles y estudiantes vinculados)
-export async function getApoderados({ cantidadEstudiantes } = {}) {
+export async function getApoderados({ operador, cantidadEstudiantes } = {}) {
   const params = new URLSearchParams();
   if (cantidadEstudiantes !== undefined && cantidadEstudiantes !== '') {
     params.set('cantidadEstudiantes', cantidadEstudiantes);
+    if (operador) params.set('operador', operador);
   }
   const query = params.toString();
   const res = await fetch(`${BASE_URL}/usuarios/apoderados${query ? `?${query}` : ''}`, {

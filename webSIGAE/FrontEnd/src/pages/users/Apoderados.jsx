@@ -21,6 +21,10 @@ function Apoderados() {
   const [mensajeInfo, setMensajeInfo]         = useState("");
   const [errorCarga, setErrorCarga]           = useState("");
 
+  // CU33: filtro por operador y cantidad de estudiantes asociados
+  const [operadorFiltro, setOperadorFiltro]   = useState("=");
+  const [cantidadFiltro, setCantidadFiltro]   = useState("");
+
   // Modal
   const [apoderadoSeleccionado, setApoderadoSeleccionado] = useState(null);
   const [estudiantesSinApo, setEstudiantesSinApo]         = useState([]);
@@ -43,15 +47,15 @@ function Apoderados() {
   const [avisoEliminarTodas, setAvisoEliminarTodas]          = useState(null);
 
   useEffect(() => {
-    cargarApoderados();
+    cargarApoderados({});
   }, []);
 
-  const cargarApoderados = async () => {
+  const cargarApoderados = async (filtros) => {
     setLoading(true);
     setErrorCarga("");
     setMensajeInfo("");
     try {
-      const data = await getApoderados();
+      const data = await getApoderados(filtros);
       if (Array.isArray(data)) {
         setApoderados(data);
       } else {
@@ -237,6 +241,18 @@ function Apoderados() {
     );
   });
 
+  // CU33: filtrar por operador y cantidad de estudiantes asociados
+  const aplicarFiltroCantidad = (e) => {
+    e.preventDefault();
+    cargarApoderados({ operador: operadorFiltro, cantidadEstudiantes: cantidadFiltro });
+  };
+
+  const limpiarFiltroCantidad = () => {
+    setOperadorFiltro("=");
+    setCantidadFiltro("");
+    cargarApoderados({});
+  };
+
   // CU32: roles del usuario y estudiantes vinculados en el listado de apoderados
   const getBadgesRoles = (u) => {
     const badges = [];
@@ -271,6 +287,38 @@ function Apoderados() {
           onChange={(e) => setBusqueda(e.target.value)}
         />
       </div>
+
+      {/* CU33: filtro por cantidad de estudiantes asociados */}
+      {/* noValidate: el diagrama exige que un valor no entero o negativo llegue al backend
+          para que sea éste quien lo rechace, en vez de bloquearlo en el navegador */}
+      <form className="usuarios-filtros" onSubmit={aplicarFiltroCantidad} noValidate>
+        <span style={{ alignSelf: "center", color: "#475569", fontSize: "0.9rem" }}>
+          Estudiantes asociados:
+        </span>
+        <select
+          className="usuarios-select"
+          value={operadorFiltro}
+          onChange={(e) => setOperadorFiltro(e.target.value)}
+        >
+          <option value="=">=</option>
+          <option value="!=">≠</option>
+          <option value=">">&gt;</option>
+          <option value="<">&lt;</option>
+          <option value=">=">&gt;=</option>
+          <option value="<=">&lt;=</option>
+        </select>
+        <input
+          type="text"
+          inputMode="numeric"
+          className="usuarios-search"
+          style={{ maxWidth: "120px" }}
+          placeholder="Cantidad"
+          value={cantidadFiltro}
+          onChange={(e) => setCantidadFiltro(e.target.value)}
+        />
+        <button type="submit" className="btn-roles">Filtrar</button>
+        <button type="button" className="btn-roles" onClick={limpiarFiltroCantidad}>Limpiar</button>
+      </form>
 
       {/* Tabla */}
       {errorCarga && (
