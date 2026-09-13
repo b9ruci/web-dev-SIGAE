@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
-import { apiFetch } from "../../services/api";
+import { apiFetch, getAsignacionesDocente } from "../../services/api";
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -20,6 +20,13 @@ function Perfil() {
   const [msgError, setMsgError] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  // CU42: Cursos y asignaturas del docente
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [mensajeAsignaciones, setMensajeAsignaciones] = useState("");
+  const [errorAsignaciones, setErrorAsignaciones] = useState("");
+  const [cargandoAsignaciones, setCargandoAsignaciones] = useState(false);
+  const [ordenAsignaciones, setOrdenAsignaciones] = useState("curso");
+
   useEffect(() => {
     if (!idObjetivo) return;
     apiFetch(`/api/usuarios/${idObjetivo}`)
@@ -31,6 +38,28 @@ function Perfil() {
       .catch(console.error)
       .finally(() => setCargando(false));
   }, [idObjetivo]);
+
+  useEffect(() => {
+    if (!datos?.Es_Docente || !idObjetivo) return;
+    setCargandoAsignaciones(true);
+    setErrorAsignaciones("");
+    setMensajeAsignaciones("");
+    getAsignacionesDocente(idObjetivo)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAsignaciones(data);
+        } else {
+          // Excepción 1: sin asignaciones registradas
+          setAsignaciones(data.asignaciones || []);
+          setMensajeAsignaciones(data.mensaje || "No existen asignaciones registradas.");
+        }
+      })
+      .catch((error) => {
+        // Excepción 2 (docente no encontrado) y Excepción 3 (error técnico)
+        setErrorAsignaciones(error.message || "No fue posible cargar las asignaciones académicas, reintente más tarde");
+      })
+      .finally(() => setCargandoAsignaciones(false));
+  }, [datos?.Es_Docente, idObjetivo]);
 
   const recargarDatos = () => {
     apiFetch(`/api/usuarios/${idObjetivo}`)
@@ -201,6 +230,77 @@ function Perfil() {
           ) : null}
         </div>
       </div>
+
+      {datos?.Es_Docente && (
+        <div className="perfil-card">
+          <h2>{esPerfilPropio ? "Mis cursos y asignaturas" : "Cursos y asignaturas"}</h2>
+
+          {cargandoAsignaciones && <p>Cargando asignaciones académicas...</p>}
+
+          {!cargandoAsignaciones && errorAsignaciones && (
+            <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorAsignaciones}</div>
+          )}
+
+          {!cargandoAsignaciones && !errorAsignaciones && mensajeAsignaciones && (
+            <div className="usuarios-empty">{mensajeAsignaciones}</div>
+          )}
+
+          {!cargandoAsignaciones && !errorAsignaciones && !mensajeAsignaciones && (
+            <>
+              <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
+                <select
+                  className="usuarios-select"
+                  value={ordenAsignaciones}
+                  onChange={(e) => setOrdenAsignaciones(e.target.value)}
+                >
+                  <option value="curso">Ordenar por curso</option>
+                  <option value="asignatura">Ordenar por asignatura</option>
+                  <option value="horas">Ordenar por carga horaria</option>
+                  <option value="estado">Ordenar por estado de vigencia</option>
+                </select>
+              </div>
+
+              <table className="tabla-usuarios">
+                <thead>
+                  <tr>
+                    <th>Nivel Educativo</th>
+                    <th>Curso</th>
+                    <th>Asignatura</th>
+                    <th>Bloques Programados</th>
+                    <th>Horas Semanales</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...asignaciones]
+                    .sort((a, b) => {
+                      if (ordenAsignaciones === "asignatura") return a.asignatura.localeCompare(b.asignatura);
+                      if (ordenAsignaciones === "horas") return b.horasSemanales - a.horasSemanales;
+                      if (ordenAsignaciones === "estado") return a.estadoVigencia.localeCompare(b.estadoVigencia);
+                      return a.curso.localeCompare(b.curso);
+                    })
+                    .map((asig) => (
+                      <tr key={`${asig.cursoId}-${asig.asignaturaId}`}>
+                        <td>{asig.nivelEducativo}</td>
+                        <td>{asig.curso}</td>
+                        <td>{asig.asignatura}</td>
+                        <td>{asig.bloques.length}</td>
+                        <td>{asig.horasSemanales}</td>
+                        <td>
+                          {asig.estadoVigencia === "Activo" ? (
+                            <span className="badge-activo">Activo</span>
+                          ) : (
+                            <span className="badge-inactivo">Suspendido</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
 
       {esPerfilPropio && (
         <div className="perfil-card">

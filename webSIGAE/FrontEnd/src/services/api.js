@@ -197,6 +197,15 @@ export async function editarAdministrador(id, datos) {
   return handleResponse(res);
 }
 
+// ── CU42: Cursos y asignaturas de un docente ──
+
+export async function getAsignacionesDocente(docenteId) {
+  const res = await fetch(`${BASE_URL}/horarios/docente/${docenteId}/asignaciones`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // Buscar usuario existente por RUT, nombre o correo
 export async function buscarUsuarioExistente({ rut, nombre, correo }) {
 

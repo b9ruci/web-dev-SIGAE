@@ -12,6 +12,7 @@ const {
   updateHorario,
   cambiarEstado,
   getResumenCursos,
+  getAsignacionesDocente,
 } = require('../controllers/horarioController');
 
 // CU 60-62 — Exportación de horarios (maestro / por docente / por curso)
@@ -34,6 +35,9 @@ router.get('/asignaturas',           getAsignaturas);
 router.get('/asignaturas-curso',     getAsignaturasCurso);
 router.get('/docentes',              getDocentes);
 router.get('/docentes-disponibles',  getDocentesDisponibles);
+
+// CU42: Cursos y asignaturas asignadas a un docente (propias o vistas desde su perfil)
+router.get('/docente/:docenteId/asignaciones', getAsignacionesDocente);
 
 // Exportación de horarios (CU60, CU61, CU62)
 // formato = pdf | excel | png  (query param, ?formato=pdf por defecto)
