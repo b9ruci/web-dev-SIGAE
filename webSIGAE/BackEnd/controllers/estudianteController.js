@@ -5,14 +5,66 @@
 const db = require('../config/db');
 const { validarRut } = require('../middleware/validation');
 
-// Obtener todos los estudiantes
+// CU34: Visualizar listado completo de estudiantes registrados
 const getEstudiantes = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM estudiante');
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esDocente = roles.includes('Docente') && !esAdmin;
+
+    // Actor(es) del CU34: Super Administrador, Administrador, Docente (no Apoderado)
+    if (!esAdmin && !esDocente) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    let rows;
+    if (esDocente) {
+      // Un Docente solo ve estudiantes de los cursos donde tiene asignaturas asignadas
+      const [cursos] = await db.query(
+        'SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?',
+        [userId]
+      );
+
+      // Excepción: Docente sin cursos asignados
+      if (cursos.length === 0) {
+        return res.status(200).json({
+          mensaje: 'No existen estudiantes disponibles para su perfil',
+          estudiantes: [],
+        });
+      }
+
+      const cursoIds = cursos.map((c) => c.Curso_Id);
+      [rows] = await db.query(
+        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+         WHERE e.Curso_Id IN (?)
+         ORDER BY e.Estudiante_Nombre_Completo ASC`,
+        [cursoIds]
+      );
+    } else {
+      [rows] = await db.query(
+        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+         ORDER BY e.Estudiante_Nombre_Completo ASC`
+      );
+    }
+
+    // Excepción: no existen estudiantes registrados
+    if (rows.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No hay estudiantes registrados',
+        estudiantes: [],
+      });
+    }
+
     res.json(rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ mensaje: 'Error al obtener estudiantes' });
+    res.status(500).json({ mensaje: 'No fue posible recuperar los registros' });
   }
 };
 

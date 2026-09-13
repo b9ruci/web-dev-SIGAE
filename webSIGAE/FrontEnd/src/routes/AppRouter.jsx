@@ -39,6 +39,7 @@ import ListaEstudiantesApoderado from "../components/ListaEstudiantesApoderado";
 /* ACADEMIC */
 
 import Cursos from "../pages/academic/Cursos";
+import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import PlanEducativo from "../pages/academic/PlanEducativo";
@@ -210,6 +211,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Administrador"]}>
                 <Cursos />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU34: Listado completo de estudiantes — Administrador y Docente */}
+          <Route
+            path="/estudiantes"
+            element={
+              <RoleRoute roles={["Administrador", "Docente"]}>
+                <Estudiantes />
               </RoleRoute>
             }
           />

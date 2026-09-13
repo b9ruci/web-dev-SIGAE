@@ -148,6 +148,15 @@ export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico 
   return handleResponse(res);
 }
 
+// ── CU34: Listado completo de estudiantes registrados ──
+
+export async function getEstudiantes() {
+  const res = await fetch(`${BASE_URL}/estudiantes`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── ASOCIACIÓN APODERADO-ESTUDIANTE ──────────
 
 // Obtener todos los apoderados activos con sus estudiantes ya asociados
