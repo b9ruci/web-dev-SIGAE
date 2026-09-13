@@ -186,6 +186,15 @@ export async function asignarApoderado({ apoderadoId, estudianteIds }) {
   });
   return handleResponse(res);
 }
+
+// CU9: eliminar todas las asociaciones activas de un apoderado con sus estudiantes
+export async function eliminarTodasAsociaciones(apoderadoId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/apoderado/${apoderadoId}/todas`, {
+    method : 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
 // ── ADMINISTRADORES (CU2 y CU3) ───────────────
 
 // Obtener el listado de administradores registrados

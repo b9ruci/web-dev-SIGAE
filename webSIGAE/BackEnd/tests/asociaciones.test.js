@@ -51,7 +51,7 @@ describe('Pruebas Unitarias - CU9 y CU10: Gestión de Asociaciones Apoderado-Est
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        mensaje: 'El apoderado seleccionado no posee asociaciones activas con estudiantes',
+        mensaje: 'No existen asociaciones disponibles para eliminar',
       });
     });
 

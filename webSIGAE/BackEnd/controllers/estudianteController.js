@@ -344,7 +344,7 @@ const eliminarTodasAsociacionesApoderado = async (req, res) => {
 
     if (asociados.length === 0) {
       return res.status(400).json({
-        mensaje: 'El apoderado seleccionado no posee asociaciones activas con estudiantes',
+        mensaje: 'No existen asociaciones disponibles para eliminar',
       });
     }
 

@@ -5,6 +5,7 @@ import {
   getEstudiantesSinApoderado,
   asignarApoderado,
   editarAsociacionEstudiante,
+  eliminarTodasAsociaciones,
 } from "../../services/api";
 
 function Apoderados() {
@@ -32,6 +33,11 @@ function Apoderados() {
   const [confirmarQuitar, setConfirmarQuitar]              = useState(null); // Estudiante_Id pendiente de doble confirmación
   const [loadingAsociacion, setLoadingAsociacion]          = useState(false);
   const [errorAsociacion, setErrorAsociacion]              = useState(null);
+
+  // CU9: eliminar todas las asociaciones activas del apoderado seleccionado
+  const [confirmarEliminarTodas, setConfirmarEliminarTodas] = useState(false);
+  const [loadingEliminarTodas, setLoadingEliminarTodas]      = useState(false);
+  const [avisoEliminarTodas, setAvisoEliminarTodas]          = useState(null);
 
   useEffect(() => {
     cargarApoderados();
@@ -93,6 +99,8 @@ function Apoderados() {
     setReasignando(null);
     setConfirmarQuitar(null);
     setErrorAsociacion(null);
+    setConfirmarEliminarTodas(false);
+    setAvisoEliminarTodas(null);
   };
 
   const toggleSeleccion = (id) => {
@@ -181,6 +189,28 @@ function Apoderados() {
       setErrorAsociacion(error.message || "Error al quitar el apoderado");
     } finally {
       setLoadingAsociacion(false);
+    }
+  };
+
+  // CU9: eliminar todas las asociaciones activas del apoderado en una sola operación
+  const cancelarEliminarTodas = () => {
+    setConfirmarEliminarTodas(false);
+    setAvisoEliminarTodas("Operación cancelada");
+  };
+
+  const confirmarEliminarTodasAsociaciones = async () => {
+    setLoadingEliminarTodas(true);
+    setAvisoEliminarTodas(null);
+    try {
+      const res = await eliminarTodasAsociaciones(apoderadoSeleccionado.Usuario_Id);
+      setConfirmarEliminarTodas(false);
+      setAvisoEliminarTodas(res.mensaje || `${res.eliminadas} asociación(es) eliminada(s) correctamente.`);
+      await recargarListasModal();
+    } catch (error) {
+      setAvisoEliminarTodas(error.message || "No existen asociaciones disponibles para eliminar");
+      setConfirmarEliminarTodas(false);
+    } finally {
+      setLoadingEliminarTodas(false);
     }
   };
 
@@ -296,9 +326,55 @@ function Apoderados() {
               <>
                 {/* Estudiantes ya asociados */}
                 <div style={{ marginBottom: "20px" }}>
-                  <h3 style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Estudiantes ya asociados ({estudiantesDelApo.length})
-                  </h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <h3 style={{ fontSize: "0.9rem", color: "#475569", margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Estudiantes ya asociados ({estudiantesDelApo.length})
+                    </h3>
+                    {/* CU9: eliminar todas las asociaciones activas del apoderado */}
+                    {estudiantesDelApo.length > 0 && !confirmarEliminarTodas && (
+                      <button
+                        type="button"
+                        className="btn-desactivar"
+                        style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+                        onClick={() => { setConfirmarEliminarTodas(true); setAvisoEliminarTodas(null); }}
+                      >
+                        Eliminar todas las asociaciones
+                      </button>
+                    )}
+                  </div>
+
+                  {avisoEliminarTodas && (
+                    <p style={{ color: "#166534", fontSize: "0.85rem", marginBottom: "8px" }}>{avisoEliminarTodas}</p>
+                  )}
+
+                  {confirmarEliminarTodas && (
+                    <div style={{ marginBottom: "12px", padding: "10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
+                      <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#991b1b" }}>
+                        ¿Confirmas eliminar las {estudiantesDelApo.length} asociación(es) activa(s) de este apoderado?
+                        Los estudiantes quedarán sin apoderado asignado.
+                      </p>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          type="button"
+                          className="btn-desactivar"
+                          style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                          disabled={loadingEliminarTodas}
+                          onClick={confirmarEliminarTodasAsociaciones}
+                        >
+                          {loadingEliminarTodas ? "Eliminando..." : "Sí, eliminar todas"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-roles"
+                          style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                          onClick={cancelarEliminarTodas}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {errorAsociacion && (
                     <p style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: "8px" }}>{errorAsociacion}</p>
                   )}
