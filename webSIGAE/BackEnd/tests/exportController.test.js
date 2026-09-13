@@ -201,7 +201,7 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       expect(res.json).toHaveBeenCalledWith({ error: 'Curso no encontrado' });
     });
 
-    test('Excepción 1: retorna 404 si el curso no posee asignaciones horarias', async () => {
+    test('Excepción "Curso sin horario": retorna 404 si el curso no posee asignaciones horarias', async () => {
       req.params.cursoId = '222';
       pool.execute
         .mockResolvedValueOnce([[{ Curso_Nombre: '1ero Básico A' }]])
@@ -210,7 +210,53 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       await exportController.exportarPorCurso(req, res);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ error: 'El curso no posee asignaciones horarias registradas' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'El curso no posee asignaciones horarias' });
+    });
+
+    test('Excepción "No se selecciona curso": retorna 400 si hay cursos pero no se envía uno', async () => {
+      req.params.cursoId = 'null';
+      pool.execute.mockResolvedValueOnce([[{ Curso_Id: 1 }]]);
+
+      await exportController.exportarPorCurso(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ error: 'No se selecciona curso' });
+    });
+
+    test('Excepción "No existen cursos": retorna 404 si no hay ningún curso registrado', async () => {
+      req.params.cursoId = 'undefined';
+      pool.execute.mockResolvedValueOnce([[]]);
+
+      await exportController.exportarPorCurso(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ error: 'No existen cursos' });
+    });
+
+    test('Excepción "Error de base de datos": retorna 500 si falla la consulta', async () => {
+      req.params.cursoId = '222';
+      pool.execute.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await exportController.exportarPorCurso(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error en la base de datos al generar el horario del curso' });
+    });
+
+    test('Excepción "Error al generar archivo": retorna 500 y no descarga nada si falla el render', async () => {
+      req.params.cursoId = '222';
+      req.query.formato = 'excel';
+      pool.execute
+        .mockResolvedValueOnce([[{ Curso_Nombre: '1ero Básico A' }]])
+        .mockResolvedValueOnce([[{ dia: 'Lunes', hora_inicio: '09:00:00', hora_fin: '09:45:00', asignatura: 'Matemáticas', docente: 'Juan Perez' }]]);
+      const ExcelJS = require('exceljs');
+      const writeSpy = jest.spyOn(ExcelJS.Workbook.prototype.xlsx, 'write').mockRejectedValueOnce(new Error('Fallo al escribir'));
+
+      await exportController.exportarPorCurso(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error en la generación del archivo' });
+      writeSpy.mockRestore();
     });
 
     test('Retorna 400 si el formato solicitado no es válido', async () => {
