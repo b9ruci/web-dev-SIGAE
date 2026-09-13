@@ -349,6 +349,119 @@ const eliminarAsociacionEspecifica = async (req, res) => {
   }
 };
 
+// CU40: Visualizar estudiantes asociados a un apoderado
+// GET /api/estudiantes/apoderado/:apoderadoId/asociados
+const getEstudiantesAsociados = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esApoderadoSinAdmin = roles.includes('Apoderado') && !esAdmin;
+
+    // Solo el propio Apoderado o un Administrador/SuperAdmin pueden consultar esta información
+    if (!esApoderadoSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    // Si el actor es Apoderado (y no Admin), solo puede ver sus propios estudiantes asociados
+    const apoderadoId = esApoderadoSinAdmin ? userId : Number(req.params.apoderadoId);
+
+    // Excepción 2: el apoderado destino no existe (solo relevante cuando lo busca un Admin/SuperAdmin)
+    if (!esApoderadoSinAdmin) {
+      const [apoderado] = await db.query(
+        'SELECT Usuario_Id FROM usuario WHERE Usuario_Id = ? AND Es_Apoderado = 1',
+        [apoderadoId]
+      );
+      if (apoderado.length === 0) {
+        return res.status(404).json({ mensaje: 'El apoderado no fue encontrado' });
+      }
+    }
+
+    const [estudiantes] = await db.query(
+      `SELECT
+        e.Estudiante_Id,
+        e.Estudiante_Nombre_Completo,
+        e.Estudiante_RUT,
+        e.Estudiante_Estado_Academico,
+        c.Curso_Nombre
+      FROM estudiante e
+      JOIN curso c ON c.Curso_Id = e.Curso_Id
+      WHERE e.Apoderado_Usuario_Id = ?
+      ORDER BY e.Estudiante_Nombre_Completo ASC`,
+      [apoderadoId]
+    );
+
+    // Excepción 1: el apoderado no tiene estudiantes asociados
+    if (estudiantes.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen estudiantes asociados a la cuenta',
+        estudiantes: [],
+      });
+    }
+
+    return res.json(estudiantes);
+  } catch (error) {
+    console.error(error);
+    // Excepción 3: interrupción técnica durante la consulta
+    return res.status(500).json({ mensaje: 'No fue posible cargar estudiantes, reintente más tarde' });
+  }
+};
+
+// CU39: Editar asociaciones de un estudiante sin modificar sus datos personales
+// PUT /api/estudiantes/:estudianteId/apoderado  { apoderadoId: number|null }
+const editarAsociaciones = async (req, res) => {
+  const { estudianteId } = req.params;
+  const apoderadoIdBody = req.body.apoderadoId;
+
+  if (apoderadoIdBody === undefined) {
+    return res.status(400).json({ mensaje: 'Debe indicar un apoderadoId (o null para eliminar la asociación)' });
+  }
+
+  // Normaliza a Number o null para comparar de forma confiable contra el valor almacenado
+  const apoderadoId = apoderadoIdBody === null ? null : Number(apoderadoIdBody);
+
+  try {
+    const [estudiante] = await db.query(
+      'SELECT Estudiante_Id, Apoderado_Usuario_Id FROM estudiante WHERE Estudiante_Id = ?',
+      [estudianteId]
+    );
+
+    if (estudiante.length === 0) {
+      return res.status(404).json({ mensaje: 'Ficha de estudiante no encontrada' });
+    }
+
+    const apoderadoActual = estudiante[0].Apoderado_Usuario_Id;
+
+    // Excepción 2: el apoderado ya se encuentra vinculado al estudiante (no duplicar)
+    if (apoderadoId === apoderadoActual) {
+      return res.status(400).json({ mensaje: 'La asociación ya existe, no se duplicará el registro' });
+    }
+
+    // Si se asigna un nuevo apoderado (no se está eliminando), validar que exista y esté activo
+    if (apoderadoId !== null) {
+      const [apoderado] = await db.query(
+        'SELECT Usuario_Id, Usuario_Estado_Cuenta FROM usuario WHERE Usuario_Id = ? AND Es_Apoderado = 1',
+        [apoderadoId]
+      );
+      if (apoderado.length === 0) {
+        return res.status(404).json({ mensaje: 'Apoderado no encontrado' });
+      }
+      if (!apoderado[0].Usuario_Estado_Cuenta) {
+        return res.status(400).json({ mensaje: 'El apoderado seleccionado está inactivo' });
+      }
+    }
+
+    await db.query(
+      'UPDATE estudiante SET Apoderado_Usuario_Id = ? WHERE Estudiante_Id = ?',
+      [apoderadoId, estudianteId]
+    );
+
+    return res.json({ mensaje: 'Asociaciones actualizadas correctamente' });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'Error al actualizar las asociaciones del estudiante' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
   getEstudianteById,
@@ -360,4 +473,6 @@ module.exports = {
   verificarRut,
   eliminarTodasAsociacionesApoderado, // CU9
   eliminarAsociacionEspecifica,       // CU10
+  getEstudiantesAsociados,            // CU40
+  editarAsociaciones,                 // CU39
 };

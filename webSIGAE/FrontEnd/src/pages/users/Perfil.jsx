@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
-import { apiFetch, getAsignacionesDocente } from "../../services/api";
+import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados } from "../../services/api";
 
 function Perfil() {
   const { usuario } = useAuth();
@@ -26,6 +26,13 @@ function Perfil() {
   const [errorAsignaciones, setErrorAsignaciones] = useState("");
   const [cargandoAsignaciones, setCargandoAsignaciones] = useState(false);
   const [ordenAsignaciones, setOrdenAsignaciones] = useState("curso");
+
+  // CU40: Estudiantes asociados al apoderado
+  const [estudiantesAsociados, setEstudiantesAsociados] = useState([]);
+  const [mensajeEstudiantes, setMensajeEstudiantes] = useState("");
+  const [errorEstudiantes, setErrorEstudiantes] = useState("");
+  const [cargandoEstudiantes, setCargandoEstudiantes] = useState(false);
+  const [ordenEstudiantes, setOrdenEstudiantes] = useState("nombre");
 
   useEffect(() => {
     if (!idObjetivo) return;
@@ -60,6 +67,28 @@ function Perfil() {
       })
       .finally(() => setCargandoAsignaciones(false));
   }, [datos?.Es_Docente, idObjetivo]);
+
+  useEffect(() => {
+    if (!datos?.Es_Apoderado || !idObjetivo) return;
+    setCargandoEstudiantes(true);
+    setErrorEstudiantes("");
+    setMensajeEstudiantes("");
+    getEstudiantesAsociados(idObjetivo)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setEstudiantesAsociados(data);
+        } else {
+          // Excepción 1: sin estudiantes asociados
+          setEstudiantesAsociados(data.estudiantes || []);
+          setMensajeEstudiantes(data.mensaje || "No existen estudiantes asociados a la cuenta.");
+        }
+      })
+      .catch((error) => {
+        // Excepción 2 (apoderado no encontrado) y Excepción 3 (error técnico)
+        setErrorEstudiantes(error.message || "No fue posible cargar estudiantes, reintente más tarde");
+      })
+      .finally(() => setCargandoEstudiantes(false));
+  }, [datos?.Es_Apoderado, idObjetivo]);
 
   const recargarDatos = () => {
     apiFetch(`/api/usuarios/${idObjetivo}`)
@@ -291,6 +320,70 @@ function Perfil() {
                             <span className="badge-activo">Activo</span>
                           ) : (
                             <span className="badge-inactivo">Suspendido</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      )}
+
+      {datos?.Es_Apoderado && (
+        <div className="perfil-card">
+          <h2>{esPerfilPropio ? "Mis estudiantes asociados" : "Estudiantes asociados"}</h2>
+
+          {cargandoEstudiantes && <p>Cargando estudiantes asociados...</p>}
+
+          {!cargandoEstudiantes && errorEstudiantes && (
+            <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorEstudiantes}</div>
+          )}
+
+          {!cargandoEstudiantes && !errorEstudiantes && mensajeEstudiantes && (
+            <div className="usuarios-empty">{mensajeEstudiantes}</div>
+          )}
+
+          {!cargandoEstudiantes && !errorEstudiantes && !mensajeEstudiantes && (
+            <>
+              <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
+                <select
+                  className="usuarios-select"
+                  value={ordenEstudiantes}
+                  onChange={(e) => setOrdenEstudiantes(e.target.value)}
+                >
+                  <option value="nombre">Ordenar por nombre</option>
+                  <option value="curso">Ordenar por curso</option>
+                </select>
+              </div>
+
+              <table className="tabla-usuarios">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>RUT</th>
+                    <th>Curso</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...estudiantesAsociados]
+                    .sort((a, b) =>
+                      ordenEstudiantes === "curso"
+                        ? a.Curso_Nombre.localeCompare(b.Curso_Nombre)
+                        : a.Estudiante_Nombre_Completo.localeCompare(b.Estudiante_Nombre_Completo)
+                    )
+                    .map((est) => (
+                      <tr key={est.Estudiante_Id}>
+                        <td>{est.Estudiante_Nombre_Completo}</td>
+                        <td>{est.Estudiante_RUT}</td>
+                        <td>{est.Curso_Nombre}</td>
+                        <td>
+                          {est.Estudiante_Estado_Academico === "Regular" ? (
+                            <span className="badge-activo">Regular</span>
+                          ) : (
+                            <span className="badge-inactivo">{est.Estudiante_Estado_Academico}</span>
                           )}
                         </td>
                       </tr>

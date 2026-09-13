@@ -4,6 +4,7 @@ import {
   getApoderados,
   getEstudiantesSinApoderado,
   asignarApoderado,
+  editarAsociacionEstudiante,
 } from "../../services/api";
 
 function Apoderados() {
@@ -24,6 +25,13 @@ function Apoderados() {
   const [loadingModal, setLoadingModal]                   = useState(false);
   const [errorModal, setErrorModal]                       = useState(null);
   const [resultado, setResultado]                         = useState(null);
+
+  // CU39: editar asociación (reasignar/quitar) de un estudiante puntual
+  const [reasignando, setReasignando]                     = useState(null); // Estudiante_Id en edición
+  const [nuevoApoderadoId, setNuevoApoderadoId]            = useState("");
+  const [confirmarQuitar, setConfirmarQuitar]              = useState(null); // Estudiante_Id pendiente de doble confirmación
+  const [loadingAsociacion, setLoadingAsociacion]          = useState(false);
+  const [errorAsociacion, setErrorAsociacion]              = useState(null);
 
   useEffect(() => {
     cargarApoderados();
@@ -82,6 +90,9 @@ function Apoderados() {
     setSeleccionados([]);
     setErrorModal(null);
     setResultado(null);
+    setReasignando(null);
+    setConfirmarQuitar(null);
+    setErrorAsociacion(null);
   };
 
   const toggleSeleccion = (id) => {
@@ -115,6 +126,61 @@ function Apoderados() {
       setErrorModal(error.message || "Error al asignar estudiantes");
     } finally {
       setLoadingModal(false);
+    }
+  };
+
+  // CU39: recargar ambas listas del modal tras editar una asociación puntual
+  const recargarListasModal = async () => {
+    const [sinApo, delApo] = await Promise.all([
+      getEstudiantesSinApoderado(),
+      cargarEstudiantesDelApoderado(apoderadoSeleccionado.Usuario_Id),
+    ]);
+    setEstudiantesSinApo(sinApo);
+    setEstudiantesDelApo(delApo);
+  };
+
+  const iniciarReasignacion = (estudianteId) => {
+    setReasignando(estudianteId);
+    setNuevoApoderadoId("");
+    setErrorAsociacion(null);
+  };
+
+  const confirmarReasignacion = async (estudianteId) => {
+    if (!nuevoApoderadoId) {
+      setErrorAsociacion("Selecciona un apoderado para reasignar.");
+      return;
+    }
+    setLoadingAsociacion(true);
+    setErrorAsociacion(null);
+    try {
+      await editarAsociacionEstudiante(estudianteId, Number(nuevoApoderadoId));
+      setReasignando(null);
+      await recargarListasModal();
+    } catch (error) {
+      setErrorAsociacion(error.message || "Error al reasignar el apoderado");
+    } finally {
+      setLoadingAsociacion(false);
+    }
+  };
+
+  // Doble confirmación en el modal (sin segunda llamada al backend): el primer
+  // clic solo muestra la advertencia; recién el segundo ejecuta la eliminación.
+  const solicitarQuitarApoderado = (estudianteId) => {
+    setConfirmarQuitar(estudianteId);
+    setErrorAsociacion(null);
+  };
+
+  const confirmarQuitarApoderado = async (estudianteId) => {
+    setLoadingAsociacion(true);
+    setErrorAsociacion(null);
+    try {
+      await editarAsociacionEstudiante(estudianteId, null);
+      setConfirmarQuitar(null);
+      await recargarListasModal();
+    } catch (error) {
+      setErrorAsociacion(error.message || "Error al quitar el apoderado");
+    } finally {
+      setLoadingAsociacion(false);
     }
   };
 
@@ -233,6 +299,9 @@ function Apoderados() {
                   <h3 style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     Estudiantes ya asociados ({estudiantesDelApo.length})
                   </h3>
+                  {errorAsociacion && (
+                    <p style={{ color: "#dc2626", fontSize: "0.85rem", marginBottom: "8px" }}>{errorAsociacion}</p>
+                  )}
                   {estudiantesDelApo.length === 0 ? (
                     <p style={{ color: "#94a3b8", fontSize: "0.9rem" }}>
                       Este apoderado aún no tiene estudiantes asignados.
@@ -248,12 +317,97 @@ function Apoderados() {
                             borderRadius  : "6px",
                             padding       : "8px 12px",
                             fontSize      : "0.9rem",
-                            display       : "flex",
-                            justifyContent: "space-between",
                           }}
                         >
-                          <span>{e.Estudiante_Nombre_Completo}</span>
-                          <span style={{ color: "#64748b" }}>{e.Estudiante_RUT}</span>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span>{e.Estudiante_Nombre_Completo} <span style={{ color: "#64748b" }}>({e.Estudiante_RUT})</span></span>
+                            {confirmarQuitar !== e.Estudiante_Id && reasignando !== e.Estudiante_Id && (
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  className="btn-roles"
+                                  style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+                                  onClick={() => iniciarReasignacion(e.Estudiante_Id)}
+                                >
+                                  Cambiar apoderado
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-desactivar"
+                                  style={{ fontSize: "0.78rem", padding: "4px 8px" }}
+                                  onClick={() => solicitarQuitarApoderado(e.Estudiante_Id)}
+                                >
+                                  Quitar apoderado
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* CU39 - Flujo correcto: reasignar a otro apoderado */}
+                          {reasignando === e.Estudiante_Id && (
+                            <div style={{ marginTop: "8px", display: "flex", gap: "6px", alignItems: "center" }}>
+                              <select
+                                className="usuarios-select"
+                                style={{ fontSize: "0.85rem" }}
+                                value={nuevoApoderadoId}
+                                onChange={(ev) => setNuevoApoderadoId(ev.target.value)}
+                              >
+                                <option value="">Selecciona un nuevo apoderado...</option>
+                                {apoderados
+                                  .filter((a) => a.Usuario_Id !== apoderadoSeleccionado.Usuario_Id)
+                                  .map((a) => (
+                                    <option key={a.Usuario_Id} value={a.Usuario_Id}>
+                                      {a.Usuario_Nombre_Completo}
+                                    </option>
+                                  ))}
+                              </select>
+                              <button
+                                type="button"
+                                className="btn-primario"
+                                style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                disabled={loadingAsociacion}
+                                onClick={() => confirmarReasignacion(e.Estudiante_Id)}
+                              >
+                                Confirmar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-roles"
+                                style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                onClick={() => setReasignando(null)}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          )}
+
+                          {/* CU39 - Excepción "elimina última asociación": doble confirmación, sin segunda llamada al backend */}
+                          {confirmarQuitar === e.Estudiante_Id && (
+                            <div style={{ marginTop: "8px", padding: "8px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
+                              <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#991b1b" }}>
+                                ¿Confirmas quitar el apoderado? El estudiante quedará sin apoderado asociado.
+                              </p>
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  className="btn-desactivar"
+                                  style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                  disabled={loadingAsociacion}
+                                  onClick={() => confirmarQuitarApoderado(e.Estudiante_Id)}
+                                >
+                                  {loadingAsociacion ? "Quitando..." : "Sí, quitar apoderado"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-roles"
+                                  style={{ fontSize: "0.78rem", padding: "4px 10px" }}
+                                  onClick={() => setConfirmarQuitar(null)}
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>

@@ -206,6 +206,26 @@ export async function getAsignacionesDocente(docenteId) {
   return handleResponse(res);
 }
 
+// ── CU40: Estudiantes asociados a un apoderado ──
+
+export async function getEstudiantesAsociados(apoderadoId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/apoderado/${apoderadoId}/asociados`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// ── CU39: Editar (reasignar/quitar) el apoderado de un estudiante ──
+
+export async function editarAsociacionEstudiante(estudianteId, apoderadoId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/${estudianteId}/apoderado`, {
+    method : 'PUT',
+    headers: authHeaders(),
+    body   : JSON.stringify({ apoderadoId }),
+  });
+  return handleResponse(res);
+}
+
 // Buscar usuario existente por RUT, nombre o correo
 export async function buscarUsuarioExistente({ rut, nombre, correo }) {
 
