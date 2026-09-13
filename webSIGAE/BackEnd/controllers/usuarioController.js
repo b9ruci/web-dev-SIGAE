@@ -557,13 +557,14 @@ const asignarRol = async (req, res) => {
   }
 };
 
-// Buscar usuario existente por RUT o nombre (CU 25)
+// CU28: Buscar usuarios por nombre completo, RUT o correo electrónico
 const buscarUsuario = async (req, res) => {
-  const { rut, nombre } = req.body;
+  const { rut, nombre, correo } = req.body;
   const solicitante = req.user;
 
-  if (!rut && !nombre) {
-    return res.status(400).json({ mensaje: 'Debe ingresar al menos un criterio de búsqueda (RUT o nombre)' });
+  // CU28 - Excepción "Campos inválidos o incompletos"
+  if (!rut && !nombre && !correo) {
+    return res.status(400).json({ mensaje: 'Ingrese datos válidos' });
   }
 
   try {
@@ -577,6 +578,12 @@ const buscarUsuario = async (req, res) => {
     if (nombre) {
       conditions.push('Usuario_Nombre_Completo LIKE ?');
       params.push(`%${nombre}%`);
+    }
+    if (correo) {
+      conditions.push(
+        '(Administrador_Correo_Institucional LIKE ? OR Docente_Correo_Institucional LIKE ? OR Apoderado_Correo_Natural LIKE ?)'
+      );
+      params.push(`%${correo}%`, `%${correo}%`, `%${correo}%`);
     }
 
     const [rows] = await db.query(
@@ -596,6 +603,18 @@ const buscarUsuario = async (req, res) => {
     const resultado = esSuperAdmin
       ? rows
       : rows.filter(u => !(u.Es_Administrador && u.Administrador_Tipo === 'Super Admin'));
+
+    // CU28 - Excepción "Búsqueda fuera de alcance": el/los usuarios encontrados existen,
+    // pero son Super Admin y un Administrador normal no puede gestionarlos. No corresponde
+    // reportar esto como "sin coincidencias" (eso implicaría que el usuario no existe).
+    if (!esSuperAdmin && rows.length > 0 && resultado.length === 0) {
+      return res.status(403).json({ mensaje: 'Usuario fuera de su alcance' });
+    }
+
+    // CU28 - Excepción "Sin coincidencias"
+    if (resultado.length === 0) {
+      return res.status(200).json({ mensaje: 'No se encontraron usuarios', usuarios: [] });
+    }
 
     res.json(resultado);
   } catch (error) {
