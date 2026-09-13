@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
-import { getEstudiantes, buscarEstudiantes } from "../../services/api";
+import { useAuth } from "../context/AuthContext";
+import { getEstudiantes, buscarEstudiantes, getCursos, editarEstudiante } from "../../services/api";
+
+const ESTADOS_ACADEMICOS = ["Regular", "Irregular", "Retirado", "Egresado"];
 
 function Estudiantes() {
+  const { usuario } = useAuth();
+  const esAdmin =
+    usuario?.roles?.includes("Administrador") || usuario?.administradorTipo === "Super Admin";
+
   const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
@@ -13,8 +20,20 @@ function Estudiantes() {
   const [mensajeInfo, setMensajeInfo] = useState("");
   const [errorCarga, setErrorCarga] = useState("");
 
+  // CU38: edición de curso asociado y estado académico — exclusivo de Administrador/Super Admin
+  const [cursosOpciones, setCursosOpciones] = useState([]);
+  const [editando, setEditando] = useState(null);
+  const [form, setForm] = useState({ Curso_Id: "", Estudiante_Estado_Academico: "" });
+  const [guardando, setGuardando] = useState(false);
+  const [msgErrorForm, setMsgErrorForm] = useState("");
+  const [msgExitoForm, setMsgExitoForm] = useState("");
+
   useEffect(() => {
     cargarEstudiantes({}, true);
+    if (esAdmin) {
+      getCursos().then(setCursosOpciones).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // CU34 y CU35: listado con filtros opcionales de curso y estado académico, resueltos en el backend
@@ -92,6 +111,40 @@ function Estudiantes() {
   });
 
   const flechaOrden = (campo) => (orden.campo === campo ? (orden.ascendente ? " ↑" : " ↓") : "");
+
+  // CU38: editar curso asociado y estado académico
+  const abrirEdicion = (estudiante) => {
+    setEditando(estudiante);
+    setForm({
+      Curso_Id: estudiante.Curso_Id ?? "",
+      Estudiante_Estado_Academico: estudiante.Estudiante_Estado_Academico ?? "",
+    });
+    setMsgErrorForm("");
+    setMsgExitoForm("");
+  };
+
+  const cerrarEdicion = () => setEditando(null);
+
+  const handleSubmitEdicion = async (e) => {
+    e.preventDefault();
+    setMsgErrorForm("");
+    setMsgExitoForm("");
+    setGuardando(true);
+    try {
+      const data = await editarEstudiante(editando.Estudiante_Id, {
+        Curso_Id: Number(form.Curso_Id),
+        Estudiante_Estado_Academico: form.Estudiante_Estado_Academico,
+      });
+      // CU38 - Excepción "Sin modificaciones": el backend responde sin objeto "estudiante"
+      setMsgExitoForm(data.mensaje || "Ficha actualizada correctamente");
+      await cargarEstudiantes({ curso: filtroCurso, estado: filtroEstado });
+    } catch (error) {
+      // CU38 - Excepción "Curso no existe o inactivo"
+      setMsgErrorForm(error.message || "No fue posible actualizar la ficha");
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -184,6 +237,7 @@ function Estudiantes() {
                   <th style={{ cursor: "pointer" }} onClick={() => alternarOrden("Estudiante_Estado_Academico")}>
                     Estado{flechaOrden("Estudiante_Estado_Academico")}
                   </th>
+                  {esAdmin && <th>Acciones</th>}
                 </tr>
               </thead>
               <tbody>
@@ -200,12 +254,89 @@ function Estudiantes() {
                         <span className="badge-inactivo">{e.Estudiante_Estado_Academico}</span>
                       )}
                     </td>
+                    {esAdmin && (
+                      <td>
+                        <button className="btn-roles" onClick={() => abrirEdicion(e)}>
+                          Editar ficha
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
         </>
+      )}
+
+      {/* CU38: modal de edición de curso asociado y estado académico */}
+      {editando && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div className="form-card" style={{ width: "460px", maxWidth: "95vw" }}>
+            <h2 style={{ marginBottom: "4px" }}>Editar ficha del estudiante</h2>
+            <p style={{ color: "#64748b", marginBottom: "20px" }}>
+              <strong>{editando.Estudiante_Nombre_Completo}</strong>
+            </p>
+
+            <form onSubmit={handleSubmitEdicion} className="cambiar-pwd-form">
+              <div className="campo-pwd">
+                <label>Curso asociado</label>
+                <select
+                  className="usuarios-select"
+                  value={form.Curso_Id}
+                  onChange={(e) => setForm((f) => ({ ...f, Curso_Id: e.target.value }))}
+                  style={{ width: "100%" }}
+                >
+                  <option value="">Selecciona un curso...</option>
+                  {cursosOpciones.map((c) => (
+                    <option key={c.Curso_Id} value={c.Curso_Id}>{c.Curso_Nombre}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="campo-pwd">
+                <label>Estado académico</label>
+                <select
+                  className="usuarios-select"
+                  value={form.Estudiante_Estado_Academico}
+                  onChange={(e) => setForm((f) => ({ ...f, Estudiante_Estado_Academico: e.target.value }))}
+                  style={{ width: "100%" }}
+                >
+                  {ESTADOS_ACADEMICOS.map((estado) => (
+                    <option key={estado} value={estado}>{estado}</option>
+                  ))}
+                </select>
+              </div>
+
+              {msgExitoForm && <div className="msg-exito">{msgExitoForm}</div>}
+              {msgErrorForm && <div className="msg-error-form">{msgErrorForm}</div>}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                <button type="submit" className="btn-primario" disabled={guardando}>
+                  {guardando ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-desactivar"
+                  onClick={cerrarEdicion}
+                  disabled={guardando}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

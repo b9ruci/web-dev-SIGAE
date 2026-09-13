@@ -171,6 +171,24 @@ export async function buscarEstudiantes(criterio) {
   return handleResponse(res);
 }
 
+// ── CU38: Editar curso asociado y estado académico de un estudiante ──
+
+export async function getCursos() {
+  const res = await fetch(`${BASE_URL}/cursos`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+export async function editarEstudiante(id, datos) {
+  const res = await fetch(`${BASE_URL}/estudiantes/${id}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(datos),
+  });
+  return handleResponse(res);
+}
+
 // ── CU29: Búsqueda de usuarios con filtros avanzados por rol y estado de cuenta ──
 
 export async function getUsuariosPorFiltro({ rol, estado } = {}) {
