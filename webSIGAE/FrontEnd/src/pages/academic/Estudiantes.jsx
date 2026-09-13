@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getEstudiantes } from "../../services/api";
 
 function Estudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState("");
+  const [filtroCurso, setFiltroCurso] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
+  const [orden, setOrden] = useState({ campo: "Estudiante_Nombre_Completo", ascendente: true });
   const [mensajeInfo, setMensajeInfo] = useState("");
   const [errorCarga, setErrorCarga] = useState("");
 
@@ -33,15 +36,48 @@ function Estudiantes() {
     }
   };
 
-  const estudiantesFiltrados = estudiantes.filter((e) => {
-    const texto = busqueda.toLowerCase();
-    return (
-      !busqueda ||
-      e.Estudiante_Nombre_Completo?.toLowerCase().includes(texto) ||
-      e.Estudiante_RUT?.toLowerCase().includes(texto) ||
-      e.Curso_Nombre?.toLowerCase().includes(texto)
-    );
-  });
+  const cursosDisponibles = useMemo(
+    () => [...new Set(estudiantes.map((e) => e.Curso_Nombre).filter(Boolean))].sort(),
+    [estudiantes]
+  );
+
+  const estadosDisponibles = useMemo(
+    () => [...new Set(estudiantes.map((e) => e.Estudiante_Estado_Academico).filter(Boolean))].sort(),
+    [estudiantes]
+  );
+
+  const alternarOrden = (campo) => {
+    setOrden((prev) => ({
+      campo,
+      ascendente: prev.campo === campo ? !prev.ascendente : true,
+    }));
+  };
+
+  const limpiarFiltros = () => {
+    setBusqueda("");
+    setFiltroCurso("");
+    setFiltroEstado("");
+  };
+
+  const estudiantesFiltrados = estudiantes
+    .filter((e) => {
+      const texto = busqueda.toLowerCase();
+      const coincideTexto =
+        !busqueda ||
+        e.Estudiante_Nombre_Completo?.toLowerCase().includes(texto) ||
+        e.Estudiante_RUT?.toLowerCase().includes(texto);
+      const coincideCurso = !filtroCurso || e.Curso_Nombre === filtroCurso;
+      const coincideEstado = !filtroEstado || e.Estudiante_Estado_Academico === filtroEstado;
+      return coincideTexto && coincideCurso && coincideEstado;
+    })
+    .sort((a, b) => {
+      const factor = orden.ascendente ? 1 : -1;
+      const valorA = a[orden.campo] ?? "";
+      const valorB = b[orden.campo] ?? "";
+      return String(valorA).localeCompare(String(valorB)) * factor;
+    });
+
+  const flechaOrden = (campo) => (orden.campo === campo ? (orden.ascendente ? " ↑" : " ↓") : "");
 
   if (loading) {
     return (
@@ -74,10 +110,33 @@ function Estudiantes() {
             <input
               type="text"
               className="usuarios-search"
-              placeholder="Buscar por nombre, RUT o curso..."
+              placeholder="Buscar por nombre o RUT..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
+            <select
+              className="usuarios-select"
+              value={filtroCurso}
+              onChange={(e) => setFiltroCurso(e.target.value)}
+            >
+              <option value="">Todos los cursos</option>
+              {cursosDisponibles.map((curso) => (
+                <option key={curso} value={curso}>{curso}</option>
+              ))}
+            </select>
+            <select
+              className="usuarios-select"
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+            >
+              <option value="">Todos los estados</option>
+              {estadosDisponibles.map((estado) => (
+                <option key={estado} value={estado}>{estado}</option>
+              ))}
+            </select>
+            <button type="button" className="btn-roles" onClick={limpiarFiltros}>
+              Limpiar
+            </button>
           </div>
 
           {estudiantesFiltrados.length === 0 ? (
@@ -87,10 +146,18 @@ function Estudiantes() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Nombre</th>
-                  <th>RUT</th>
-                  <th>Curso</th>
-                  <th>Estado</th>
+                  <th style={{ cursor: "pointer" }} onClick={() => alternarOrden("Estudiante_Nombre_Completo")}>
+                    Nombre{flechaOrden("Estudiante_Nombre_Completo")}
+                  </th>
+                  <th style={{ cursor: "pointer" }} onClick={() => alternarOrden("Estudiante_RUT")}>
+                    RUT{flechaOrden("Estudiante_RUT")}
+                  </th>
+                  <th style={{ cursor: "pointer" }} onClick={() => alternarOrden("Curso_Nombre")}>
+                    Curso{flechaOrden("Curso_Nombre")}
+                  </th>
+                  <th style={{ cursor: "pointer" }} onClick={() => alternarOrden("Estudiante_Estado_Academico")}>
+                    Estado{flechaOrden("Estudiante_Estado_Academico")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
