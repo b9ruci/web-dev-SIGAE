@@ -31,6 +31,7 @@ import RegisterStudent from "../pages/users/RegisterStudent";
 import Apoderados from "../pages/users/Apoderados";
 import Administradores from "../pages/users/Administradores";
 import Docentes from "../pages/users/Docentes";
+import BuscarUsuarios from "../pages/users/BuscarUsuarios";
 import Perfil from "../pages/users/Perfil";
 
 /* NUEVOS COMPONENTES */
@@ -166,6 +167,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Administrador"]}>
                 <Docentes />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU28: Búsqueda de usuarios por nombre, RUT o correo — Super Admin/Admin */}
+          <Route
+            path="/buscar-usuarios"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <BuscarUsuarios />
               </RoleRoute>
             }
           />

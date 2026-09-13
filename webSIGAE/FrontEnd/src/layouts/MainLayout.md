@@ -71,6 +71,7 @@ Bloque "Administración" completo:
 
 **Dropdown "Gestión Usuarios"**
 - Gestión de Usuarios — `/usuarios`
+- Buscar Usuarios — `/buscar-usuarios` (CU28, búsqueda por nombre/RUT/correo)
 - Gestión de Docentes — `/docentes` (CU30/CU31, listado y filtros)
 - Gestión de Apoderados — `/apoderados`
 
