@@ -306,11 +306,11 @@ export async function getDetalleEstudiante(apoderadoId, estudianteId) {
 
 // ── CU39: Editar (reasignar/quitar) el apoderado de un estudiante ──
 
-export async function editarAsociacionEstudiante(estudianteId, apoderadoId) {
+export async function editarAsociacionEstudiante(estudianteId, apoderadoId, confirmarEliminacion = false) {
   const res = await fetch(`${BASE_URL}/estudiantes/${estudianteId}/apoderado`, {
     method : 'PUT',
     headers: authHeaders(),
-    body   : JSON.stringify({ apoderadoId }),
+    body   : JSON.stringify({ apoderadoId, confirmarEliminacion }),
   });
   return handleResponse(res);
 }
