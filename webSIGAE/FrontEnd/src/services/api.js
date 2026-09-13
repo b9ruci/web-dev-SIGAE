@@ -253,6 +253,15 @@ export async function editarAsociacionEstudiante(estudianteId, apoderadoId) {
   return handleResponse(res);
 }
 
+// CU10: eliminar la asociación específica entre un apoderado y un estudiante
+export async function eliminarAsociacionEspecifica(estudianteId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/${estudianteId}/apoderado`, {
+    method : 'DELETE',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // Buscar usuario existente por RUT, nombre o correo
 export async function buscarUsuarioExistente({ rut, nombre, correo }) {
 

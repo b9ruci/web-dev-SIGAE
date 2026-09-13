@@ -80,7 +80,8 @@ describe('Pruebas Unitarias - CU9 y CU10: Gestión de Asociaciones Apoderado-Est
 
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          mensaje: 'Asociación eliminada exitosamente para el estudiante Lucas Silva',
+          mensaje: 'Asociación específica eliminada exitosamente',
+          estudiante: 'Lucas Silva',
         })
       );
     });
@@ -96,7 +97,7 @@ describe('Pruebas Unitarias - CU9 y CU10: Gestión de Asociaciones Apoderado-Est
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        mensaje: 'La asociación seleccionada ya no se encuentra disponible o activa',
+        mensaje: 'No fue posible completar la eliminación',
       });
     });
 

@@ -383,7 +383,7 @@ const eliminarAsociacionEspecifica = async (req, res) => {
     // Excepción 1: la asociación ya no se encuentra activa
     if (!estudiante[0].Apoderado_Usuario_Id) {
       return res.status(400).json({
-        mensaje: 'La asociación seleccionada ya no se encuentra disponible o activa',
+        mensaje: 'No fue posible completar la eliminación',
       });
     }
 
@@ -393,7 +393,8 @@ const eliminarAsociacionEspecifica = async (req, res) => {
     );
 
     return res.json({
-      mensaje: `Asociación eliminada exitosamente para el estudiante ${estudiante[0].Estudiante_Nombre_Completo}`,
+      mensaje: 'Asociación específica eliminada exitosamente',
+      estudiante: estudiante[0].Estudiante_Nombre_Completo,
     });
   } catch (error) {
     console.error(error);

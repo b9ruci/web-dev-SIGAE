@@ -5,6 +5,7 @@ import {
   getEstudiantesSinApoderado,
   asignarApoderado,
   editarAsociacionEstudiante,
+  eliminarAsociacionEspecifica,
   eliminarTodasAsociaciones,
 } from "../../services/api";
 
@@ -182,11 +183,13 @@ function Apoderados() {
     setLoadingAsociacion(true);
     setErrorAsociacion(null);
     try {
-      await editarAsociacionEstudiante(estudianteId, null);
+      // CU10: eliminación de la asociación específica (endpoint dedicado,
+      // no el de edición/reasignación de CU39)
+      await eliminarAsociacionEspecifica(estudianteId);
       setConfirmarQuitar(null);
       await recargarListasModal();
     } catch (error) {
-      setErrorAsociacion(error.message || "Error al quitar el apoderado");
+      setErrorAsociacion(error.message || "No fue posible completar la eliminación");
     } finally {
       setLoadingAsociacion(false);
     }
