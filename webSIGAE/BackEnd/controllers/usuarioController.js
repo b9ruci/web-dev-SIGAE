@@ -607,9 +607,10 @@ const buscarUsuario = async (req, res) => {
 // CU30 y CU31: Listar docentes y filtrar por especialidad o estado de cuenta
 // Endpoint: GET /api/usuarios/docentes?especialidad=...&estado=...
 const getDocentes = async (req, res) => {
-  try {
-    const { especialidad, estado } = req.query;
+  const { especialidad, estado } = req.query;
+  const hayFiltros = (especialidad && especialidad.trim() !== '') || (estado !== undefined && estado !== '');
 
+  try {
     let sql = `
       SELECT 
         Usuario_Id,
@@ -644,12 +645,11 @@ const getDocentes = async (req, res) => {
     const [docentes] = await db.query(sql, params);
 
     if (docentes.length === 0) {
-      const hayFiltros = (especialidad && especialidad.trim() !== '') || (estado !== undefined && estado !== '');
       // CU30 (sin filtros): no existen docentes registrados en el sistema.
-      // CU31 (Excepción 1, con filtros): ninguno coincide con los criterios.
+      // CU31 (Excepción "Sin coincidencias", con filtros): ninguno coincide con los filtros aplicados.
       return res.status(200).json({
         mensaje: hayFiltros
-          ? 'No existen docentes asociados a los criterios ingresados'
+          ? 'No existen docentes asociados a los filtros aplicados'
           : 'No existen docentes registrados',
         docentes: [],
       });
@@ -658,7 +658,13 @@ const getDocentes = async (req, res) => {
     return res.json(docentes);
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ mensaje: 'No fue posible obtener el listado, reintente posteriormente' });
+    // CU30: "No fue posible obtener el listado, reintente posteriormente"
+    // CU31 (con filtros): "No fue posible completar la operación"
+    return res.status(500).json({
+      mensaje: hayFiltros
+        ? 'No fue posible completar la operación'
+        : 'No fue posible obtener el listado, reintente posteriormente',
+    });
   }
 };
 

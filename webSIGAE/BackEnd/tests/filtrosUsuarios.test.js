@@ -59,7 +59,7 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.json).toHaveBeenCalledWith(mockDocentesFiltrados);
     });
 
-    test('CU31 - Excepción 1: Retorna mensaje si no hay coincidencias con los filtros', async () => {
+    test('CU31 - Excepción "Sin coincidencias": Retorna mensaje si no hay coincidencias con los filtros', async () => {
       req.query = { especialidad: 'Inexistente' };
       db.query.mockResolvedValueOnce([[]]);
 
@@ -68,10 +68,22 @@ describe('Pruebas Unitarias - CU30 a CU33: Listados y Filtros de Docentes y Apod
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
-          mensaje: 'No existen docentes asociados a los criterios ingresados',
+          mensaje: 'No existen docentes asociados a los filtros aplicados',
           docentes: [],
         })
       );
+    });
+
+    test('CU31 - Excepción "Problema técnico": con filtros aplicados retorna 500 con mensaje distinto al de CU30', async () => {
+      req.query = { especialidad: 'Historia' };
+      db.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
+
+      await usuarioController.getDocentes(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        mensaje: 'No fue posible completar la operación',
+      });
     });
 
     test('CU30 - Excepción: sin filtros, retorna mensaje de que no existen docentes registrados', async () => {
