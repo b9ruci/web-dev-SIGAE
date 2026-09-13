@@ -328,6 +328,14 @@ export async function getListaDocentes() {
   return handleResponse(res);
 }
 
+// CU57: vista consolidada del horario de toda la institución (Super Admin/Admin)
+export async function getHorarioMaestro() {
+  const res = await fetch(`${BASE_URL}/horarios/maestro`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── CU40: Estudiantes asociados a un apoderado ──
 
 export async function getEstudiantesAsociados(apoderadoId) {

@@ -160,6 +160,7 @@ function MainLayout() {
                       <Link to="/estudiantes">Estudiantes</Link>
                       <Link to="/horarios">Horarios</Link>
                       <Link to="/mi-horario">Horario de Docente</Link>
+                      <Link to="/horario-maestro">Horario Maestro</Link>
                       <Link to="/bloques-horarios">Bloques Horarios</Link>
                       <Link to="/registrar-estudiante">Registrar Estudiante</Link>
                     </div>

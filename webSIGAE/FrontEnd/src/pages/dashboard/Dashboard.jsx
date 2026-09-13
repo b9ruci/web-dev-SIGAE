@@ -108,6 +108,7 @@ function DashboardAdmin({ esSuperAdmin }) {
               { label: "Asignaturas",           to: "/asignaturas" },
               { label: "Cursos",                to: "/cursos" },
               { label: "Horarios",              to: "/horarios" },
+              { label: "Horario Maestro",       to: "/horario-maestro" },
               { label: "Bloques Horarios",      to: "/bloques-horarios" },
               { label: "Registrar Estudiante",  to: "/registrar-estudiante" },
             ]}

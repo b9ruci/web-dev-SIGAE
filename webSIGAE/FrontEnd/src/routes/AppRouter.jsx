@@ -44,6 +44,7 @@ import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
 import MiHorario from "../pages/academic/MiHorario";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
+import HorarioMaestro from "../pages/academic/HorarioMaestro";
 import PlanEducativo from "../pages/academic/PlanEducativo";
 import Asignaturas from "../pages/academic/Asignaturas";
 
@@ -117,6 +118,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Docente", "Administrador"]}>
                 <MiHorario />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU57: vista consolidada del horario de toda la institución (Super Admin/Admin) */}
+          <Route
+            path="/horario-maestro"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <HorarioMaestro />
               </RoleRoute>
             }
           />
