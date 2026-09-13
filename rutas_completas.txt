@@ -20,6 +20,7 @@ webSIGAE/BackEnd/config/db.js
 webSIGAE/BackEnd/controllers/authController.js
 webSIGAE/BackEnd/controllers/roleController.js
 webSIGAE/BackEnd/controllers/planController.js
+webSIGAE/BackEnd/controllers/exportController.js
 webSIGAE/BackEnd/controllers/passwordController.js
 webSIGAE/BackEnd/controllers/dashboardController.js
 webSIGAE/BackEnd/controllers/estudianteController.js
@@ -3210,9 +3211,15 @@ webSIGAE/BackEnd/.env
 webSIGAE/BackEnd/hashPasswords.js
 webSIGAE/BackEnd/userRoles.Es_Docente,
 webSIGAE/BackEnd/scripts/hashPasswords
+webSIGAE/BackEnd/tests/asociaciones.test.js
+webSIGAE/BackEnd/tests/filtrosUsuarios.test.js
 webSIGAE/BackEnd/API/AUTH/login.sql
 webSIGAE/Database/SIGAE.sql
+webSIGAE/Database/modelo_fisico_casos_uso.md
+webSIGAE/Database/diagrama_componentes.md
+webSIGAE/Database/casos_de_uso_matrices.md
 webSIGAE/FrontEnd/package.json
+webSIGAE/FrontEnd/public/logo-colegio.png
 webSIGAE/FrontEnd/public/favicon.svg
 webSIGAE/FrontEnd/public/icons.svg
 webSIGAE/FrontEnd/.gitignore
@@ -8355,6 +8362,7 @@ webSIGAE/FrontEnd/src/index.css
 webSIGAE/FrontEnd/src/App.css
 webSIGAE/FrontEnd/src/pages/communications/Citaciones.jsx
 webSIGAE/FrontEnd/src/pages/communications/Mensajes.jsx
+webSIGAE/FrontEnd/src/pages/EstudiantesListado.jsx
 webSIGAE/FrontEnd/src/pages/users/RegisterGuardian.jsx
 webSIGAE/FrontEnd/src/pages/users/FormEditarUsuario.jsx
 webSIGAE/FrontEnd/src/pages/users/RegisterStudent.jsx
@@ -8365,8 +8373,8 @@ webSIGAE/FrontEnd/src/pages/users/Perfil.jsx
 webSIGAE/FrontEnd/src/pages/users/Usuarios.jsx
 webSIGAE/FrontEnd/src/pages/users/RegisterAdmin.jsx
 webSIGAE/FrontEnd/src/pages/context/AuthContext.jsx
-webSIGAE/FrontEnd/src/pages/context/uesAuth.js
 webSIGAE/FrontEnd/src/pages/dashboard/Dashboard.jsx
+webSIGAE/FrontEnd/src/pages/EstudiantesListado.test.jsx
 webSIGAE/FrontEnd/src/pages/reports/Reportes.jsx
 webSIGAE/FrontEnd/src/pages/auth/Login.jsx
 webSIGAE/FrontEnd/src/pages/auth/ForgotPassword.jsx
@@ -8384,4 +8392,7 @@ webSIGAE/FrontEnd/src/assets/hero.png
 webSIGAE/FrontEnd/src/assets/vite.svg
 webSIGAE/FrontEnd/src/utils/validaciones.js
 webSIGAE/FrontEnd/src/components/Sidebar.jsx
+webSIGAE/FrontEnd/src/components/ListaEstudiantesApoderado.jsx
+webSIGAE/FrontEnd/src/components/EditarFicha.jsx
+webSIGAE/FrontEnd/src/components/HorarioDocente.jsx
 webSIGAE/FrontEnd/index.html
