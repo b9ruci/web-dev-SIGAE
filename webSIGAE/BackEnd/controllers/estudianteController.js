@@ -5,8 +5,12 @@
 const db = require('../config/db');
 const { validarRut } = require('../middleware/validation');
 
-// CU34: Visualizar listado completo de estudiantes registrados
+// CU34 y CU35: Visualizar listado de estudiantes, con filtros opcionales por curso y estado académico
+// Endpoint: GET /api/estudiantes?curso=...&estado=...
 const getEstudiantes = async (req, res) => {
+  const { curso, estado } = req.query;
+  const hayFiltros = (curso && curso.trim() !== '') || (estado && estado.trim() !== '');
+
   try {
     const { roles, id: userId } = req.user;
     const esAdmin = roles.includes('Administrador');
@@ -34,29 +38,58 @@ const getEstudiantes = async (req, res) => {
       }
 
       const cursoIds = cursos.map((c) => c.Curso_Id);
-      [rows] = await db.query(
-        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
-         FROM estudiante e
-         JOIN curso c ON c.Curso_Id = e.Curso_Id
-         WHERE e.Curso_Id IN (?)
-         ORDER BY e.Estudiante_Nombre_Completo ASC`,
-        [cursoIds]
-      );
+      let sql = `
+        SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+        FROM estudiante e
+        JOIN curso c ON c.Curso_Id = e.Curso_Id
+        WHERE e.Curso_Id IN (?)
+      `;
+      const params = [cursoIds];
+
+      // Filtros opcionales (CU35) — un Docente no puede filtrar fuera de sus propios cursos
+      if (curso && curso.trim() !== '') {
+        sql += ' AND c.Curso_Nombre = ?';
+        params.push(curso.trim());
+      }
+      if (estado && estado.trim() !== '') {
+        sql += ' AND e.Estudiante_Estado_Academico = ?';
+        params.push(estado.trim());
+      }
+
+      sql += ' ORDER BY e.Estudiante_Nombre_Completo ASC';
+      [rows] = await db.query(sql, params);
     } else {
-      [rows] = await db.query(
-        `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
-         FROM estudiante e
-         JOIN curso c ON c.Curso_Id = e.Curso_Id
-         ORDER BY e.Estudiante_Nombre_Completo ASC`
-      );
+      let sql = `
+        SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
+               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+        FROM estudiante e
+        JOIN curso c ON c.Curso_Id = e.Curso_Id
+        WHERE 1 = 1
+      `;
+      const params = [];
+
+      // Filtros opcionales (CU35)
+      if (curso && curso.trim() !== '') {
+        sql += ' AND c.Curso_Nombre = ?';
+        params.push(curso.trim());
+      }
+      if (estado && estado.trim() !== '') {
+        sql += ' AND e.Estudiante_Estado_Academico = ?';
+        params.push(estado.trim());
+      }
+
+      sql += ' ORDER BY e.Estudiante_Nombre_Completo ASC';
+      [rows] = await db.query(sql, params);
     }
 
-    // Excepción: no existen estudiantes registrados
     if (rows.length === 0) {
+      // CU34 (sin filtros): no existen estudiantes registrados en el sistema.
+      // CU35 (con filtros): ninguno coincide con los criterios seleccionados.
       return res.status(200).json({
-        mensaje: 'No hay estudiantes registrados',
+        mensaje: hayFiltros
+          ? 'No existen estudiantes para los criterios seleccionados'
+          : 'No hay estudiantes registrados',
         estudiantes: [],
       });
     }
