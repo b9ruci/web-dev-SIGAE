@@ -217,6 +217,7 @@ CREATE TABLE `estudiante` (
   `Estudiante_Estado_Academico` varchar(50) NOT NULL,
   `Curso_Id` int unsigned NOT NULL,
   `Apoderado_Usuario_Id` int unsigned DEFAULT NULL,
+  `Estudiante_Fecha_Eliminacion` datetime DEFAULT NULL,
   PRIMARY KEY (`Estudiante_Id`),
   UNIQUE KEY `Estudiante_RUT_UNIQUE` (`Estudiante_RUT`),
   KEY `fk_Estudiante_Curso_idx` (`Curso_Id`),

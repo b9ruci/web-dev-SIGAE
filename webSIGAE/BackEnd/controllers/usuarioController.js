@@ -846,6 +846,10 @@ const getApoderados = async (req, res) => {
   }
 
   try {
+    // RF20/CU32/CU33: la lista debe incluir, por cada apoderado, los
+    // estudiantes vinculados con su estado académico (no solo un total).
+    // GROUP_CONCAT arma esa lista dentro de la misma consulta agregada que
+    // ya calcula Total_Estudiantes_Asociados para el filtro por cantidad.
     let sql = `
       SELECT
         u.Usuario_Id,
@@ -858,9 +862,16 @@ const getApoderados = async (req, res) => {
         u.Es_Docente,
         u.Es_Apoderado,
         u.Es_Administrador,
-        COUNT(e.Estudiante_Id) AS Total_Estudiantes_Asociados
+        COUNT(e.Estudiante_Id) AS Total_Estudiantes_Asociados,
+        GROUP_CONCAT(
+          CASE WHEN e.Estudiante_Id IS NOT NULL
+            THEN CONCAT(e.Estudiante_Nombre_Completo, '::', e.Estudiante_Estado_Academico)
+          END
+          SEPARATOR '||'
+        ) AS Estudiantes_Asociados_Raw
       FROM usuario u
-      LEFT JOIN estudiante e ON u.Usuario_Id = e.Apoderado_Usuario_Id
+      LEFT JOIN estudiante e
+        ON u.Usuario_Id = e.Apoderado_Usuario_Id AND e.Estudiante_Fecha_Eliminacion IS NULL
       WHERE u.Es_Apoderado = 1
       GROUP BY u.Usuario_Id
     `;
@@ -874,7 +885,17 @@ const getApoderados = async (req, res) => {
 
     sql += ' ORDER BY u.Usuario_Nombre_Completo ASC';
 
-    const [apoderados] = await db.query(sql, params);
+    const [filas] = await db.query(sql, params);
+
+    const apoderados = filas.map(({ Estudiantes_Asociados_Raw, ...apoderado }) => ({
+      ...apoderado,
+      Estudiantes: Estudiantes_Asociados_Raw
+        ? Estudiantes_Asociados_Raw.split('||').map((par) => {
+            const [nombre, estado] = par.split('::');
+            return { Estudiante_Nombre_Completo: nombre, Estudiante_Estado_Academico: estado };
+          })
+        : [],
+    }));
 
     if (apoderados.length === 0) {
       // CU32 (sin filtros): no existen apoderados registrados en el sistema.

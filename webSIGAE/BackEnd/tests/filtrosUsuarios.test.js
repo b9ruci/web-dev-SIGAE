@@ -114,35 +114,67 @@ describe('Pruebas Unitarias - CU29 a CU33: Listados y Filtros de Usuarios, Docen
 
   // CU32 y CU33: Listado y filtro de Apoderados
   describe('CU32 y CU33 - getApoderados', () => {
-    test('CU32: Debe retornar el listado completo de apoderados', async () => {
-      const mockApoderados = [
+    test('CU32: Debe retornar el listado completo de apoderados con sus estudiantes vinculados', async () => {
+      const mockFilas = [
         {
           Usuario_Id: 10,
           Usuario_Nombre_Completo: 'Pedro Morales',
           Total_Estudiantes_Asociados: 2,
           Es_Apoderado: 1,
+          Estudiantes_Asociados_Raw: 'Juan Perez::Regular||Ana Perez::Irregular',
         },
       ];
 
-      db.query.mockResolvedValueOnce([mockApoderados]);
+      db.query.mockResolvedValueOnce([mockFilas]);
 
       await usuarioController.getApoderados(req, res);
 
-      expect(res.json).toHaveBeenCalledWith(mockApoderados);
+      expect(res.json).toHaveBeenCalledWith([
+        {
+          Usuario_Id: 10,
+          Usuario_Nombre_Completo: 'Pedro Morales',
+          Total_Estudiantes_Asociados: 2,
+          Es_Apoderado: 1,
+          Estudiantes: [
+            { Estudiante_Nombre_Completo: 'Juan Perez', Estudiante_Estado_Academico: 'Regular' },
+            { Estudiante_Nombre_Completo: 'Ana Perez', Estudiante_Estado_Academico: 'Irregular' },
+          ],
+        },
+      ]);
+    });
+
+    test('CU32: Un apoderado sin estudiantes asociados recibe una lista vacía de Estudiantes', async () => {
+      const mockFilas = [
+        {
+          Usuario_Id: 12,
+          Usuario_Nombre_Completo: 'Marta Soto',
+          Total_Estudiantes_Asociados: 0,
+          Estudiantes_Asociados_Raw: null,
+        },
+      ];
+
+      db.query.mockResolvedValueOnce([mockFilas]);
+
+      await usuarioController.getApoderados(req, res);
+
+      expect(res.json).toHaveBeenCalledWith([
+        expect.objectContaining({ Usuario_Id: 12, Estudiantes: [] }),
+      ]);
     });
 
     test('CU33: Debe filtrar apoderados por cantidad de estudiantes asociados (operador por defecto "=")', async () => {
       req.query = { cantidadEstudiantes: '2' };
 
-      const mockFiltrados = [
+      const mockFilas = [
         {
           Usuario_Id: 10,
           Usuario_Nombre_Completo: 'Pedro Morales',
           Total_Estudiantes_Asociados: 2,
+          Estudiantes_Asociados_Raw: 'Juan Perez::Regular||Ana Perez::Regular',
         },
       ];
 
-      db.query.mockResolvedValueOnce([mockFiltrados]);
+      db.query.mockResolvedValueOnce([mockFilas]);
 
       await usuarioController.getApoderados(req, res);
 
@@ -150,17 +182,24 @@ describe('Pruebas Unitarias - CU29 a CU33: Listados y Filtros de Usuarios, Docen
         expect.stringContaining('HAVING Total_Estudiantes_Asociados = ?'),
         expect.arrayContaining([2])
       );
-      expect(res.json).toHaveBeenCalledWith(mockFiltrados);
+      expect(res.json).toHaveBeenCalledWith([
+        expect.objectContaining({ Usuario_Id: 10, Total_Estudiantes_Asociados: 2 }),
+      ]);
     });
 
     test('CU33: Debe filtrar apoderados usando el operador indicado', async () => {
       req.query = { operador: '>=', cantidadEstudiantes: '3' };
 
-      const mockFiltrados = [
-        { Usuario_Id: 11, Usuario_Nombre_Completo: 'Laura Soto', Total_Estudiantes_Asociados: 4 },
+      const mockFilas = [
+        {
+          Usuario_Id: 11,
+          Usuario_Nombre_Completo: 'Laura Soto',
+          Total_Estudiantes_Asociados: 4,
+          Estudiantes_Asociados_Raw: null,
+        },
       ];
 
-      db.query.mockResolvedValueOnce([mockFiltrados]);
+      db.query.mockResolvedValueOnce([mockFilas]);
 
       await usuarioController.getApoderados(req, res);
 
@@ -168,7 +207,9 @@ describe('Pruebas Unitarias - CU29 a CU33: Listados y Filtros de Usuarios, Docen
         expect.stringContaining('HAVING Total_Estudiantes_Asociados >= ?'),
         expect.arrayContaining([3])
       );
-      expect(res.json).toHaveBeenCalledWith(mockFiltrados);
+      expect(res.json).toHaveBeenCalledWith([
+        expect.objectContaining({ Usuario_Id: 11, Total_Estudiantes_Asociados: 4 }),
+      ]);
     });
 
     test('CU33 - Excepción "Valor no entero o negativo": rechaza sin consultar la base de datos', async () => {

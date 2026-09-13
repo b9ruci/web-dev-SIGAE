@@ -439,22 +439,63 @@ const createHorario = async (req, res) => {
     }
 
     // ── Registro final ───────────────────────────────────────────────
-    const [result] = await pool.execute(
-      `INSERT INTO horario_asignatura
-       (Horario_Asignatura_Dia_Semana, Horario_Asignatura_Estado,
-        Curso_Id, Bloque_Horario_Id, Asignatura_Id, Usuario_Id)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        Horario_Asignatura_Dia_Semana,
-        Horario_Asignatura_Estado || 'Activo',
-        Curso_Id,
-        Bloque_Horario_Id,
-        Asignatura_Id,
-        Usuario_Id || null,
-      ]
-    );
+    // RNF17: los chequeos de conflicto anteriores corren en conexiones
+    // separadas y no bloquean filas, por lo que dos solicitudes simultáneas
+    // podrían pasarlos ambas antes de insertar. Se repite el chequeo de
+    // conflicto (curso/bloque/día y, si aplica, docente/bloque/día) dentro
+    // de una transacción con bloqueo de filas justo antes del INSERT, de
+    // forma atómica, para impedir el doble booking bajo concurrencia.
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    res.status(201).json({ mensaje: 'Horario creado correctamente', id: result.insertId });
+      const [existeFinal] = await conn.execute(
+        `SELECT Horario_Asignatura_Id FROM horario_asignatura
+         WHERE Curso_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?
+         FOR UPDATE`,
+        [Curso_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana]
+      );
+      if (existeFinal.length > 0) {
+        await conn.rollback();
+        return res.status(409).json({ error: 'Ya existe un bloque asignado en ese día y horario para este curso' });
+      }
+
+      if (Usuario_Id) {
+        const [conflictoDocenteFinal] = await conn.execute(
+          `SELECT Horario_Asignatura_Id FROM horario_asignatura
+           WHERE Usuario_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?
+           FOR UPDATE`,
+          [Usuario_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana]
+        );
+        if (conflictoDocenteFinal.length > 0) {
+          await conn.rollback();
+          return res.status(409).json({ error: 'El docente ya tiene una clase asignada en ese día y bloque horario' });
+        }
+      }
+
+      const [result] = await conn.execute(
+        `INSERT INTO horario_asignatura
+         (Horario_Asignatura_Dia_Semana, Horario_Asignatura_Estado,
+          Curso_Id, Bloque_Horario_Id, Asignatura_Id, Usuario_Id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          Horario_Asignatura_Dia_Semana,
+          Horario_Asignatura_Estado || 'Activo',
+          Curso_Id,
+          Bloque_Horario_Id,
+          Asignatura_Id,
+          Usuario_Id || null,
+        ]
+      );
+
+      await conn.commit();
+      res.status(201).json({ mensaje: 'Horario creado correctamente', id: result.insertId });
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
   } catch (error) {
     console.error('Error en createHorario:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

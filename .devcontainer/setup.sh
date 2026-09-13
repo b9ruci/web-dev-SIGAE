@@ -32,7 +32,7 @@ sudo apt-get install -y -q chromium
 echo "=== Instalando dependencias Backend ==="
 cd "$ROOT/webSIGAE/BackEnd"
 npm install
-npm install exceljs pdfkit puppeteer
+npm install exceljs pdfkit puppeteer multer
 
 echo "=== Instalando dependencias Frontend ==="
 cd "$ROOT/webSIGAE/FrontEnd"

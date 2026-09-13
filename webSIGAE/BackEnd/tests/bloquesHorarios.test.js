@@ -169,3 +169,109 @@ describe('Pruebas Unitarias - CU50: Eliminando Bloques Horarios Individuales', (
     expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error al eliminar' });
   });
 });
+
+describe('Pruebas Unitarias - CU51: Eliminando Múltiples Bloques Horarios', () => {
+  let req;
+  let res;
+
+  function crearConnMock() {
+    return {
+      beginTransaction: jest.fn().mockResolvedValue(),
+      query: jest.fn(),
+      commit: jest.fn().mockResolvedValue(),
+      rollback: jest.fn().mockResolvedValue(),
+      release: jest.fn(),
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    req = { body: { bloques_id: [3, 4] } };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+  });
+
+  test('Excepción: rechaza sin consultar la base de datos si no se seleccionan bloques', async () => {
+    req.body = { bloques_id: [] };
+
+    await bloquesController.deleteMultiplesBloques(req, res);
+
+    expect(pool.getConnection).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Debe seleccionar al menos un bloque horario' });
+  });
+
+  test('Flujo correcto: elimina todos los bloques seleccionados en una sola transacción', async () => {
+    const conn = crearConnMock();
+    conn.query
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 3 }, { Bloque_Horario_Id: 4 }]]) // existentes
+      .mockResolvedValueOnce([[]]) // horario_asignatura: sin uso
+      .mockResolvedValueOnce([[]]) // afecta: sin uso
+      .mockResolvedValueOnce([{ affectedRows: 2 }]); // DELETE
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.deleteMultiplesBloques(req, res);
+
+    expect(conn.commit).toHaveBeenCalled();
+    expect(conn.release).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ mensaje: 'Bloques eliminados exitosamente' });
+  });
+
+  test('Excepción "Uno o más bloques horarios no existen": no elimina ninguno', async () => {
+    const conn = crearConnMock();
+    conn.query.mockResolvedValueOnce([[{ Bloque_Horario_Id: 3 }]]); // solo uno de los dos existe
+
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.deleteMultiplesBloques(req, res);
+
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(conn.query).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Uno o más bloques horarios no existen' });
+  });
+
+  test('Excepción "Tienen asignaciones o restricciones" por asignación activa: no elimina ninguno', async () => {
+    const conn = crearConnMock();
+    conn.query
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 3 }, { Bloque_Horario_Id: 4 }]]) // existentes
+      .mockResolvedValueOnce([[{ Horario_Asignatura_Id: 1 }]]); // horario_asignatura: en uso
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.deleteMultiplesBloques(req, res);
+
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Uno o más bloques poseen asignaciones activas o restricciones asociadas' });
+  });
+
+  test('Excepción "Tienen asignaciones o restricciones" por evento institucional: no elimina ninguno', async () => {
+    const conn = crearConnMock();
+    conn.query
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 3 }, { Bloque_Horario_Id: 4 }]]) // existentes
+      .mockResolvedValueOnce([[]]) // horario_asignatura: sin uso
+      .mockResolvedValueOnce([[{ Afecta_Id: 1 }]]); // afecta: en uso
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.deleteMultiplesBloques(req, res);
+
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Uno o más bloques poseen asignaciones activas o restricciones asociadas' });
+  });
+
+  test('Excepción "Error durante la eliminación en BD": hace rollback y retorna 500', async () => {
+    const conn = crearConnMock();
+    conn.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
+    pool.getConnection.mockResolvedValueOnce(conn);
+
+    await bloquesController.deleteMultiplesBloques(req, res);
+
+    expect(conn.rollback).toHaveBeenCalled();
+    expect(conn.release).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error al eliminar' });
+  });
+});
