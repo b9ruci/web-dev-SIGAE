@@ -85,10 +85,10 @@ const getEstudiantes = async (req, res) => {
 
     if (rows.length === 0) {
       // CU34 (sin filtros): no existen estudiantes registrados en el sistema.
-      // CU35 (con filtros): ninguno coincide con los criterios seleccionados.
+      // CU35/CU37 (con filtros): ninguno cumple las condiciones seleccionadas.
       return res.status(200).json({
         mensaje: hayFiltros
-          ? 'No existen estudiantes para los criterios seleccionados'
+          ? 'No existen estudiantes que cumplan las condiciones'
           : 'No hay estudiantes registrados',
         estudiantes: [],
       });
@@ -97,7 +97,12 @@ const getEstudiantes = async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ mensaje: 'No fue posible recuperar los registros' });
+    // CU37: con filtros aplicados, mensaje distinto al de CU34 sin filtros
+    res.status(500).json({
+      mensaje: hayFiltros
+        ? 'No fue posible completar la consulta, reintente más tarde'
+        : 'No fue posible recuperar los registros',
+    });
   }
 };
 

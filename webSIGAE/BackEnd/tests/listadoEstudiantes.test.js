@@ -138,7 +138,7 @@ describe('Pruebas Unitarias - CU34 y CU35: Listado y Filtros de Estudiantes', ()
       ]);
     });
 
-    test('Excepción "Sin resultados coincidentes": retorna mensaje distinto al de CU34', async () => {
+    test('Excepción "Sin resultados coincidentes" (CU37): retorna mensaje distinto al de CU34', async () => {
       req.user = { id: 1, roles: ['Administrador'] };
       req.query = { estado: 'Retirado' };
       db.query.mockResolvedValueOnce([[]]);
@@ -147,12 +147,12 @@ describe('Pruebas Unitarias - CU34 y CU35: Listado y Filtros de Estudiantes', ()
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
-        mensaje: 'No existen estudiantes para los criterios seleccionados',
+        mensaje: 'No existen estudiantes que cumplan las condiciones',
         estudiantes: [],
       });
     });
 
-    test('Excepción "Error técnico": con filtros aplicados retorna el mismo mensaje de reintento', async () => {
+    test('Excepción "Error técnico" (CU37): con filtros aplicados retorna un mensaje distinto al de CU34', async () => {
       req.user = { id: 1, roles: ['Administrador'] };
       req.query = { curso: '1ero Básico A' };
       db.query.mockRejectedValueOnce(new Error('Fallo de conexión'));
@@ -160,7 +160,7 @@ describe('Pruebas Unitarias - CU34 y CU35: Listado y Filtros de Estudiantes', ()
       await estudianteController.getEstudiantes(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ mensaje: 'No fue posible recuperar los registros' });
+      expect(res.json).toHaveBeenCalledWith({ mensaje: 'No fue posible completar la consulta, reintente más tarde' });
     });
   });
 });
