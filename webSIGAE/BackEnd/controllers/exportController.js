@@ -362,13 +362,12 @@ const exportarPorCurso = async (req, res) => {
   }
 
   // CU62 - Excepción "Error de base de datos"
-  // (mensaje provisional: el diagrama de esta excepción no se ha recibido aún)
   let curso, filas;
   try {
     ({ curso, filas } = await fetchPorCurso(cursoId));
   } catch (error) {
     console.error('Error en exportarPorCurso (BD):', error);
-    return res.status(500).json({ error: 'Ocurrió un error en la base de datos al generar el horario del curso' });
+    return res.status(500).json({ error: 'Error en base de datos' });
   }
 
   if (!curso) {

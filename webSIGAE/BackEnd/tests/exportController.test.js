@@ -240,7 +240,7 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       await exportController.exportarPorCurso(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Ocurrió un error en la base de datos al generar el horario del curso' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Error en base de datos' });
     });
 
     test('Excepción "Error al generar archivo": retorna 500 y no descarga nada si falla el render', async () => {
