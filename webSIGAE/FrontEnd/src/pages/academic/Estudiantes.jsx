@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getEstudiantes } from "../../services/api";
+import { getEstudiantes, buscarEstudiantes } from "../../services/api";
 
 function Estudiantes() {
   const [estudiantes, setEstudiantes] = useState([]);
@@ -61,22 +61,35 @@ function Estudiantes() {
     cargarEstudiantes({});
   };
 
-  // El filtro por curso/estado ya lo resuelve el backend (CU35); acá solo queda la búsqueda de texto libre
-  const estudiantesFiltrados = estudiantes
-    .filter((e) => {
-      const texto = busqueda.toLowerCase();
-      return (
-        !busqueda ||
-        e.Estudiante_Nombre_Completo?.toLowerCase().includes(texto) ||
-        e.Estudiante_RUT?.toLowerCase().includes(texto)
-      );
-    })
-    .sort((a, b) => {
-      const factor = orden.ascendente ? 1 : -1;
-      const valorA = a[orden.campo] ?? "";
-      const valorB = b[orden.campo] ?? "";
-      return String(valorA).localeCompare(String(valorB)) * factor;
-    });
+  // CU36: búsqueda por nombre completo o RUT, resuelta en el backend (independiente del filtro de CU35)
+  const buscarPorCriterio = async () => {
+    setLoading(true);
+    setErrorCarga("");
+    setMensajeInfo("");
+    try {
+      const data = await buscarEstudiantes(busqueda);
+      if (Array.isArray(data)) {
+        setEstudiantes(data);
+      } else {
+        // Excepciones: sin coincidencias / docente sin cursos asignados
+        setEstudiantes(data.estudiantes || []);
+        setMensajeInfo(data.mensaje || "No se encontraron estudiantes con el criterio ingresado");
+      }
+    } catch (error) {
+      // Excepciones: criterio vacío o solo espacios / error técnico
+      setErrorCarga(error.message || "No fue posible completar la consulta, reintente más tarde");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // El filtro por curso/estado y la búsqueda por criterio ya los resuelve el backend (CU35/CU36)
+  const estudiantesFiltrados = [...estudiantes].sort((a, b) => {
+    const factor = orden.ascendente ? 1 : -1;
+    const valorA = a[orden.campo] ?? "";
+    const valorB = b[orden.campo] ?? "";
+    return String(valorA).localeCompare(String(valorB)) * factor;
+  });
 
   const flechaOrden = (campo) => (orden.campo === campo ? (orden.ascendente ? " ↑" : " ↓") : "");
 
@@ -95,7 +108,11 @@ function Estudiantes() {
         <p>Listado de estudiantes registrados en el sistema</p>
       </div>
 
-      <div className="usuarios-filtros">
+      {/* CU36: búsqueda por nombre completo o RUT */}
+      <form
+        className="usuarios-filtros"
+        onSubmit={(e) => { e.preventDefault(); buscarPorCriterio(); }}
+      >
         <input
           type="text"
           className="usuarios-search"
@@ -103,6 +120,11 @@ function Estudiantes() {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
         />
+        <button type="submit" className="btn-roles">Buscar</button>
+      </form>
+
+      {/* CU35: filtro por curso y estado académico */}
+      <div className="usuarios-filtros">
         <select
           className="usuarios-select"
           value={filtroCurso}

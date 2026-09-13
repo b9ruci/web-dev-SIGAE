@@ -161,6 +161,16 @@ export async function getEstudiantes({ curso, estado } = {}) {
   return handleResponse(res);
 }
 
+// ── CU36: Búsqueda de estudiantes por nombre completo o RUT ──
+
+export async function buscarEstudiantes(criterio) {
+  const params = new URLSearchParams({ criterio: criterio ?? '' });
+  const res = await fetch(`${BASE_URL}/estudiantes/buscar?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── CU29: Búsqueda de usuarios con filtros avanzados por rol y estado de cuenta ──
 
 export async function getUsuariosPorFiltro({ rol, estado } = {}) {
