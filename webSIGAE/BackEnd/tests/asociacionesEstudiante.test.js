@@ -128,9 +128,24 @@ describe('Pruebas Unitarias - CU39: Editar Asociaciones de un Estudiante', () =>
     expect(res.json).toHaveBeenCalledWith({ mensaje: 'Asociaciones actualizadas correctamente' });
   });
 
-  test('Debe eliminar la asociación (apoderadoId: null) cuando el frontend ya confirmó', async () => {
+  test('CU39 - Excepción "Elimina última asociación": pide confirmación adicional sin ejecutar el UPDATE', async () => {
     req.params.estudianteId = 1;
     req.body = { apoderadoId: null };
+
+    db.query.mockResolvedValueOnce([[{ Estudiante_Id: 1, Apoderado_Usuario_Id: 4 }]]);
+
+    await estudianteController.editarAsociaciones(req, res);
+
+    expect(db.query).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ requiereConfirmacion: true })
+    );
+  });
+
+  test('Debe eliminar la asociación (apoderadoId: null) cuando el frontend ya confirmó', async () => {
+    req.params.estudianteId = 1;
+    req.body = { apoderadoId: null, confirmarEliminacion: true };
 
     db.query
       .mockResolvedValueOnce([[{ Estudiante_Id: 1, Apoderado_Usuario_Id: 4 }]])

@@ -595,6 +595,7 @@ const getEstudiantesAsociados = async (req, res) => {
 const editarAsociaciones = async (req, res) => {
   const { estudianteId } = req.params;
   const apoderadoIdBody = req.body.apoderadoId;
+  const confirmarEliminacion = req.body.confirmarEliminacion === true;
 
   if (apoderadoIdBody === undefined) {
     return res.status(400).json({ mensaje: 'Debe indicar un apoderadoId (o null para eliminar la asociación)' });
@@ -615,9 +616,19 @@ const editarAsociaciones = async (req, res) => {
 
     const apoderadoActual = estudiante[0].Apoderado_Usuario_Id;
 
-    // Excepción 2: el apoderado ya se encuentra vinculado al estudiante (no duplicar)
+    // Excepción "Apoderado ya vinculado": no duplicar la asociación existente
     if (apoderadoId === apoderadoActual) {
       return res.status(400).json({ mensaje: 'La asociación ya existe, no se duplicará el registro' });
+    }
+
+    // CU39 - Excepción "Elimina última asociación": un estudiante solo puede tener un
+    // apoderado a la vez, así que eliminar la asociación actual siempre deja al
+    // estudiante sin ninguna. Se exige una confirmación adicional antes de aplicarlo.
+    if (apoderadoId === null && apoderadoActual !== null && !confirmarEliminacion) {
+      return res.status(200).json({
+        mensaje: 'Esta acción eliminará la única asociación registrada del estudiante. Confirme nuevamente para continuar.',
+        requiereConfirmacion: true,
+      });
     }
 
     // Si se asigna un nuevo apoderado (no se está eliminando), validar que exista y esté activo
