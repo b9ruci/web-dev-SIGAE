@@ -891,10 +891,10 @@ const getHorarioDocente = async (req, res) => {
       [docenteId]
     );
 
-    // Excepción "Horario sin planificar"
+    // CU43/CU58 - Excepción "Horario sin planificar" / "Sin asignaciones horarias"
     if (filas.length === 0) {
       return res.status(200).json({
-        mensaje: 'El horario aún no ha sido planificado',
+        mensaje: 'No hay horario disponible para mostrar',
         horario: [],
       });
     }
@@ -951,6 +951,6 @@ module.exports = {
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
   getAsignacionesDocente, // CU42
-  getHorarioDocente, // CU43
+  getHorarioDocente, // CU43 / CU58
   getHorarioMaestro, // CU57
 };

@@ -61,7 +61,7 @@ describe('Pruebas Unitarias - CU43: Horario Semanal de un Docente a partir de su
     expect(pool.execute).not.toHaveBeenCalled();
   });
 
-  test('Excepción "Horario sin planificar": retorna 200 con mensaje informativo si no hay bloques', async () => {
+  test('Excepción "Sin asignaciones horarias": retorna 200 con mensaje informativo si no hay bloques', async () => {
     req.user = { id: 5, roles: ['Docente'] };
     req.params.docenteId = '5';
 
@@ -71,7 +71,7 @@ describe('Pruebas Unitarias - CU43: Horario Semanal de un Docente a partir de su
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
-      mensaje: 'El horario aún no ha sido planificado',
+      mensaje: 'No hay horario disponible para mostrar',
       horario: [],
     });
   });
