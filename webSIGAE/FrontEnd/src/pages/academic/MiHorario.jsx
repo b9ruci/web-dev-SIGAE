@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getHorarioDocente, getListaDocentes } from "../../services/api";
+import ExportMenu from "../../components/ExportMenu";
 
 function MiHorario() {
   const { usuario, rolActivo } = useAuth();
@@ -63,7 +64,7 @@ function MiHorario() {
       </div>
 
       {esAdmin && (
-        <div className="usuarios-filtros">
+        <div className="usuarios-filtros" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <select
             className="usuarios-select"
             value={docenteId}
@@ -74,6 +75,15 @@ function MiHorario() {
               <option key={d.Usuario_Id} value={d.Usuario_Id}>{d.Usuario_Nombre_Completo}</option>
             ))}
           </select>
+
+          {/* CU61: exportar el horario del docente seleccionado */}
+          {docenteId && (
+            <ExportMenu
+              label="Exportar horario"
+              url={`/api/horarios/exportar/docente/${docenteId}`}
+              filenameBase={`horario_docente_${docenteId}`}
+            />
+          )}
         </div>
       )}
 
