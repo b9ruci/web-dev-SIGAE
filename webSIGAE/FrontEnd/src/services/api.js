@@ -286,6 +286,23 @@ export async function getAsignacionesDocente(docenteId) {
   return handleResponse(res);
 }
 
+// ── CU43: Horario semanal de un docente a partir de sus cursos asociados ──
+
+export async function getHorarioDocente(docenteId) {
+  const res = await fetch(`${BASE_URL}/horarios/docente/${docenteId}/horario`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// Listado simple de docentes activos, usado para el selector de "Mi Horario" (Admin/Super Admin)
+export async function getListaDocentes() {
+  const res = await fetch(`${BASE_URL}/horarios/docentes`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── CU40: Estudiantes asociados a un apoderado ──
 
 export async function getEstudiantesAsociados(apoderadoId) {

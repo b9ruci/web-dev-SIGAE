@@ -42,12 +42,10 @@ import ListaEstudiantesApoderado from "../components/ListaEstudiantesApoderado";
 import Cursos from "../pages/academic/Cursos";
 import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
+import MiHorario from "../pages/academic/MiHorario";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import PlanEducativo from "../pages/academic/PlanEducativo";
 import Asignaturas from "../pages/academic/Asignaturas";
-
-/* NUEVO COMPONENTE */
-import HorarioDocente from "../components/HorarioDocente";
 
 /* COMMUNICATION */
 
@@ -109,6 +107,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Docente", "Administrador"]}>
                 <Horarios />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU43: horario semanal propio (Docente) o de cualquier docente (Admin/Super Admin) */}
+          <Route
+            path="/mi-horario"
+            element={
+              <RoleRoute roles={["Docente", "Administrador"]}>
+                <MiHorario />
               </RoleRoute>
             }
           />

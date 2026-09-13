@@ -159,6 +159,7 @@ function MainLayout() {
                       <Link to="/cursos">Cursos</Link>
                       <Link to="/estudiantes">Estudiantes</Link>
                       <Link to="/horarios">Horarios</Link>
+                      <Link to="/mi-horario">Horario de Docente</Link>
                       <Link to="/bloques-horarios">Bloques Horarios</Link>
                       <Link to="/registrar-estudiante">Registrar Estudiante</Link>
                     </div>
@@ -175,7 +176,7 @@ function MainLayout() {
                 <Link to="/plan-educativo">Plan Educativo</Link>
                 <Link to="/cursos">Mis Cursos</Link>
                 <Link to="/estudiantes">Estudiantes</Link>
-                <Link to="/horarios">Mi Horario</Link>
+                <Link to="/mi-horario">Mi Horario</Link>
                 <Link to="/citaciones">Citaciones</Link>
                 <Link to="/mensajes">Mensajes</Link>
               </>

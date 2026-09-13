@@ -84,6 +84,7 @@ Bloque "Administración" completo:
 - Asignaturas — `/asignaturas`
 - Cursos — `/cursos`
 - Horarios — `/horarios`
+- Horario de Docente — `/mi-horario` (CU43, ver horario semanal de cualquier docente)
 - Bloques Horarios — `/bloques-horarios`
 - Registrar Estudiante — `/registrar-estudiante`
 
@@ -93,15 +94,9 @@ Bloque "Administración" completo:
 ### Visibles solo para Docente (`esDocente`)
 - Plan Educativo — `/plan-educativo`
 - Mis Cursos — `/cursos`
-- Mi Horario — `/horarios`
+- Mi Horario — `/mi-horario` (CU43, horario semanal propio)
 - Citaciones — `/citaciones`
 - Mensajes — `/mensajes`
-
-> ⚠️ **Pendiente (CU43):** "Mi Horario" enlaza hoy a la vista administrativa general
-> de horarios (`/horarios`), no a una vista personal del docente. Existe un
-> componente `components/HorarioDocente.jsx`, pero es un mock estático (texto
-> hardcodeado, sin consulta a la API) y no está montado en ninguna ruta de
-> `AppRouter.jsx`. Ver seguimiento de CU39/40/42 (y 43) con el equipo.
 
 ### Visibles solo para Apoderado (`esApoderado`)
 - Citaciones — `/citaciones`
