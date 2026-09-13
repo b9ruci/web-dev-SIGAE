@@ -1506,6 +1506,12 @@ select {
   font-size: 0.95rem;
 }
 
+/* CU31: dato de docente sin registrar (información incompleta) */
+.dato-sin-registrar {
+  color: #94a3b8;
+  font-style: italic;
+}
+
 /* ===== SIDEBAR INFO USUARIO ===== */
 .sidebar-user-info {
   margin-bottom: 20px;

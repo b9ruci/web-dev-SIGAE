@@ -30,6 +30,7 @@ import RegisterGuardian from "../pages/users/RegisterGuardian";
 import RegisterStudent from "../pages/users/RegisterStudent";
 import Apoderados from "../pages/users/Apoderados";
 import Administradores from "../pages/users/Administradores";
+import Docentes from "../pages/users/Docentes";
 import Perfil from "../pages/users/Perfil";
 
 /* NUEVOS COMPONENTES */
@@ -155,6 +156,16 @@ function AppRouter() {
             element={
               <RoleRoute superAdminOnly={true}>
                 <Administradores />
+              </RoleRoute>
+            }
+          />
+
+          {/* CU30 y CU31: Listado y filtros de docentes — Super Admin/Admin */}
+          <Route
+            path="/docentes"
+            element={
+              <RoleRoute roles={["Administrador"]}>
+                <Docentes />
               </RoleRoute>
             }
           />

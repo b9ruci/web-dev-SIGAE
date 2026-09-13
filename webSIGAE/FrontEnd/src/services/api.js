@@ -157,6 +157,19 @@ export async function getEstudiantes() {
   return handleResponse(res);
 }
 
+// ── CU30 y CU31: Listado y filtros de docentes ──
+
+export async function getDocentes({ especialidad, estado } = {}) {
+  const params = new URLSearchParams();
+  if (especialidad) params.set('especialidad', especialidad);
+  if (estado !== undefined && estado !== '') params.set('estado', estado);
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/usuarios/docentes${query ? `?${query}` : ''}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── ASOCIACIÓN APODERADO-ESTUDIANTE ──────────
 
 // Obtener todos los apoderados activos con sus estudiantes ya asociados

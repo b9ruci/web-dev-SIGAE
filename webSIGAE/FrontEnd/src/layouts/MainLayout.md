@@ -71,6 +71,7 @@ Bloque "Administración" completo:
 
 **Dropdown "Gestión Usuarios"**
 - Gestión de Usuarios — `/usuarios`
+- Gestión de Docentes — `/docentes` (CU30/CU31, listado y filtros)
 - Gestión de Apoderados — `/apoderados`
 
 **Dropdown "Registrar Usuario"**
