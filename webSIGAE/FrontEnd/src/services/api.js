@@ -157,6 +157,19 @@ export async function getEstudiantes() {
   return handleResponse(res);
 }
 
+// ── CU29: Búsqueda de usuarios con filtros avanzados por rol y estado de cuenta ──
+
+export async function getUsuariosPorFiltro({ rol, estado } = {}) {
+  const params = new URLSearchParams();
+  if (rol) params.set('rol', rol);
+  if (estado !== undefined && estado !== '') params.set('estado', estado);
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/usuarios/filtrar${query ? `?${query}` : ''}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // ── CU30 y CU31: Listado y filtros de docentes ──
 
 export async function getDocentes({ especialidad, estado } = {}) {
