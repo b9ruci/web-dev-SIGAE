@@ -271,6 +271,12 @@ function Perfil() {
                 : <span>Sin roles asignados</span>}
             </div>
           </div>
+          {/* CU17 - Excepción "Sin información complementaria": el usuario no tiene ningún rol con datos adicionales */}
+          {roles.length === 0 && (
+            <div className="usuarios-empty" style={{ gridColumn: "1 / -1" }}>
+              No existe información complementaria disponible
+            </div>
+          )}
           {datos?.Es_Docente ? (
             <>
               <div className="perfil-campo">
@@ -292,7 +298,7 @@ function Perfil() {
         </div>
       </div>
 
-      {datos?.Es_Docente && (
+      {!!datos?.Es_Docente && (
         <div className="perfil-card">
           <h2>{esPerfilPropio ? "Mis cursos y asignaturas" : "Cursos y asignaturas"}</h2>
 
@@ -363,7 +369,7 @@ function Perfil() {
         </div>
       )}
 
-      {datos?.Es_Apoderado && (
+      {!!datos?.Es_Apoderado && (
         <div className="perfil-card">
           <h2>{esPerfilPropio ? "Mis estudiantes asociados" : "Estudiantes asociados"}</h2>
 
