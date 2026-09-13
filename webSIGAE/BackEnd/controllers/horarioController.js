@@ -846,9 +846,70 @@ const getAsignacionesDocente = async (req, res) => {
   }
 };
 
+// CU43: Visualizar horario semanal de un docente a partir de sus cursos asociados
+// GET /api/horarios/docente/:docenteId/horario
+const getHorarioDocente = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esDocenteSinAdmin = roles.includes('Docente') && !esAdmin;
+
+    // Solo el propio Docente o un Administrador/SuperAdmin pueden consultar esta información
+    if (!esDocenteSinAdmin && !esAdmin) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    // Si el actor es Docente (y no Admin), solo puede ver su propio horario
+    const docenteId = esDocenteSinAdmin ? userId : Number(req.params.docenteId);
+
+    // Excepción "Docente no existe" (solo relevante cuando lo busca un Admin/SuperAdmin)
+    if (!esDocenteSinAdmin) {
+      const [[docente]] = await pool.execute(
+        'SELECT Usuario_Id FROM usuario WHERE Usuario_Id = ? AND Es_Docente = 1',
+        [docenteId]
+      );
+      if (!docente) {
+        return res.status(404).json({ mensaje: 'El docente no fue encontrado' });
+      }
+    }
+
+    const [filas] = await pool.execute(
+      `SELECT
+        c.Curso_Nombre                   AS curso,
+        a.Asignatura_Nombre              AS asignatura,
+        ha.Horario_Asignatura_Dia_Semana AS dia,
+        bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin       AS horaFin,
+        ha.Horario_Asignatura_Estado     AS estado
+      FROM horario_asignatura ha
+      JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      WHERE ha.Usuario_Id = ?
+      ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'),
+               bh.Bloque_Horario_Hora_Inicio`,
+      [docenteId]
+    );
+
+    // Excepción "Horario sin planificar"
+    if (filas.length === 0) {
+      return res.status(200).json({
+        mensaje: 'El horario aún no ha sido planificado',
+        horario: [],
+      });
+    }
+
+    return res.json(filas);
+  } catch (error) {
+    console.error('getHorarioDocente:', error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar el horario, reintente más tarde' });
+  }
+};
+
 module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
   getAsignacionesDocente, // CU42
+  getHorarioDocente, // CU43
 };
