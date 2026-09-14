@@ -233,7 +233,7 @@ CREATE TABLE `estudiante` (
 
 LOCK TABLES `estudiante` WRITE;
 /*!40000 ALTER TABLE `estudiante` DISABLE KEYS */;
-INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10);
+INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4,NULL),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4,NULL),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8,NULL),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9,NULL),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8,NULL),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10,NULL);
 /*!40000 ALTER TABLE `estudiante` ENABLE KEYS */;
 UNLOCK TABLES;
 
