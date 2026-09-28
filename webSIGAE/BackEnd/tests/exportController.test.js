@@ -58,6 +58,26 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       writeSpy.mockRestore();
     });
 
+    test('Formato CSV: genera un .csv con BOM UTF-8, separado por ";" y valores escapados', async () => {
+      req.query.formato = 'csv';
+      res.send = jest.fn();
+      pool.execute.mockResolvedValueOnce([[
+        { dia: 'Lunes', hora_inicio: '09:00:00', hora_fin: '09:45:00', curso: '1ero A', asignatura: 'Matemáticas', docente: 'Juan "JP" Pérez' },
+      ]]);
+
+      await exportController.exportarMaestro(req, res);
+
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Disposition', expect.stringMatching(/\.csv"$/));
+      const contenido = res.send.mock.calls[0][0];
+      expect(contenido.startsWith('\uFEFF')).toBe(true);
+      const [encabezado, fila] = contenido.slice(1).split('\r\n');
+      expect(encabezado.split(';').length).toBeGreaterThan(1);
+      expect(fila).toContain('Matemáticas');
+      // Las comillas dobles se escapan duplicándolas y el valor se encierra entre comillas
+      expect(fila).toContain('"Juan ""JP"" Pérez"');
+    });
+
     test('Retorna 400 si el formato solicitado no es válido', async () => {
       req.query.formato = 'docx';
       pool.execute.mockResolvedValueOnce([[
@@ -67,7 +87,7 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       await exportController.exportarMaestro(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Formato inválido. Use: pdf, excel o png' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Formato inválido. Use: pdf, excel, csv o png' });
     });
   });
 
@@ -269,7 +289,7 @@ describe('Pruebas Unitarias - CU60-CU62: Exportación de Horarios', () => {
       await exportController.exportarPorCurso(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Formato inválido. Use: pdf, excel o png' });
+      expect(res.json).toHaveBeenCalledWith({ error: 'Formato inválido. Use: pdf, excel, csv o png' });
     });
   });
 });

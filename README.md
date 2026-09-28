@@ -109,6 +109,18 @@ node webSIGAE/BackEnd/hashPasswords.js
 
 > ⚠️ El dump trae contraseñas en texto plano. Siempre corre el script de hasheo después de importar antes de levantar el servidor.
 
+### Migraciones
+
+Si tu base de datos se creó antes de un cambio de esquema, aplica las migraciones de `Database/migraciones/` en orden (o reimporta el dump completo como arriba):
+
+```bash
+sudo mariadb -u root sigae < webSIGAE/Database/migraciones/001_direccion_estructurada.sql
+```
+
+| Migración | Cambio |
+| --------- | ------ |
+| `001_direccion_estructurada.sql` | Reemplaza `Apoderado_Direccion` (texto libre) por calle, número, depto/casa y comuna. |
+
 ---
 
 ## 📦 Deploy

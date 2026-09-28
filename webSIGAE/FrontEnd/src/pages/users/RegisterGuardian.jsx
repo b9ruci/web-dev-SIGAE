@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarApoderado } from "../../services/api";
-import { validarRut, normalizarRut, validarNombreCompleto, validarCorreo } from "../../utils/validaciones";
+import {
+  validarRut, normalizarRut, validarNombreCompleto, validarCorreo, validarTelefonoChileno,
+  validarFortalezaContrasena, validarDireccion, MENSAJE_TELEFONO, MAX_NOMBRE_COMPLETO,
+} from "../../utils/validaciones";
+
+const CAMPOS_DIRECCION = ["calle", "numero", "depto", "comuna"];
 
 
 function RegisterGuardian() {
@@ -17,7 +22,10 @@ function RegisterGuardian() {
     rut:"",
     correo:"",
     telefono:"",
-    direccion:"",
+    calle:"",
+    numero:"",
+    depto:"",
+    comuna:"",
     password:"",
     estado:"Activo",
 
@@ -29,11 +37,14 @@ function RegisterGuardian() {
   const [error,setError] = useState(null);
 
 
-  const validarCampo = (name, value) => {
+  const validarCampo = (name, value, datos = formData) => {
+    if (CAMPOS_DIRECCION.includes(name)) {
+      return validarDireccion({ ...datos, [name]: value })[name] || "";
+    }
     switch (name) {
       case "nombre":
         return value && !validarNombreCompleto(value)
-          ? "Ingrese nombre y apellido (ej: Juan Pérez)"
+          ? "Ingrese nombre y apellido, solo letras y espacios (ej: Juan Pérez)"
           : "";
       case "rut":
         return value && !validarRut(value)
@@ -43,6 +54,10 @@ function RegisterGuardian() {
         return value && !validarCorreo(value)
           ? "Ingrese un correo electrónico válido"
           : "";
+      case "telefono":
+        return value && !validarTelefonoChileno(value) ? MENSAJE_TELEFONO : "";
+      case "password":
+        return value ? validarFortalezaContrasena(value) : "";
       default:
         return "";
     }
@@ -67,6 +82,9 @@ function RegisterGuardian() {
       nombre: validarCampo("nombre", formData.nombre),
       rut: validarCampo("rut", formData.rut),
       correo: validarCampo("correo", formData.correo),
+      telefono: validarCampo("telefono", formData.telefono),
+      password: validarCampo("password", formData.password),
+      ...validarDireccion(formData),
     };
 
     if (Object.values(nuevosErrores).some((msg) => msg)) {
@@ -181,6 +199,7 @@ function RegisterGuardian() {
               type="text"
               name="nombre"
               placeholder="Nombre completo (ej: Juan Pérez)"
+              maxLength={MAX_NOMBRE_COMPLETO}
               value={formData.nombre}
               onChange={handleChange}
               className={errores.nombre ? "input-invalid" : ""}
@@ -221,36 +240,56 @@ function RegisterGuardian() {
 
 
 
-          <input
-            type="text"
-            name="telefono"
-            placeholder="Número telefónico"
-            value={formData.telefono}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="tel"
+              name="telefono"
+              placeholder="Número telefónico (ej: 912345678 o +56912345678)"
+              value={formData.telefono}
+              onChange={handleChange}
+              className={errores.telefono ? "input-invalid" : ""}
+              required
+            />
+            {errores.telefono && <span className="input-error-msg">{errores.telefono}</span>}
+          </div>
 
 
 
-          <input
-            type="text"
-            name="direccion"
-            placeholder="Dirección particular"
-            value={formData.direccion}
-            onChange={handleChange}
-            required
-          />
+          {[
+            { name: "calle",  placeholder: "Calle (ej: Avenida Concha y Toro)", maxLength: 100, required: true },
+            { name: "numero", placeholder: "Número (ej: 134)",                  maxLength: 7,   required: true },
+            { name: "depto",  placeholder: "Depto./Casa (opcional)",            maxLength: 20,  required: false },
+            { name: "comuna", placeholder: "Comuna (ej: Puente Alto)",          maxLength: 60,  required: true },
+          ].map((campo) => (
+            <div key={campo.name}>
+              <input
+                type="text"
+                name={campo.name}
+                placeholder={campo.placeholder}
+                maxLength={campo.maxLength}
+                value={formData[campo.name]}
+                onChange={handleChange}
+                className={errores[campo.name] ? "input-invalid" : ""}
+                required={campo.required}
+              />
+              {errores[campo.name] && <span className="input-error-msg">{errores[campo.name]}</span>}
+            </div>
+          ))}
 
 
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Contraseña (mín. 8 caracteres, una mayúscula y un número)"
+              value={formData.password}
+              onChange={handleChange}
+              className={errores.password ? "input-invalid" : ""}
+              required
+            />
+            {errores.password && <span className="input-error-msg">{errores.password}</span>}
+          </div>
 
 
 

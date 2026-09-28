@@ -3,6 +3,7 @@ import { getAdministradores, editarAdministrador } from "../../services/api";
 import {
   validarCorreoInstitucional,
   validarTelefonoChileno,
+  MENSAJE_TELEFONO,
   DOMINIO_INSTITUCIONAL,
 } from "../../utils/validaciones";
 
@@ -70,7 +71,7 @@ function Administradores() {
       errores.correo = `Ingresa un correo electrónico institucional ${DOMINIO_INSTITUCIONAL}`;
     }
     if (!validarTelefonoChileno(form.telefono)) {
-      errores.telefono = "El teléfono debe tener el formato chileno de 9 dígitos numéricos";
+      errores.telefono = MENSAJE_TELEFONO;
     }
     setErroresForm(errores);
     return Object.keys(errores).length === 0;

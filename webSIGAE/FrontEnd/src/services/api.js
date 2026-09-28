@@ -130,7 +130,7 @@ export async function registrarDocente({ nombre, rut, correo, telefono, password
 }
 
 // ── APODERADO ────────────────────────────────
-export async function registrarApoderado({ nombre, rut, correo, telefono, direccion, password, estado }) {
+export async function registrarApoderado({ nombre, rut, correo, telefono, calle, numero, depto, comuna, password, estado }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
     method : 'POST',
     headers: authHeaders(),
@@ -141,7 +141,10 @@ export async function registrarApoderado({ nombre, rut, correo, telefono, direcc
       Usuario_Contraseña      : password,
       Usuario_Estado_Cuenta   : estado === 'Activo' ? 1 : 0,
       Es_Apoderado            : 1,
-      Apoderado_Direccion     : direccion,
+      Apoderado_Direccion_Calle : calle,
+      Apoderado_Direccion_Numero: numero,
+      Apoderado_Direccion_Depto : depto || null,
+      Apoderado_Direccion_Comuna: comuna,
       Apoderado_Correo_Natural: correo,
       Es_Docente              : 0,
       Es_Administrador        : 0,

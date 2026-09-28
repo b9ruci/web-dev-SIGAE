@@ -6,8 +6,17 @@ import {
   normalizarTexto,
   validarCorreoInstitucional,
   validarCorreo,
+  validarDireccion,
   DOMINIO_INSTITUCIONAL,
 } from "../../utils/validaciones";
+
+// Columnas de la dirección estructurada ↔ claves que usa validarDireccion
+const COLUMNAS_DIRECCION = {
+  Apoderado_Direccion_Calle : "calle",
+  Apoderado_Direccion_Numero: "numero",
+  Apoderado_Direccion_Depto : "depto",
+  Apoderado_Direccion_Comuna: "comuna",
+};
 
 /* ── Badge de roles ─────────────────────────────────── */
 function BadgesRol({ u }) {
@@ -121,16 +130,26 @@ function CamposApoderado({ datos, errores, onChange }) {
           <span className="input-error-msg">{errores.Apoderado_Correo_Natural}</span>
         )}
       </div>
-      <div className="campo-pwd">
-        <label>Dirección particular</label>
-        <input
-          name="Apoderado_Direccion"
-          value={datos.Apoderado_Direccion || ""}
-          onChange={onChange}
-          placeholder="Ej: Av. Providencia 123, Santiago"
-          required
-        />
-      </div>
+      {[
+        { name: "Apoderado_Direccion_Calle",  label: "Calle",                  placeholder: "Ej: Av. Providencia", maxLength: 100, required: true },
+        { name: "Apoderado_Direccion_Numero", label: "Número",                 placeholder: "Ej: 123",             maxLength: 7,   required: true },
+        { name: "Apoderado_Direccion_Depto",  label: "Depto./Casa (opcional)", placeholder: "Ej: 45B",             maxLength: 20,  required: false },
+        { name: "Apoderado_Direccion_Comuna", label: "Comuna",                 placeholder: "Ej: Santiago",        maxLength: 60,  required: true },
+      ].map((campo) => (
+        <div className="campo-pwd" key={campo.name}>
+          <label>{campo.label}</label>
+          <input
+            name={campo.name}
+            value={datos[campo.name] || ""}
+            onChange={onChange}
+            placeholder={campo.placeholder}
+            maxLength={campo.maxLength}
+            className={errores[campo.name] ? "input-invalid" : ""}
+            required={campo.required}
+          />
+          {errores[campo.name] && <span className="input-error-msg">{errores[campo.name]}</span>}
+        </div>
+      ))}
     </>
   );
 }
@@ -277,7 +296,13 @@ function GestionRoles() {
     : [];
 
   /* Validación por campo */
-  const validarCampo = (name, value) => {
+  const validarCampo = (name, value, datos = datosRol) => {
+    if (COLUMNAS_DIRECCION[name]) {
+      const direccion = Object.fromEntries(
+        Object.entries(COLUMNAS_DIRECCION).map(([col, clave]) => [clave, (col === name ? value : datos[col]) || ""])
+      );
+      return validarDireccion(direccion)[COLUMNAS_DIRECCION[name]] || "";
+    }
     if (!value) return "";
     if (name === "Docente_Correo_Institucional" || name === "Administrador_Correo_Institucional")
       return !validarCorreoInstitucional(value)
@@ -319,7 +344,10 @@ function GestionRoles() {
     } else if (nuevoRol === "Apoderado") {
       setDatosRol({
         Apoderado_Correo_Natural: seleccionado.Apoderado_Correo_Natural || "",
-        Apoderado_Direccion:      seleccionado.Apoderado_Direccion      || "",
+        Apoderado_Direccion_Calle:  seleccionado.Apoderado_Direccion_Calle  || "",
+        Apoderado_Direccion_Numero: seleccionado.Apoderado_Direccion_Numero || "",
+        Apoderado_Direccion_Depto:  seleccionado.Apoderado_Direccion_Depto  || "",
+        Apoderado_Direccion_Comuna: seleccionado.Apoderado_Direccion_Comuna || "",
       });
     } else {
       setDatosRol({});
