@@ -6,7 +6,6 @@ function MainLayout() {
   const { usuario, rolActivo, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mostrarModalLogout, setMostrarModalLogout] = useState(false);
 
   // Sidebar responsiva: en pantallas angostas se comporta como panel deslizable
   const [sidebarMovilAbierta, setSidebarMovilAbierta] = useState(false);
@@ -27,34 +26,14 @@ function MainLayout() {
   const esDocente = rolEfectivo === "Docente";
   const esApoderado = rolEfectivo === "Apoderado";
 
-  const confirmarCierre = () => setMostrarModalLogout(true);
-  const cancelarCierre = () => setMostrarModalLogout(false);
-  const cerrarSesion = async () => {
-    setMostrarModalLogout(false);
+  const confirmarCierre = async () => {
+    if (!window.confirm("¿Estás seguro de que deseas cerrar tu sesión?")) return;
     await logout();
     navigate("/");
   };
 
   return (
     <div className="layout">
-      {/* MODAL CONFIRMACIÓN CIERRE DE SESIÓN */}
-      {mostrarModalLogout && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h2>Cerrar sesión</h2>
-            <p>¿Estás seguro de que deseas cerrar tu sesión?</p>
-            <div className="modal-actions">
-              <button onClick={cerrarSesion} className="btn-danger">
-                Sí, cerrar sesión
-              </button>
-              <button onClick={cancelarCierre} className="btn-secondary">
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* BARRA SUPERIOR MÓVIL — solo visible en pantallas angostas */}
       <header className="mobile-topbar">
         <button

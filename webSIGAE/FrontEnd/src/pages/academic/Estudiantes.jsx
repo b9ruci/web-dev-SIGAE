@@ -42,7 +42,6 @@ function Estudiantes() {
   const [guardandoAsociacion, setGuardandoAsociacion] = useState(false);
   const [msgErrorAsociacion, setMsgErrorAsociacion] = useState("");
   const [msgExitoAsociacion, setMsgExitoAsociacion] = useState("");
-  const [requiereConfirmacionEliminar, setRequiereConfirmacionEliminar] = useState(false);
 
   useEffect(() => {
     cargarEstudiantes({}, true);
@@ -169,7 +168,6 @@ function Estudiantes() {
     setNuevoApoderadoId(estudiante.Apoderado_Usuario_Id ?? "");
     setMsgErrorAsociacion("");
     setMsgExitoAsociacion("");
-    setRequiereConfirmacionEliminar(false);
   };
 
   // CU39 - Excepción "Cancela operación": cierra sin llamar al backend, la ficha queda sin modificaciones
@@ -178,7 +176,7 @@ function Estudiantes() {
   const guardarAsociacion = async (e, confirmarEliminacion = false) => {
     if (e) e.preventDefault();
     setMsgErrorAsociacion("");
-    if (!confirmarEliminacion) setMsgExitoAsociacion("");
+    setMsgExitoAsociacion("");
     setGuardandoAsociacion(true);
     try {
       const apoderadoId = nuevoApoderadoId === "" ? null : Number(nuevoApoderadoId);
@@ -186,12 +184,10 @@ function Estudiantes() {
 
       // CU39 - Excepción "Elimina última asociación": pide una segunda confirmación antes de aplicar
       if (data.requiereConfirmacion) {
-        setRequiereConfirmacionEliminar(true);
-        setMsgExitoAsociacion(data.mensaje);
+        if (window.confirm(data.mensaje)) await guardarAsociacion(null, true);
         return;
       }
 
-      setRequiereConfirmacionEliminar(false);
       setMsgExitoAsociacion(data.mensaje || "Asociaciones actualizadas correctamente");
       await cargarEstudiantes({ curso: filtroCurso, estado: filtroEstado });
     } catch (error) {
@@ -419,7 +415,7 @@ function Estudiantes() {
               <strong>{editandoAsociacion.Estudiante_Nombre_Completo}</strong>
             </p>
 
-            <form onSubmit={(e) => guardarAsociacion(e, requiereConfirmacionEliminar)} className="cambiar-pwd-form">
+            <form onSubmit={(e) => guardarAsociacion(e)} className="cambiar-pwd-form">
               <div className="campo-pwd">
                 <label>Apoderado asociado</label>
                 <select
@@ -427,7 +423,6 @@ function Estudiantes() {
                   value={nuevoApoderadoId}
                   onChange={(e) => {
                     setNuevoApoderadoId(e.target.value);
-                    setRequiereConfirmacionEliminar(false);
                     setMsgExitoAsociacion("");
                   }}
                   style={{ width: "100%" }}
@@ -442,7 +437,7 @@ function Estudiantes() {
               </div>
 
               {msgExitoAsociacion && (
-                <div className={requiereConfirmacionEliminar ? "msg-error-form" : "msg-exito"}>
+                <div className="msg-exito">
                   {msgExitoAsociacion}
                 </div>
               )}
@@ -450,11 +445,7 @@ function Estudiantes() {
 
               <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                 <button type="submit" className="btn-primario" disabled={guardandoAsociacion}>
-                  {guardandoAsociacion
-                    ? "Guardando..."
-                    : requiereConfirmacionEliminar
-                      ? "Confirmar eliminación"
-                      : "Guardar cambios"}
+                  {guardandoAsociacion ? "Guardando..." : "Guardar cambios"}
                 </button>
                 <button
                   type="button"
