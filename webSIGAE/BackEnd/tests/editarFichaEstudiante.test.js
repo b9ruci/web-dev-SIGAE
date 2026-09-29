@@ -98,4 +98,13 @@ describe('Pruebas Unitarias - CU38: Editando curso asociado y estado académico 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ mensaje: 'Error al actualizar el estudiante' });
   });
+
+  test('Glosario 6.1.2: rechaza un nombre con números sin tocar la base de datos', async () => {
+    req.body = { Estudiante_Nombre_Completo: 'Diego P3rez' };
+
+    await estudianteController.updateEstudiante(req, res);
+
+    expect(db.query).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
 });

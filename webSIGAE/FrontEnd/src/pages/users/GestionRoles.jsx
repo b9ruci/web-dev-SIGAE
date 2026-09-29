@@ -6,8 +6,17 @@ import {
   normalizarTexto,
   validarCorreoInstitucional,
   validarCorreo,
+  validarDireccion,
   DOMINIO_INSTITUCIONAL,
 } from "../../utils/validaciones";
+
+// Columnas de la dirección estructurada ↔ claves que usa validarDireccion
+const COLUMNAS_DIRECCION = {
+  Apoderado_Direccion_Calle : "calle",
+  Apoderado_Direccion_Numero: "numero",
+  Apoderado_Direccion_Depto : "depto",
+  Apoderado_Direccion_Comuna: "comuna",
+};
 
 /* ── Badge de roles ─────────────────────────────────── */
 function BadgesRol({ u }) {
@@ -121,16 +130,26 @@ function CamposApoderado({ datos, errores, onChange }) {
           <span className="input-error-msg">{errores.Apoderado_Correo_Natural}</span>
         )}
       </div>
-      <div className="campo-pwd">
-        <label>Dirección particular</label>
-        <input
-          name="Apoderado_Direccion"
-          value={datos.Apoderado_Direccion || ""}
-          onChange={onChange}
-          placeholder="Ej: Av. Providencia 123, Santiago"
-          required
-        />
-      </div>
+      {[
+        { name: "Apoderado_Direccion_Calle",  label: "Calle",                  placeholder: "Ej: Av. Providencia", maxLength: 100, required: true },
+        { name: "Apoderado_Direccion_Numero", label: "Número",                 placeholder: "Ej: 123",             maxLength: 7,   required: true },
+        { name: "Apoderado_Direccion_Depto",  label: "Depto./Casa (opcional)", placeholder: "Ej: 45B",             maxLength: 20,  required: false },
+        { name: "Apoderado_Direccion_Comuna", label: "Comuna",                 placeholder: "Ej: Santiago",        maxLength: 60,  required: true },
+      ].map((campo) => (
+        <div className="campo-pwd" key={campo.name}>
+          <label>{campo.label}</label>
+          <input
+            name={campo.name}
+            value={datos[campo.name] || ""}
+            onChange={onChange}
+            placeholder={campo.placeholder}
+            maxLength={campo.maxLength}
+            className={errores[campo.name] ? "input-invalid" : ""}
+            required={campo.required}
+          />
+          {errores[campo.name] && <span className="input-error-msg">{errores[campo.name]}</span>}
+        </div>
+      ))}
     </>
   );
 }
@@ -153,7 +172,6 @@ function GestionRoles() {
   const [msgExito, setMsgExito]                 = useState("");
   const [msgError, setMsgError]                 = useState("");
   // Gestión de roles activos (CU 21/22/23/24)
-  const [modalGestion, setModalGestion]         = useState(null); // { tipo: 'desactivar-rol'|'reactivar-cuenta', rol?: string }
   const [loadingGestion, setLoadingGestion]     = useState(false);
   const [msgGestion, setMsgGestion]             = useState({ tipo: "", texto: "" });
 
@@ -205,7 +223,6 @@ function GestionRoles() {
     setMsgExito("");
     setMsgError("");
     setMsgGestion({ tipo: "", texto: "" });
-    setModalGestion(null);
   };
 
   const refreshSeleccionado = async () => {
@@ -222,13 +239,28 @@ function GestionRoles() {
     } catch (e) { console.error(e); }
   };
 
-  const confirmarGestion = async () => {
-    if (!modalGestion || !seleccionado) return;
-    setLoadingGestion(true);
+  // CU 21/22/23/24: confirma con el usuario antes de desactivar un rol o reactivar la cuenta
+  const MENSAJES_CONFIRMACION = {
+    "desactivar-rol": (rol) =>
+      `¿Desactivar el rol ${rol} de ${seleccionado.Usuario_Nombre_Completo}?\n\n` +
+      `• El usuario perderá el acceso asociado al rol ${rol}.\n` +
+      "• Su cuenta y otros roles permanecerán activos.\n" +
+      "• La información histórica se conservará.",
+    "reactivar-cuenta": () =>
+      `¿Reactivar la cuenta de ${seleccionado.Usuario_Nombre_Completo}?\n\n` +
+      "• El usuario podrá volver a iniciar sesión.\n" +
+      "• Sus permisos serán restaurados según sus roles asignados.\n" +
+      "• Las sesiones anteriores no se restauran automáticamente.",
+  };
+
+  const confirmarGestion = async (accion) => {
+    if (!seleccionado) return;
     setMsgGestion({ tipo: "", texto: "" });
+    if (!window.confirm(MENSAJES_CONFIRMACION[accion.tipo](accion.rol))) return;
+    setLoadingGestion(true);
     try {
-      if (modalGestion.tipo === "desactivar-rol") {
-        const { rol } = modalGestion;
+      if (accion.tipo === "desactivar-rol") {
+        const { rol } = accion;
         const body = {
           Es_Administrador: rol === "Administrador" ? 0 : (seleccionado.Es_Administrador ? 1 : 0),
           Es_Docente:       rol === "Docente"       ? 0 : (seleccionado.Es_Docente       ? 1 : 0),
@@ -249,7 +281,7 @@ function GestionRoles() {
           setRolNuevo("");
           await refreshSeleccionado();
         }
-      } else if (modalGestion.tipo === "reactivar-cuenta") {
+      } else if (accion.tipo === "reactivar-cuenta") {
         const res = await apiFetch(`/api/usuarios/${seleccionado.Usuario_Id}/estado`, { method: "PUT" });
         if (!res) return;
         const data = await res.json();
@@ -261,7 +293,7 @@ function GestionRoles() {
         }
       }
     } catch { setMsgGestion({ tipo: "error", texto: "Error de conexión al servidor" }); }
-    finally { setLoadingGestion(false); setModalGestion(null); }
+    finally { setLoadingGestion(false); }
   };
 
   /* Roles que aún puede recibir este usuario (con exclusividad Admin) */
@@ -277,7 +309,13 @@ function GestionRoles() {
     : [];
 
   /* Validación por campo */
-  const validarCampo = (name, value) => {
+  const validarCampo = (name, value, datos = datosRol) => {
+    if (COLUMNAS_DIRECCION[name]) {
+      const direccion = Object.fromEntries(
+        Object.entries(COLUMNAS_DIRECCION).map(([col, clave]) => [clave, (col === name ? value : datos[col]) || ""])
+      );
+      return validarDireccion(direccion)[COLUMNAS_DIRECCION[name]] || "";
+    }
     if (!value) return "";
     if (name === "Docente_Correo_Institucional" || name === "Administrador_Correo_Institucional")
       return !validarCorreoInstitucional(value)
@@ -319,7 +357,10 @@ function GestionRoles() {
     } else if (nuevoRol === "Apoderado") {
       setDatosRol({
         Apoderado_Correo_Natural: seleccionado.Apoderado_Correo_Natural || "",
-        Apoderado_Direccion:      seleccionado.Apoderado_Direccion      || "",
+        Apoderado_Direccion_Calle:  seleccionado.Apoderado_Direccion_Calle  || "",
+        Apoderado_Direccion_Numero: seleccionado.Apoderado_Direccion_Numero || "",
+        Apoderado_Direccion_Depto:  seleccionado.Apoderado_Direccion_Depto  || "",
+        Apoderado_Direccion_Comuna: seleccionado.Apoderado_Direccion_Comuna || "",
       });
     } else {
       setDatosRol({});
@@ -576,10 +617,8 @@ function GestionRoles() {
                             <button
                               className="btn-desactivar"
                               style={{ fontSize: "0.82rem", padding: "5px 12px" }}
-                              onClick={() => {
-                                setMsgGestion({ tipo: "", texto: "" });
-                                setModalGestion({ tipo: "desactivar-rol", rol });
-                              }}
+                              disabled={loadingGestion}
+                              onClick={() => confirmarGestion({ tipo: "desactivar-rol", rol })}
                             >
                               Desactivar
                             </button>
@@ -607,10 +646,8 @@ function GestionRoles() {
                       <button
                         className="btn-reactivar"
                         style={{ fontSize: "0.82rem", padding: "5px 12px" }}
-                        onClick={() => {
-                          setMsgGestion({ tipo: "", texto: "" });
-                          setModalGestion({ tipo: "reactivar-cuenta" });
-                        }}
+                        disabled={loadingGestion}
+                        onClick={() => confirmarGestion({ tipo: "reactivar-cuenta" })}
                       >
                         Reactivar cuenta
                       </button>
@@ -624,57 +661,6 @@ function GestionRoles() {
 
       </div>
 
-      {/* Modal confirmación gestión de roles/cuenta (CU 21/22/23/24) */}
-      {modalGestion && seleccionado && (
-        <div style={{
-          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
-          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
-        }}>
-          <div className="form-card" style={{ width: "460px", maxWidth: "95vw" }}>
-            {modalGestion.tipo === "desactivar-rol" ? (
-              <>
-                <h2 style={{ marginBottom: "8px" }}>Desactivar rol {modalGestion.rol}</h2>
-                <p style={{ color: "#64748b", marginBottom: "16px" }}>
-                  <strong>{seleccionado.Usuario_Nombre_Completo}</strong>
-                </p>
-                <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
-                  <li>El usuario perderá el acceso asociado al rol <strong>{modalGestion.rol}</strong>.</li>
-                  <li>Su cuenta y otros roles permanecerán activos.</li>
-                  <li>La información histórica se conservará.</li>
-                </ul>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button className="btn-desactivar" onClick={confirmarGestion} disabled={loadingGestion}>
-                    {loadingGestion ? "Procesando..." : `Desactivar rol ${modalGestion.rol}`}
-                  </button>
-                  <button className="btn-roles" onClick={() => setModalGestion(null)} disabled={loadingGestion}>
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 style={{ marginBottom: "8px" }}>Reactivar cuenta</h2>
-                <p style={{ color: "#64748b", marginBottom: "16px" }}>
-                  <strong>{seleccionado.Usuario_Nombre_Completo}</strong>
-                </p>
-                <ul style={{ color: "#475569", fontSize: "0.9rem", marginBottom: "20px", paddingLeft: "18px" }}>
-                  <li>El usuario podrá volver a iniciar sesión.</li>
-                  <li>Sus permisos serán restaurados según sus roles asignados.</li>
-                  <li>Las sesiones anteriores no se restauran automáticamente.</li>
-                </ul>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button className="btn-reactivar" onClick={confirmarGestion} disabled={loadingGestion}>
-                    {loadingGestion ? "Procesando..." : "Confirmar reactivación"}
-                  </button>
-                  <button className="btn-roles" onClick={() => setModalGestion(null)} disabled={loadingGestion}>
-                    Cancelar
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

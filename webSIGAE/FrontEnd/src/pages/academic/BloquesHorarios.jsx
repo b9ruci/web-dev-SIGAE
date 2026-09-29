@@ -336,7 +336,6 @@ function TabBloques() {
   /* CU51: eliminación múltiple de bloques (solo disponible en vista Lista) */
   const [modoSeleccion,   setModoSeleccion]   = useState(false);
   const [seleccionados,   setSeleccionados]   = useState([]);
-  const [confirmMultiple, setConfirmMultiple] = useState(false);
   const [eliminandoVarios,setEliminandoVarios]= useState(false);
 
   /* Colapsar sidebar mientras el panel esté abierto */
@@ -470,6 +469,14 @@ function TabBloques() {
 
   /* CU51: eliminación de múltiples bloques — todo o nada */
   const handleEliminarMultiples = async () => {
+    const detalle = bloques
+      .filter((b) => seleccionados.includes(b.Bloque_Horario_Id))
+      .map((b) => `• ${hhmm(b.Bloque_Horario_Hora_Inicio)}–${hhmm(b.Bloque_Horario_Hora_Fin)} · ${b.Bloque_Horario_Jornada} · ${b.Bloque_Horario_Tipo}`)
+      .join("\n");
+    if (!window.confirm(
+      `¿Eliminar los ${seleccionados.length} bloque(s) seleccionado(s)?\n\n${detalle}\n\n` +
+      "Si alguno tiene asignaciones activas o no existe, no se eliminará ninguno."
+    )) return;
     setEliminandoVarios(true);
     setError("");
     try {
@@ -483,11 +490,9 @@ function TabBloques() {
       cargar();
       setExito(data.mensaje || "Bloques eliminados exitosamente");
       setTimeout(() => setExito(""), 3500);
-      setConfirmMultiple(false);
       cancelarModoSeleccion();
     } catch (e) {
       setError(e.message || "Ocurrió un error al eliminar");
-      setConfirmMultiple(false);
     } finally {
       setEliminandoVarios(false);
     }
@@ -583,10 +588,10 @@ function TabBloques() {
                   </span>
                   <button
                     style={{ ...s.btnDestructivoSolido, opacity: seleccionados.length === 0 ? 0.5 : 1 }}
-                    disabled={seleccionados.length === 0}
-                    onClick={() => setConfirmMultiple(true)}
+                    disabled={seleccionados.length === 0 || eliminandoVarios}
+                    onClick={handleEliminarMultiples}
                   >
-                    🗑 Eliminar seleccionados
+                    {eliminandoVarios ? "Eliminando..." : "🗑 Eliminar seleccionados"}
                   </button>
                 </div>
               )}
@@ -642,46 +647,6 @@ function TabBloques() {
             </div>
           )}
 
-          {confirmMultiple && (
-            <div style={s.backdrop} onClick={() => !eliminandoVarios && setConfirmMultiple(false)}>
-              <div
-                style={s.modalCaja}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h3 style={{ margin: "0 0 0.5rem 0", color: "#1e3a5f" }}>¿Eliminar bloques seleccionados?</h3>
-                <p style={{ color: "#6b7280", fontSize: "0.875rem", margin: "0 0 0.75rem 0" }}>
-                  Se eliminarán los siguientes {seleccionados.length} bloque(s). Si alguno tiene
-                  asignaciones activas o no existe, no se eliminará ninguno.
-                </p>
-                <ul style={{ ...s.resumenList, maxHeight: 180, overflowY: "auto", margin: "0 0 1rem 0" }}>
-                  {bloques
-                    .filter((b) => seleccionados.includes(b.Bloque_Horario_Id))
-                    .map((b) => (
-                      <li key={b.Bloque_Horario_Id}>
-                        {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)} ·{" "}
-                        {b.Bloque_Horario_Jornada} · {b.Bloque_Horario_Tipo}
-                      </li>
-                    ))}
-                </ul>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
-                  <button
-                    style={s.btnSecundario}
-                    disabled={eliminandoVarios}
-                    onClick={() => setConfirmMultiple(false)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    style={s.btnDestructivoSolido}
-                    disabled={eliminandoVarios}
-                    onClick={handleEliminarMultiples}
-                  >
-                    {eliminandoVarios ? "Eliminando..." : "Confirmar eliminación"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </>
       )}
 
@@ -1616,12 +1581,6 @@ const s = {
     justifyContent: "center", padding: "4rem 2rem", textAlign: "center" },
 
   /* Panel lateral */
-  backdrop: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 980,
-    display: "flex", alignItems: "center", justifyContent: "center" },
-  modalCaja: {
-    background: "#fff", borderRadius: 10, padding: "1.5rem", width: "min(90vw, 420px)",
-    boxShadow: "0 12px 40px rgba(0,0,0,0.22)", zIndex: 991,
-  },
   panel: {
     position: "fixed", top: 0, right: 0, width: 440, height: "100vh",
     background: "#fff", boxShadow: "-6px 0 32px rgba(0,0,0,0.18)",

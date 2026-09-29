@@ -41,28 +41,71 @@ describe('Pruebas Unitarias - CU19: Editando Datos Personales del Propio Perfil'
     );
   });
 
-  test('Un Apoderado puede actualizar su dirección', async () => {
+  test('Un Apoderado puede actualizar su dirección estructurada', async () => {
     req.user = { id: 4 };
-    req.body = { direccion: 'Calle Nueva 456' };
+    req.body = { direccion: { calle: 'Calle Nueva', numero: '456', depto: '', comuna: 'Ñuñoa' } };
 
     const apoderadoActual = {
       Usuario_Id: 4, Usuario_Nombre_Completo: 'Maria Apoderada', Usuario_RUT: '44444444-4',
-      Es_Administrador: 0, Es_Docente: 0, Es_Apoderado: 1, Apoderado_Direccion: 'Calle Vieja 123',
+      Es_Administrador: 0, Es_Docente: 0, Es_Apoderado: 1,
+      Apoderado_Direccion_Calle: 'Calle Vieja', Apoderado_Direccion_Numero: '123',
+      Apoderado_Direccion_Depto: null, Apoderado_Direccion_Comuna: 'Santiago',
     };
     db.query
       .mockResolvedValueOnce([[apoderadoActual]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
-      .mockResolvedValueOnce([[{ ...apoderadoActual, Apoderado_Direccion: 'Calle Nueva 456' }]]);
+      .mockResolvedValueOnce([[{ ...apoderadoActual, Apoderado_Direccion_Calle: 'Calle Nueva' }]]);
+
+    await usuarioController.editarPerfilPropio(req, res);
+
+    const [sql, valores] = db.query.mock.calls[1];
+    expect(sql).toContain('Apoderado_Direccion_Calle = ?');
+    expect(sql).toContain('Apoderado_Direccion_Numero = ?');
+    expect(sql).toContain('Apoderado_Direccion_Depto = ?');
+    expect(sql).toContain('Apoderado_Direccion_Comuna = ?');
+    // El depto vacío se guarda como NULL
+    expect(valores).toEqual(['Calle Nueva', '456', null, 'Ñuñoa', 4]);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ mensaje: 'Cambios guardados correctamente' })
+    );
+  });
+
+  test('Excepción "Formato de datos incorrecto": dirección sin comuna rechazada sin tocar la BD', async () => {
+    req.user = { id: 4 };
+    req.body = { direccion: { calle: 'Calle Nueva', numero: '456' } };
+
+    await usuarioController.editarPerfilPropio(req, res);
+
+    expect(db.query).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ mensaje: 'La comuna es obligatoria' });
+  });
+
+  test('Excepción "Formato de datos incorrecto": dirección como texto libre rechazada', async () => {
+    req.user = { id: 4 };
+    req.body = { direccion: 'Calle Nueva 456, Santiago' };
+
+    await usuarioController.editarPerfilPropio(req, res);
+
+    expect(db.query).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  test('Teléfono con prefijo +56 se acepta y se guarda como 9 dígitos', async () => {
+    req.body = { telefono: '+56922222222' };
+
+    db.query
+      .mockResolvedValueOnce([[docenteActual]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([[{ ...docenteActual, Usuario_Telefono: '922222222' }]]);
 
     await usuarioController.editarPerfilPropio(req, res);
 
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining('Apoderado_Direccion = ?'),
-      expect.arrayContaining(['Calle Nueva 456', 4])
+      expect.stringContaining('Usuario_Telefono = ?'),
+      ['922222222', 5]
     );
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ mensaje: 'Cambios guardados correctamente' })
-    );
+    expect(res.status).not.toHaveBeenCalledWith(400);
   });
 
   test('Excepción "Intento modificación campo protegido": rechaza sin tocar la base de datos', async () => {

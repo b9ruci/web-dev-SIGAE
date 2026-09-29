@@ -1,13 +1,8 @@
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const pool = require('../config/db');
+const { validarFortalezaContrasena } = require('../middleware/validation');
 
-function validarFortalezaContrasena(pwd) {
-  if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
-  if (!/[A-Z]/.test(pwd)) return 'La contraseña debe contener al menos una mayúscula';
-  if (!/[0-9]/.test(pwd)) return 'La contraseña debe contener al menos un número';
-  return null;
-}
 
 function enmascararCorreo(email) {
   if (!email) return null;

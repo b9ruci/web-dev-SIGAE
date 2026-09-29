@@ -192,6 +192,23 @@ async function renderExcel(res, { titulo, columnas, filas, filename }) {
   res.end();
 }
 
+// CSV (Glosario 6.1.11 - formatos estándares): separado por ';' (Excel en español
+// usa ';' como separador de listas), UTF-8 con BOM para que Excel respete tildes y ñ.
+function escaparCSV(valor) {
+  const texto = String(valor ?? '');
+  return /[";\r\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+}
+
+function renderCSV(res, { columnas, filas, filename }) {
+  const lineas = [
+    columnas.map((c) => escaparCSV(c.label)).join(';'),
+    ...filas.map((fila) => columnas.map((c) => escaparCSV(c.value(fila))).join(';')),
+  ];
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+  res.send('\uFEFF' + lineas.join('\r\n'));
+}
+
 function buildHTML({ titulo, columnas, filas }) {
   const rowsHTML = filas.map((fila, i) => `
     <tr style="background:${i % 2 === 0 ? '#f8fafc' : '#ffffff'}">
@@ -239,18 +256,19 @@ async function renderPNG(res, { titulo, columnas, filas, filename }) {
 }
 
 async function responder(res, formato, payload) {
-  const formatosValidos = ['pdf', 'excel', 'png'];
+  const formatosValidos = ['pdf', 'excel', 'csv', 'png'];
   if (!formatosValidos.includes(formato)) {
-    return res.status(400).json({ error: 'Formato inválido. Use: pdf, excel o png' });
+    return res.status(400).json({ error: 'Formato inválido. Use: pdf, excel, csv o png' });
   }
   if (formato === 'pdf')   return renderPDF(res, payload);
   if (formato === 'excel') return renderExcel(res, payload);
+  if (formato === 'csv')   return renderCSV(res, payload);
   if (formato === 'png')   return renderPNG(res, payload);
 }
 
 //  ENDPOINTS
 
-// GET /api/horarios/exportar/maestro?formato=pdf|excel|png
+// GET /api/horarios/exportar/maestro?formato=pdf|excel|csv|png
 const exportarMaestro = async (req, res) => {
   const formato = (req.query.formato || 'pdf').toLowerCase();
 
@@ -290,7 +308,7 @@ const exportarMaestro = async (req, res) => {
   }
 };
 
-// GET /api/horarios/exportar/docente/:usuarioId?formato=pdf|excel|png
+// GET /api/horarios/exportar/docente/:usuarioId?formato=pdf|excel|csv|png
 // CU61: actor es Super Administrador o Administrador; se extiende como
 // autoservicio para que un Docente exporte únicamente su propio horario.
 const exportarPorDocente = async (req, res) => {
@@ -347,7 +365,7 @@ const exportarPorDocente = async (req, res) => {
   }
 };
 
-// GET /api/horarios/exportar/curso/:cursoId?formato=pdf|excel|png
+// GET /api/horarios/exportar/curso/:cursoId?formato=pdf|excel|csv|png
 const exportarPorCurso = async (req, res) => {
   const { cursoId } = req.params;
   const formato = (req.query.formato || 'pdf').toLowerCase();

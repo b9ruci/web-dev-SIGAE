@@ -3,7 +3,9 @@
 // no tiene login. Es solo una ficha con información académica.
 
 const db = require('../config/db');
-const { validarRut } = require('../middleware/validation');
+const { validarRut, validarNombreCompleto } = require('../middleware/validation');
+
+const MENSAJE_NOMBRE_INVALIDO = 'El nombre completo debe contener solo letras y espacios (nombre y apellido, máx. 100 caracteres)';
 
 // CU34 y CU35: Visualizar listado de estudiantes, con filtros opcionales por curso y estado académico
 // Endpoint: GET /api/estudiantes?curso=...&estado=...
@@ -213,6 +215,10 @@ const createEstudiante = async (req, res) => {
     return res.status(400).json({ mensaje: 'RUT de estudiante inválido (verifique el dígito verificador)' });
   }
 
+  if (!validarNombreCompleto(Estudiante_Nombre_Completo)) {
+    return res.status(400).json({ mensaje: MENSAJE_NOMBRE_INVALIDO });
+  }
+
   try {
     // Verificar RUT duplicado
     const [existe] = await db.query(
@@ -277,6 +283,13 @@ const updateEstudiante = async (req, res) => {
 
   if (Object.keys(datosFiltrados).length === 0) {
     return res.status(400).json({ mensaje: 'No hay campos válidos para actualizar' });
+  }
+
+  if (datosFiltrados.Estudiante_Nombre_Completo !== undefined) {
+    if (!validarNombreCompleto(datosFiltrados.Estudiante_Nombre_Completo)) {
+      return res.status(400).json({ mensaje: MENSAJE_NOMBRE_INVALIDO });
+    }
+    datosFiltrados.Estudiante_Nombre_Completo = datosFiltrados.Estudiante_Nombre_Completo.trim();
   }
 
   try {

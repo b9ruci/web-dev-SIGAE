@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarDocente } from "../../services/api";
-import { validarRut, normalizarRut, validarNombreCompleto, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL } from "../../utils/validaciones";
+import {
+  validarRut, normalizarRut, validarNombreCompleto, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL,
+  validarTelefonoChileno, validarFortalezaContrasena, MENSAJE_TELEFONO, MAX_NOMBRE_COMPLETO,
+} from "../../utils/validaciones";
 
 
 function RegisterTeacher() {
@@ -30,7 +33,7 @@ function RegisterTeacher() {
     switch (name) {
       case "nombre":
         return value && !validarNombreCompleto(value)
-          ? "Ingrese nombre y apellido (ej: Juan Pérez)"
+          ? "Ingrese nombre y apellido, solo letras y espacios (ej: Juan Pérez)"
           : "";
       case "rut":
         return value && !validarRut(value)
@@ -40,6 +43,10 @@ function RegisterTeacher() {
         return value && !validarCorreoInstitucional(value)
           ? `El correo debe pertenecer al dominio ${DOMINIO_INSTITUCIONAL}`
           : "";
+      case "telefono":
+        return value && !validarTelefonoChileno(value) ? MENSAJE_TELEFONO : "";
+      case "password":
+        return value ? validarFortalezaContrasena(value) : "";
       case "cargaHoraria":
         return value && (isNaN(value) || Number(value) <= 0 || Number(value) > 44)
           ? "La carga horaria debe ser un número entre 1 y 44 horas"
@@ -66,6 +73,8 @@ function RegisterTeacher() {
       nombre: validarCampo("nombre", formData.nombre),
       rut: validarCampo("rut", formData.rut),
       correo: validarCampo("correo", formData.correo),
+      telefono: validarCampo("telefono", formData.telefono),
+      password: validarCampo("password", formData.password),
       cargaHoraria: validarCampo("cargaHoraria", formData.cargaHoraria),
     };
 
@@ -163,6 +172,7 @@ function RegisterTeacher() {
               type="text"
               name="nombre"
               placeholder="Nombre completo (ej: Juan Pérez)"
+              maxLength={MAX_NOMBRE_COMPLETO}
               value={formData.nombre}
               onChange={handleChange}
               className={errores.nombre ? "input-invalid" : ""}
@@ -203,25 +213,33 @@ function RegisterTeacher() {
 
 
 
-          <input
-            type="text"
-            name="telefono"
-            placeholder="Número telefónico"
-            value={formData.telefono}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="tel"
+              name="telefono"
+              placeholder="Número telefónico (ej: 912345678 o +56912345678)"
+              value={formData.telefono}
+              onChange={handleChange}
+              className={errores.telefono ? "input-invalid" : ""}
+              required
+            />
+            {errores.telefono && <span className="input-error-msg">{errores.telefono}</span>}
+          </div>
 
 
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={handleChange}
-            required
-          />
+          <div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Contraseña (mín. 8 caracteres, una mayúscula y un número)"
+              value={formData.password}
+              onChange={handleChange}
+              className={errores.password ? "input-invalid" : ""}
+              required
+            />
+            {errores.password && <span className="input-error-msg">{errores.password}</span>}
+          </div>
 
 
 
