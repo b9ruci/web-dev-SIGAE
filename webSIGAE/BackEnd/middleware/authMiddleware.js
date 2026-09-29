@@ -24,7 +24,7 @@ const verifyToken = async (req, res, next) => {
 
     // Verificar que la sesión siga activa en BD (cubre cuentas desactivadas y logouts)
     const [rows] = await pool.execute(
-      `SELECT Sesion_Estado FROM sesion WHERE Sesion_Token_Acceso = ? LIMIT 1`,
+      `SELECT Sesion_Estado, Sesion_Fecha_Expiracion FROM sesion WHERE Sesion_Token_Acceso = ? LIMIT 1`,
       [token]
     );
 
@@ -34,6 +34,26 @@ const verifyToken = async (req, res, next) => {
         codigo: 'SESION_INACTIVA'
       });
     }
+
+    // RNF05: sesión de 30 min de INACTIVIDAD (ventana deslizante), no de vida fija.
+    // Sesion_Fecha_Expiracion guarda el corte de inactividad; si ya pasó, se cierra
+    // la sesión aunque el JWT (válido hasta 30 min tras el login) no haya expirado.
+    if (rows[0].Sesion_Fecha_Expiracion && new Date(rows[0].Sesion_Fecha_Expiracion) < new Date()) {
+      await pool.execute(
+        `UPDATE sesion SET Sesion_Estado = 0 WHERE Sesion_Token_Acceso = ? AND Sesion_Estado = 1`,
+        [token]
+      );
+      return res.status(401).json({
+        error: 'Sesión expirada por inactividad',
+        codigo: 'SESION_INACTIVA'
+      });
+    }
+
+    const nuevaExpiracion = new Date(Date.now() + 30 * 60 * 1000);
+    await pool.execute(
+      `UPDATE sesion SET Sesion_Fecha_Expiracion = ? WHERE Sesion_Token_Acceso = ?`,
+      [nuevaExpiracion, token]
+    );
 
     req.user = decoded;
     req.token = token;

@@ -3,7 +3,9 @@
 // no tiene login. Es solo una ficha con información académica.
 
 const db = require('../config/db');
-const { validarRut } = require('../middleware/validation');
+const { validarRut, validarNombreCompleto } = require('../middleware/validation');
+
+const MENSAJE_NOMBRE_INVALIDO = 'El nombre completo debe contener solo letras y espacios (nombre y apellido, máx. 100 caracteres)';
 
 // CU34 y CU35: Visualizar listado de estudiantes, con filtros opcionales por curso y estado académico
 // Endpoint: GET /api/estudiantes?curso=...&estado=...
@@ -43,7 +45,7 @@ const getEstudiantes = async (req, res) => {
                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
         FROM estudiante e
         JOIN curso c ON c.Curso_Id = e.Curso_Id
-        WHERE e.Curso_Id IN (?)
+        WHERE e.Curso_Id IN (?) AND e.Estudiante_Fecha_Eliminacion IS NULL
       `;
       const params = [cursoIds];
 
@@ -65,7 +67,7 @@ const getEstudiantes = async (req, res) => {
                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
         FROM estudiante e
         JOIN curso c ON c.Curso_Id = e.Curso_Id
-        WHERE 1 = 1
+        WHERE e.Estudiante_Fecha_Eliminacion IS NULL
       `;
       const params = [];
 
@@ -147,7 +149,7 @@ const buscarEstudiantes = async (req, res) => {
                 e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
          FROM estudiante e
          JOIN curso c ON c.Curso_Id = e.Curso_Id
-         WHERE e.Curso_Id IN (?)
+         WHERE e.Curso_Id IN (?) AND e.Estudiante_Fecha_Eliminacion IS NULL
            AND (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
          ORDER BY e.Estudiante_Nombre_Completo ASC`,
         [cursoIds, `%${criterio}%`, `%${criterio}%`]
@@ -158,7 +160,8 @@ const buscarEstudiantes = async (req, res) => {
                 e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
          FROM estudiante e
          JOIN curso c ON c.Curso_Id = e.Curso_Id
-         WHERE (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
+         WHERE e.Estudiante_Fecha_Eliminacion IS NULL
+           AND (e.Estudiante_Nombre_Completo LIKE ? OR e.Estudiante_RUT LIKE ?)
          ORDER BY e.Estudiante_Nombre_Completo ASC`,
         [`%${criterio}%`, `%${criterio}%`]
       );
@@ -210,6 +213,10 @@ const createEstudiante = async (req, res) => {
 
   if (!validarRut(Estudiante_RUT)) {
     return res.status(400).json({ mensaje: 'RUT de estudiante inválido (verifique el dígito verificador)' });
+  }
+
+  if (!validarNombreCompleto(Estudiante_Nombre_Completo)) {
+    return res.status(400).json({ mensaje: MENSAJE_NOMBRE_INVALIDO });
   }
 
   try {
@@ -278,6 +285,13 @@ const updateEstudiante = async (req, res) => {
     return res.status(400).json({ mensaje: 'No hay campos válidos para actualizar' });
   }
 
+  if (datosFiltrados.Estudiante_Nombre_Completo !== undefined) {
+    if (!validarNombreCompleto(datosFiltrados.Estudiante_Nombre_Completo)) {
+      return res.status(400).json({ mensaje: MENSAJE_NOMBRE_INVALIDO });
+    }
+    datosFiltrados.Estudiante_Nombre_Completo = datosFiltrados.Estudiante_Nombre_Completo.trim();
+  }
+
   try {
     const [existe] = await db.query('SELECT * FROM estudiante WHERE Estudiante_Id = ?', [id]);
     if (existe.length === 0) {
@@ -321,10 +335,17 @@ const updateEstudiante = async (req, res) => {
 };
 
 // Eliminar ficha estudiantil
+// RNF16: preserva la ficha estudiantil (eliminación lógica) en lugar de
+// borrar el registro físico, igual que ya se hace con las asociaciones
+// apoderado-estudiante, para mantener la integridad histórica.
 const deleteEstudiante = async (req, res) => {
   const { id } = req.params;
   try {
-    const [resultado] = await db.query('DELETE FROM estudiante WHERE Estudiante_Id = ?', [id]);
+    const [resultado] = await db.query(
+      `UPDATE estudiante SET Estudiante_Fecha_Eliminacion = NOW()
+       WHERE Estudiante_Id = ? AND Estudiante_Fecha_Eliminacion IS NULL`,
+      [id]
+    );
     if (resultado.affectedRows === 0) {
       return res.status(404).json({ mensaje: 'Estudiante no encontrado' });
     }
@@ -349,7 +370,7 @@ const getEstudiantesSinApoderado = async (req, res) => {
         c.Curso_Nombre
        FROM estudiante e
        JOIN curso c ON e.Curso_Id = c.Curso_Id
-       WHERE e.Apoderado_Usuario_Id IS NULL
+       WHERE e.Apoderado_Usuario_Id IS NULL AND e.Estudiante_Fecha_Eliminacion IS NULL
        ORDER BY e.Estudiante_Nombre_Completo ASC`
     );
     res.json(rows);

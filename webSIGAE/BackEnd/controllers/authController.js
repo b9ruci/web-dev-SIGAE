@@ -52,8 +52,11 @@ const login = async (req, res) => {
       roles,
       administradorTipo: user.Administrador_Tipo || null
     };
-    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
-    const expiracion = new Date(Date.now() + 15 * 60 * 1000);
+    // RNF05: el JWT vive 30 min como techo máximo; la sesión real se
+    // desliza en authMiddleware.verifyToken en cada request autenticado,
+    // así que se cierra a los 30 min de INACTIVIDAD, no a los 30 min del login.
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30m' });
+    const expiracion = new Date(Date.now() + 30 * 60 * 1000);
 
     await pool.execute(
       `INSERT INTO sesion

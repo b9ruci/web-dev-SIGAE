@@ -132,7 +132,7 @@ describe('Pruebas Unitarias - CU2 y CU3: Visualización y Edición de Administra
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith({
-        mensaje: 'El número telefónico debe tener el formato chileno de 9 dígitos numéricos',
+        mensaje: 'El número telefónico debe tener 9 dígitos, opcionalmente con prefijo +56',
       });
     });
   });

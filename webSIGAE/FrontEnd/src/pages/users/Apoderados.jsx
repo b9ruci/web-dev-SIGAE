@@ -37,12 +37,10 @@ function Apoderados() {
   // CU39: editar asociación (reasignar/quitar) de un estudiante puntual
   const [reasignando, setReasignando]                     = useState(null); // Estudiante_Id en edición
   const [nuevoApoderadoId, setNuevoApoderadoId]            = useState("");
-  const [confirmarQuitar, setConfirmarQuitar]              = useState(null); // Estudiante_Id pendiente de doble confirmación
   const [loadingAsociacion, setLoadingAsociacion]          = useState(false);
   const [errorAsociacion, setErrorAsociacion]              = useState(null);
 
   // CU9: eliminar todas las asociaciones activas del apoderado seleccionado
-  const [confirmarEliminarTodas, setConfirmarEliminarTodas] = useState(false);
   const [loadingEliminarTodas, setLoadingEliminarTodas]      = useState(false);
   const [avisoEliminarTodas, setAvisoEliminarTodas]          = useState(null);
 
@@ -113,9 +111,7 @@ function Apoderados() {
     setErrorModal(null);
     setResultado(null);
     setReasignando(null);
-    setConfirmarQuitar(null);
     setErrorAsociacion(null);
-    setConfirmarEliminarTodas(false);
     setAvisoEliminarTodas(null);
   };
 
@@ -187,21 +183,16 @@ function Apoderados() {
     }
   };
 
-  // Doble confirmación en el modal (sin segunda llamada al backend): el primer
-  // clic solo muestra la advertencia; recién el segundo ejecuta la eliminación.
-  const solicitarQuitarApoderado = (estudianteId) => {
-    setConfirmarQuitar(estudianteId);
-    setErrorAsociacion(null);
-  };
-
-  const confirmarQuitarApoderado = async (estudianteId) => {
+  // Confirmación antes de quitar (sin segunda llamada al backend): recién al
+  // aceptar se ejecuta la eliminación.
+  const quitarApoderado = async (estudianteId) => {
+    if (!window.confirm("¿Confirmas quitar el apoderado? El estudiante quedará sin apoderado asociado.")) return;
     setLoadingAsociacion(true);
     setErrorAsociacion(null);
     try {
       // CU10: eliminación de la asociación específica (endpoint dedicado,
       // no el de edición/reasignación de CU39)
       await eliminarAsociacionEspecifica(estudianteId);
-      setConfirmarQuitar(null);
       await recargarListasModal();
     } catch (error) {
       setErrorAsociacion(error.message || "No fue posible completar la eliminación");
@@ -211,22 +202,23 @@ function Apoderados() {
   };
 
   // CU9: eliminar todas las asociaciones activas del apoderado en una sola operación
-  const cancelarEliminarTodas = () => {
-    setConfirmarEliminarTodas(false);
-    setAvisoEliminarTodas("Operación cancelada");
-  };
-
-  const confirmarEliminarTodasAsociaciones = async () => {
-    setLoadingEliminarTodas(true);
+  const eliminarTodasLasAsociaciones = async () => {
     setAvisoEliminarTodas(null);
+    const confirmado = window.confirm(
+      `¿Confirmas eliminar las ${estudiantesDelApo.length} asociación(es) activa(s) de este apoderado?\n` +
+      "Los estudiantes quedarán sin apoderado asignado."
+    );
+    if (!confirmado) {
+      setAvisoEliminarTodas("Operación cancelada");
+      return;
+    }
+    setLoadingEliminarTodas(true);
     try {
       const res = await eliminarTodasAsociaciones(apoderadoSeleccionado.Usuario_Id);
-      setConfirmarEliminarTodas(false);
       setAvisoEliminarTodas(res.mensaje || `${res.eliminadas} asociación(es) eliminada(s) correctamente.`);
       await recargarListasModal();
     } catch (error) {
       setAvisoEliminarTodas(error.message || "No existen asociaciones disponibles para eliminar");
-      setConfirmarEliminarTodas(false);
     } finally {
       setLoadingEliminarTodas(false);
     }
@@ -416,48 +408,21 @@ function Apoderados() {
                       Estudiantes ya asociados ({estudiantesDelApo.length})
                     </h3>
                     {/* CU9: eliminar todas las asociaciones activas del apoderado */}
-                    {estudiantesDelApo.length > 0 && !confirmarEliminarTodas && (
+                    {estudiantesDelApo.length > 0 && (
                       <button
                         type="button"
                         className="btn-desactivar"
                         style={{ fontSize: "0.78rem", padding: "4px 8px" }}
-                        onClick={() => { setConfirmarEliminarTodas(true); setAvisoEliminarTodas(null); }}
+                        disabled={loadingEliminarTodas}
+                        onClick={eliminarTodasLasAsociaciones}
                       >
-                        Eliminar todas las asociaciones
+                        {loadingEliminarTodas ? "Eliminando..." : "Eliminar todas las asociaciones"}
                       </button>
                     )}
                   </div>
 
                   {avisoEliminarTodas && (
                     <p style={{ color: "#166534", fontSize: "0.85rem", marginBottom: "8px" }}>{avisoEliminarTodas}</p>
-                  )}
-
-                  {confirmarEliminarTodas && (
-                    <div style={{ marginBottom: "12px", padding: "10px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
-                      <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#991b1b" }}>
-                        ¿Confirmas eliminar las {estudiantesDelApo.length} asociación(es) activa(s) de este apoderado?
-                        Los estudiantes quedarán sin apoderado asignado.
-                      </p>
-                      <div style={{ display: "flex", gap: "6px" }}>
-                        <button
-                          type="button"
-                          className="btn-desactivar"
-                          style={{ fontSize: "0.78rem", padding: "4px 10px" }}
-                          disabled={loadingEliminarTodas}
-                          onClick={confirmarEliminarTodasAsociaciones}
-                        >
-                          {loadingEliminarTodas ? "Eliminando..." : "Sí, eliminar todas"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-roles"
-                          style={{ fontSize: "0.78rem", padding: "4px 10px" }}
-                          onClick={cancelarEliminarTodas}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
                   )}
 
                   {errorAsociacion && (
@@ -482,7 +447,7 @@ function Apoderados() {
                         >
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <span>{e.Estudiante_Nombre_Completo} <span style={{ color: "#64748b" }}>({e.Estudiante_RUT})</span></span>
-                            {confirmarQuitar !== e.Estudiante_Id && reasignando !== e.Estudiante_Id && (
+                            {reasignando !== e.Estudiante_Id && (
                               <div style={{ display: "flex", gap: "6px" }}>
                                 <button
                                   type="button"
@@ -496,7 +461,8 @@ function Apoderados() {
                                   type="button"
                                   className="btn-desactivar"
                                   style={{ fontSize: "0.78rem", padding: "4px 8px" }}
-                                  onClick={() => solicitarQuitarApoderado(e.Estudiante_Id)}
+                                  disabled={loadingAsociacion}
+                                  onClick={() => quitarApoderado(e.Estudiante_Id)}
                                 >
                                   Quitar apoderado
                                 </button>
@@ -542,33 +508,6 @@ function Apoderados() {
                             </div>
                           )}
 
-                          {/* CU39 - Excepción "elimina última asociación": doble confirmación, sin segunda llamada al backend */}
-                          {confirmarQuitar === e.Estudiante_Id && (
-                            <div style={{ marginTop: "8px", padding: "8px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px" }}>
-                              <p style={{ margin: "0 0 8px", fontSize: "0.85rem", color: "#991b1b" }}>
-                                ¿Confirmas quitar el apoderado? El estudiante quedará sin apoderado asociado.
-                              </p>
-                              <div style={{ display: "flex", gap: "6px" }}>
-                                <button
-                                  type="button"
-                                  className="btn-desactivar"
-                                  style={{ fontSize: "0.78rem", padding: "4px 10px" }}
-                                  disabled={loadingAsociacion}
-                                  onClick={() => confirmarQuitarApoderado(e.Estudiante_Id)}
-                                >
-                                  {loadingAsociacion ? "Quitando..." : "Sí, quitar apoderado"}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn-roles"
-                                  style={{ fontSize: "0.78rem", padding: "4px 10px" }}
-                                  onClick={() => setConfirmarQuitar(null)}
-                                >
-                                  Cancelar
-                                </button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       ))}
                     </div>

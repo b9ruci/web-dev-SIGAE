@@ -109,6 +109,35 @@ node webSIGAE/BackEnd/hashPasswords.js
 
 > ⚠️ El dump trae contraseñas en texto plano. Siempre corre el script de hasheo después de importar antes de levantar el servidor.
 
+### ¿Qué es una migración y cuándo la necesito?
+
+Una **migración** es un script SQL que modifica la estructura de una base de datos que ya existe (por ejemplo, agregar o renombrar columnas con `ALTER TABLE`) **sin borrar los datos que contiene**.
+
+Normalmente **no la necesitas**: `setup.sh` (y la reimportación manual de arriba) cargan `SIGAE.sql`, que borra y vuelve a crear cada tabla con el esquema más reciente. Los usuarios de prueba de este README vienen incluidos en el dump, así que siempre quedan disponibles.
+
+Lo que **sí se pierde** al correr `setup.sh` son los datos que hayas agregado a mano en tu codespace (usuarios, estudiantes, horarios de prueba, etc.). Si quieres conservarlos cuando cambia el esquema:
+
+1. **Respalda tu base actual** antes de tocar nada:
+
+   ```bash
+   sudo mariadb-dump -u root sigae > ~/respaldo_sigae.sql
+   ```
+
+2. **No corras `setup.sh`**. En su lugar, aplica solo el cambio de estructura con un `ALTER TABLE` equivalente al cambio hecho en `SIGAE.sql` (revisa el diff del PR que lo introdujo para ver qué columnas cambiaron), por ejemplo:
+
+   ```bash
+   sudo mariadb -u root sigae -e "ALTER TABLE usuario ADD COLUMN Nueva_Columna varchar(50) DEFAULT NULL;"
+   ```
+
+3. Si algo sale mal, **restaura el respaldo**:
+
+   ```bash
+   sudo mariadb -u root -e "DROP DATABASE IF EXISTS sigae; CREATE DATABASE sigae;"
+   sudo mariadb -u root sigae < ~/respaldo_sigae.sql
+   ```
+
+> 💡 El respaldo ya trae las contraseñas hasheadas, así que al restaurarlo **no** hace falta volver a correr el script de hasheo.
+
 ---
 
 ## 📦 Deploy

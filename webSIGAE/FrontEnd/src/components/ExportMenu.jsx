@@ -21,7 +21,7 @@ async function descargarArchivo(url, nombreArchivo) {
   URL.revokeObjectURL(link.href);
 }
 
-const EXT_POR_FORMATO = { pdf: "pdf", excel: "xlsx", png: "png" };
+const EXT_POR_FORMATO = { pdf: "pdf", excel: "xlsx", csv: "csv", png: "png" };
 
 /* ── Menú desplegable de exportación (CU60/61/62) ─────────────── */
 export default function ExportMenu({ label, url, filenameBase, disabled }) {
@@ -81,6 +81,7 @@ export default function ExportMenu({ label, url, filenameBase, disabled }) {
           {[
             { key: "pdf", label: "📄 PDF" },
             { key: "excel", label: "📊 Excel" },
+            { key: "csv", label: "🧾 CSV" },
             { key: "png", label: "🖼 Imagen (PNG)" },
           ].map((op) => (
             <button

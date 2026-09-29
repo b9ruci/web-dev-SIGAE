@@ -217,6 +217,7 @@ CREATE TABLE `estudiante` (
   `Estudiante_Estado_Academico` varchar(50) NOT NULL,
   `Curso_Id` int unsigned NOT NULL,
   `Apoderado_Usuario_Id` int unsigned DEFAULT NULL,
+  `Estudiante_Fecha_Eliminacion` datetime DEFAULT NULL,
   PRIMARY KEY (`Estudiante_Id`),
   UNIQUE KEY `Estudiante_RUT_UNIQUE` (`Estudiante_RUT`),
   KEY `fk_Estudiante_Curso_idx` (`Curso_Id`),
@@ -232,7 +233,7 @@ CREATE TABLE `estudiante` (
 
 LOCK TABLES `estudiante` WRITE;
 /*!40000 ALTER TABLE `estudiante` DISABLE KEYS */;
-INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10);
+INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4,NULL),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4,NULL),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8,NULL),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9,NULL),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8,NULL),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10,NULL);
 /*!40000 ALTER TABLE `estudiante` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -604,7 +605,10 @@ CREATE TABLE `usuario` (
   `Administrador_Tipo` varchar(20) DEFAULT NULL,
   `Administrador_Correo_Institucional` varchar(100) DEFAULT NULL,
   `Es_Apoderado` tinyint(1) NOT NULL,
-  `Apoderado_Direccion` varchar(200) DEFAULT NULL,
+  `Apoderado_Direccion_Calle` varchar(100) DEFAULT NULL,
+  `Apoderado_Direccion_Numero` varchar(10) DEFAULT NULL,
+  `Apoderado_Direccion_Depto` varchar(20) DEFAULT NULL,
+  `Apoderado_Direccion_Comuna` varchar(60) DEFAULT NULL,
   `Apoderado_Correo_Natural` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`Usuario_Id`),
   UNIQUE KEY `Usuario_RUT_UNIQUE` (`Usuario_RUT`),
@@ -620,7 +624,7 @@ CREATE TABLE `usuario` (
 
 LOCK TABLES `usuario` WRITE;
 /*!40000 ALTER TABLE `usuario` DISABLE KEYS */;
-INSERT INTO `usuario` VALUES (1,'5682711-0','961900000','Esperanza Penelope Gonzales Farias',1,'1234',NULL,0,NULL,NULL,NULL,1,'Super Admin','es.gonzales@jacquescousteau.edu',0,NULL,NULL),(2,'9343727-6','979746782','Carlos Vicente Gonzales Muñoz',1,'ilovemilf',NULL,0,NULL,NULL,NULL,1,'Administrador Normal','ca.gonzales@jacquescousteau.edu',0,NULL,NULL),(3,'3483606-k','946789765','María Claudia Morales Rojas',1,'Gato123',NULL,1,38,'Matemáticas','ma.morales@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(4,'5738925-7','944706559','Pedro Humberto Fernandez Soto',1,'4532',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Avenida Concha y Toro 134, Puente Alto','pedrofernandez453@gmail.com'),(5,'3890710-7','912345678','Ana Lucía Torres Vega',1,'Hamster#23',NULL,1,32,'Lenguaje','an.torres@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(6,'7135657-4','923456789','Roberto Andrés Silva Pinto',1,'Cotorra-15',NULL,1,40,'Historia','ro.silva@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(7,'2258000-0','934567890','Carmen Gloria Díaz Muñoz',1,'Perrito@7',NULL,1,36,'Ciencias','ca.diaz@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL),(8,'8636451-4','945678901','Luis Eduardo Ramos Fuentes',1,'Conejo#42',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Calle Los Pinos 456, Santiago','luisramos@gmail.com'),(9,'9230041-2','956789012','Sandra Patricia Vera Molina',1,'Tortuga-99',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Pasaje Las Rosas 789, Maipú','sandravera@gmail.com'),(10,'5158743-k','967890123','Jorge Ignacio Campos Reyes',1,'Pinguino@5',NULL,1,38,'Inglés','jo.campos@jacquescousteau.edu',0,NULL,NULL,1,'Avenida Principal 321, Las Condes','jorge.campos@gmail.com');
+INSERT INTO `usuario` VALUES (1,'5682711-0','961900000','Esperanza Penelope Gonzales Farias',1,'1234',NULL,0,NULL,NULL,NULL,1,'Super Admin','es.gonzales@jacquescousteau.edu',0,NULL,NULL,NULL,NULL,NULL),(2,'9343727-6','979746782','Carlos Vicente Gonzales Muñoz',1,'ilovemilf',NULL,0,NULL,NULL,NULL,1,'Administrador Normal','ca.gonzales@jacquescousteau.edu',0,NULL,NULL,NULL,NULL,NULL),(3,'3483606-k','946789765','María Claudia Morales Rojas',1,'Gato123',NULL,1,38,'Matemáticas','ma.morales@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL),(4,'5738925-7','944706559','Pedro Humberto Fernandez Soto',1,'4532',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Avenida Concha y Toro','134',NULL,'Puente Alto','pedrofernandez453@gmail.com'),(5,'3890710-7','912345678','Ana Lucía Torres Vega',1,'Hamster#23',NULL,1,32,'Lenguaje','an.torres@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL),(6,'7135657-4','923456789','Roberto Andrés Silva Pinto',1,'Cotorra-15',NULL,1,40,'Historia','ro.silva@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL),(7,'2258000-0','934567890','Carmen Gloria Díaz Muñoz',1,'Perrito@7',NULL,1,36,'Ciencias','ca.diaz@jacquescousteau.edu',0,NULL,NULL,0,NULL,NULL,NULL,NULL,NULL),(8,'8636451-4','945678901','Luis Eduardo Ramos Fuentes',1,'Conejo#42',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Calle Los Pinos','456',NULL,'Santiago','luisramos@gmail.com'),(9,'9230041-2','956789012','Sandra Patricia Vera Molina',1,'Tortuga-99',NULL,0,NULL,NULL,NULL,0,NULL,NULL,1,'Pasaje Las Rosas','789',NULL,'Maipú','sandravera@gmail.com'),(10,'5158743-k','967890123','Jorge Ignacio Campos Reyes',1,'Pinguino@5',NULL,1,38,'Inglés','jo.campos@jacquescousteau.edu',0,NULL,NULL,1,'Avenida Principal','321',NULL,'Las Condes','jorge.campos@gmail.com');
 /*!40000 ALTER TABLE `usuario` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;

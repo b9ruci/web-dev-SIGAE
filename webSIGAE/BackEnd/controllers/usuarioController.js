@@ -3,7 +3,27 @@ const db = require('../config/db');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs');
-const { validarCorreoInstitucional, validarTelefonoChileno } = require('../middleware/validation');
+const {
+  validarCorreoInstitucional,
+  validarTelefonoChileno,
+  normalizarTelefono,
+  validarNombreCompleto,
+  validarCorreo,
+  validarDireccion,
+  direccionDesdeColumnas,
+  CAMPOS_DIRECCION,
+} = require('../middleware/validation');
+
+const MENSAJE_TELEFONO_INVALIDO = 'El número telefónico debe tener 9 dígitos, opcionalmente con prefijo +56';
+
+// Convierte { calle, numero, depto, comuna } en pares columna/valor para el UPDATE/INSERT
+function columnasDireccion(direccion) {
+  return Object.entries(CAMPOS_DIRECCION).map(([clave, columna]) => {
+    const valor = direccion[clave];
+    const limpio = valor === undefined || valor === null ? null : String(valor).trim();
+    return [columna, limpio === '' ? null : limpio];
+  });
+}
 
 // Obtener todos los usuarios
 const getUsuarios = async (req, res) => {
@@ -55,7 +75,7 @@ const CAMPOS_PROTEGIDOS_PERFIL = ['Usuario_Nombre_Completo', 'Usuario_RUT', 'Usu
 const REGEX_CORREO_GENERICO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // CU19: Editar datos personales del propio perfil (correo, teléfono y/o dirección)
-// PUT /api/usuarios/perfil  { correo, telefono, direccion }
+// PUT /api/usuarios/perfil  { correo, telefono, direccion: { calle, numero, depto, comuna } }
 const editarPerfilPropio = async (req, res) => {
   const userId = req.user.id;
   const datos = req.body || {};
@@ -72,9 +92,17 @@ const editarPerfilPropio = async (req, res) => {
 
   const { correo, telefono, direccion } = datos;
 
-  // CU19 - Excepción "Formato de datos incorrecto": teléfono, validado antes de tocar la BD
+  // CU19 - Excepción "Formato de datos incorrecto": teléfono y dirección, validados antes de tocar la BD
   if (telefono !== undefined && !validarTelefonoChileno(telefono)) {
     return res.status(400).json({ mensaje: 'Datos no cumplen con el formato' });
+  }
+  if (direccion !== undefined) {
+    const errorDireccion = typeof direccion === 'object' && direccion !== null
+      ? validarDireccion(direccion)
+      : 'La dirección debe incluir calle, número y comuna';
+    if (errorDireccion) {
+      return res.status(400).json({ mensaje: errorDireccion });
+    }
   }
 
   try {
@@ -115,12 +143,14 @@ const editarPerfilPropio = async (req, res) => {
     }
     if (telefono !== undefined) {
       campos.push('Usuario_Telefono = ?');
-      valores.push(telefono);
+      valores.push(normalizarTelefono(telefono));
     }
     // La dirección solo existe como campo para el rol Apoderado
     if (direccion !== undefined && actual.Es_Apoderado) {
-      campos.push('Apoderado_Direccion = ?');
-      valores.push(direccion);
+      for (const [columna, valor] of columnasDireccion(direccion)) {
+        campos.push(`${columna} = ?`);
+        valores.push(valor);
+      }
     }
 
     if (campos.length === 0) {
@@ -178,7 +208,6 @@ const createUsuario = async (req, res) => {
     Usuario_Nombre_Completo,
     Usuario_Estado_Cuenta,
     Usuario_Contraseña,
-    Usuario_Foto_Perfil,
     // Docente
     Es_Docente,
     Docente_Carga_Horaria_Maxima,
@@ -190,7 +219,6 @@ const createUsuario = async (req, res) => {
     Administrador_Correo_Institucional,
     // Apoderado
     Es_Apoderado,
-    Apoderado_Direccion,
     Apoderado_Correo_Natural,
   } = req.body;
 
@@ -300,15 +328,16 @@ const createUsuario = async (req, res) => {
         Usuario_Estado_Cuenta, Usuario_Contraseña, Usuario_Foto_Perfil,
         Es_Docente, Docente_Carga_Horaria_Maxima, Docente_Especialidad, Docente_Correo_Institucional,
         Es_Administrador, Administrador_Tipo, Administrador_Correo_Institucional,
-        Es_Apoderado, Apoderado_Direccion, Apoderado_Correo_Natural
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        Es_Apoderado, Apoderado_Direccion_Calle, Apoderado_Direccion_Numero,
+        Apoderado_Direccion_Depto, Apoderado_Direccion_Comuna, Apoderado_Correo_Natural
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         Usuario_RUT,
-        Usuario_Telefono,
-        Usuario_Nombre_Completo,
+        normalizarTelefono(Usuario_Telefono),
+        Usuario_Nombre_Completo.trim(),
         Usuario_Estado_Cuenta !== undefined ? Usuario_Estado_Cuenta : 1,
         hash,
-        Usuario_Foto_Perfil || null,
+        null, // Glosario 6.1.2: la cuenta se crea sin fotografía; se carga luego desde el perfil
         Es_Docente      ? 1 : 0,
         Docente_Carga_Horaria_Maxima    || null,
         Docente_Especialidad            || null,
@@ -317,7 +346,7 @@ const createUsuario = async (req, res) => {
         Administrador_Tipo              || null,
         Administrador_Correo_Institucional || null,
         Es_Apoderado    ? 1 : 0,
-        Apoderado_Direccion             || null,
+        ...columnasDireccion(Es_Apoderado ? direccionDesdeColumnas(req.body) : {}).map(([, valor]) => valor),
         Apoderado_Correo_Natural        || null,
       ]
     );
@@ -338,7 +367,7 @@ const updateUsuario = async (req, res) => {
 
   try {
     const [existe] = await db.query(
-      'SELECT Es_Administrador, Administrador_Tipo FROM usuario WHERE Usuario_Id = ?', [id]
+      'SELECT Es_Administrador, Administrador_Tipo, Es_Apoderado FROM usuario WHERE Usuario_Id = ?', [id]
     );
     if (existe.length === 0) return res.status(404).json({ mensaje: 'Usuario no encontrado' });
 
@@ -370,7 +399,7 @@ const updateUsuario = async (req, res) => {
       'Docente_Especialidad',
       'Docente_Correo_Institucional',
       'Administrador_Correo_Institucional',
-      'Apoderado_Direccion',
+      ...Object.values(CAMPOS_DIRECCION),
       'Apoderado_Correo_Natural',
     ]);
 
@@ -381,6 +410,10 @@ const updateUsuario = async (req, res) => {
     const otrosDatos = Object.fromEntries(
       Object.entries(camposRaw).filter(([k]) => CAMPOS_EDITABLES_USUARIO.has(k))
     );
+    // La dirección solo existe para el rol Apoderado
+    if (!objetivo.Es_Apoderado) {
+      Object.values(CAMPOS_DIRECCION).forEach((col) => delete otrosDatos[col]);
+    }
 
     // Validar dominio de correos institucionales si se están actualizando
     if (otrosDatos.Docente_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Docente_Correo_Institucional)) {
@@ -388,6 +421,28 @@ const updateUsuario = async (req, res) => {
     }
     if (otrosDatos.Administrador_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Administrador_Correo_Institucional)) {
       return res.status(400).json({ mensaje: 'El correo institucional del administrador debe pertenecer al dominio @jacquescousteau.edu' });
+    }
+    if (otrosDatos.Apoderado_Correo_Natural && !validarCorreo(otrosDatos.Apoderado_Correo_Natural)) {
+      return res.status(400).json({ mensaje: 'El correo del apoderado debe tener el formato usuario@dominio' });
+    }
+    if (otrosDatos.Usuario_Nombre_Completo !== undefined) {
+      if (!validarNombreCompleto(otrosDatos.Usuario_Nombre_Completo)) {
+        return res.status(400).json({ mensaje: 'El nombre completo debe contener solo letras y espacios (nombre y apellido, máx. 100 caracteres)' });
+      }
+      otrosDatos.Usuario_Nombre_Completo = otrosDatos.Usuario_Nombre_Completo.trim();
+    }
+    if (otrosDatos.Usuario_Telefono !== undefined) {
+      if (!validarTelefonoChileno(otrosDatos.Usuario_Telefono)) {
+        return res.status(400).json({ mensaje: MENSAJE_TELEFONO_INVALIDO });
+      }
+      otrosDatos.Usuario_Telefono = normalizarTelefono(otrosDatos.Usuario_Telefono);
+    }
+    const errorDireccion = validarDireccion(direccionDesdeColumnas(otrosDatos), { parcial: true });
+    if (errorDireccion) {
+      return res.status(400).json({ mensaje: errorDireccion });
+    }
+    if (otrosDatos.Apoderado_Direccion_Depto !== undefined && String(otrosDatos.Apoderado_Direccion_Depto ?? '').trim() === '') {
+      otrosDatos.Apoderado_Direccion_Depto = null;
     }
 
     let hash = null;
@@ -595,7 +650,9 @@ const asignarRol = async (req, res) => {
     const correoAdmin    = datosFila.Administrador_Correo_Institucional || usuario.Administrador_Correo_Institucional;
     const tipoAdmin      = datosFila.Administrador_Tipo            || usuario.Administrador_Tipo || 'Administrador Normal';
     const correoApo      = datosFila.Apoderado_Correo_Natural      || usuario.Apoderado_Correo_Natural;
-    const direccionApo   = datosFila.Apoderado_Direccion           || usuario.Apoderado_Direccion;
+    // Si se envía cualquier parte de la dirección, se toma la dirección enviada completa
+    const direccionEnviada = Object.values(CAMPOS_DIRECCION).some((col) => datosFila[col] !== undefined);
+    const direccionApo   = direccionDesdeColumnas(direccionEnviada ? datosFila : usuario);
 
     // Validar datos específicos según rol (usando valores resueltos)
     if (rol === 'Docente') {
@@ -631,8 +688,11 @@ const asignarRol = async (req, res) => {
     if (rol === 'Apoderado') {
       if (!correoApo)
         return res.status(400).json({ mensaje: 'El correo del apoderado es obligatorio' });
-      if (!direccionApo)
-        return res.status(400).json({ mensaje: 'La dirección es obligatoria' });
+      if (!validarCorreo(correoApo))
+        return res.status(400).json({ mensaje: 'El correo del apoderado debe tener el formato usuario@dominio' });
+      const errorDireccion = validarDireccion(direccionApo);
+      if (errorDireccion)
+        return res.status(400).json({ mensaje: errorDireccion });
       const [dup] = await db.query(
         'SELECT Usuario_Id FROM usuario WHERE Apoderado_Correo_Natural = ? AND Usuario_Id != ?',
         [correoApo, id]
@@ -666,11 +726,12 @@ const asignarRol = async (req, res) => {
     }
 
     if (rol === 'Apoderado') {
-      setCampos.push('Es_Apoderado = 1',
-        'Apoderado_Correo_Natural = ?',
-        'Apoderado_Direccion = ?'
-      );
-      setValores.push(correoApo, direccionApo);
+      setCampos.push('Es_Apoderado = 1', 'Apoderado_Correo_Natural = ?');
+      setValores.push(correoApo);
+      for (const [columna, valor] of columnasDireccion(direccionApo)) {
+        setCampos.push(`${columna} = ?`);
+        setValores.push(valor);
+      }
     }
 
     setValores.push(id);
@@ -846,6 +907,10 @@ const getApoderados = async (req, res) => {
   }
 
   try {
+    // RF20/CU32/CU33: la lista debe incluir, por cada apoderado, los
+    // estudiantes vinculados con su estado académico (no solo un total).
+    // GROUP_CONCAT arma esa lista dentro de la misma consulta agregada que
+    // ya calcula Total_Estudiantes_Asociados para el filtro por cantidad.
     let sql = `
       SELECT
         u.Usuario_Id,
@@ -853,14 +918,24 @@ const getApoderados = async (req, res) => {
         u.Usuario_Nombre_Completo,
         u.Usuario_Telefono,
         u.Apoderado_Correo_Natural,
-        u.Apoderado_Direccion,
+        u.Apoderado_Direccion_Calle,
+        u.Apoderado_Direccion_Numero,
+        u.Apoderado_Direccion_Depto,
+        u.Apoderado_Direccion_Comuna,
         u.Usuario_Estado_Cuenta,
         u.Es_Docente,
         u.Es_Apoderado,
         u.Es_Administrador,
-        COUNT(e.Estudiante_Id) AS Total_Estudiantes_Asociados
+        COUNT(e.Estudiante_Id) AS Total_Estudiantes_Asociados,
+        GROUP_CONCAT(
+          CASE WHEN e.Estudiante_Id IS NOT NULL
+            THEN CONCAT(e.Estudiante_Nombre_Completo, '::', e.Estudiante_Estado_Academico)
+          END
+          SEPARATOR '||'
+        ) AS Estudiantes_Asociados_Raw
       FROM usuario u
-      LEFT JOIN estudiante e ON u.Usuario_Id = e.Apoderado_Usuario_Id
+      LEFT JOIN estudiante e
+        ON u.Usuario_Id = e.Apoderado_Usuario_Id AND e.Estudiante_Fecha_Eliminacion IS NULL
       WHERE u.Es_Apoderado = 1
       GROUP BY u.Usuario_Id
     `;
@@ -874,7 +949,17 @@ const getApoderados = async (req, res) => {
 
     sql += ' ORDER BY u.Usuario_Nombre_Completo ASC';
 
-    const [apoderados] = await db.query(sql, params);
+    const [filas] = await db.query(sql, params);
+
+    const apoderados = filas.map(({ Estudiantes_Asociados_Raw, ...apoderado }) => ({
+      ...apoderado,
+      Estudiantes: Estudiantes_Asociados_Raw
+        ? Estudiantes_Asociados_Raw.split('||').map((par) => {
+            const [nombre, estado] = par.split('::');
+            return { Estudiante_Nombre_Completo: nombre, Estudiante_Estado_Academico: estado };
+          })
+        : [],
+    }));
 
     if (apoderados.length === 0) {
       // CU32 (sin filtros): no existen apoderados registrados en el sistema.
@@ -1005,7 +1090,7 @@ const editarAdministrador = async (req, res) => {
       return res.status(400).json({ mensaje: 'Ingresa un correo electrónico insitucional @jacquescousteau' });
     }
     if (Usuario_Telefono !== undefined && !validarTelefonoChileno(Usuario_Telefono)) {
-      return res.status(400).json({ mensaje: 'El número telefónico debe tener el formato chileno de 9 dígitos numéricos' });
+      return res.status(400).json({ mensaje: MENSAJE_TELEFONO_INVALIDO });
     }
 
     const campos  = [];
@@ -1017,7 +1102,7 @@ const editarAdministrador = async (req, res) => {
     }
     if (Usuario_Telefono !== undefined) {
       campos.push('Usuario_Telefono = ?');
-      valores.push(Usuario_Telefono);
+      valores.push(normalizarTelefono(Usuario_Telefono));
     }
     if (Usuario_Estado_Cuenta !== undefined) {
       campos.push('Usuario_Estado_Cuenta = ?');

@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { Link, useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
 import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados, getDetalleEstudiante, editarPerfilPropio, actualizarFotoPerfil } from "../../services/api";
+import { validarTelefonoChileno, validarDireccion, formatearDireccion, MENSAJE_TELEFONO } from "../../utils/validaciones";
 
 // CU20: placeholder cuando el usuario no tiene fotografía de perfil registrada
 const FOTO_PERFIL_PLACEHOLDER =
@@ -54,7 +55,7 @@ function Perfil() {
 
   // CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección)
   const [editandoPerfil, setEditandoPerfil] = useState(false);
-  const [formPerfil, setFormPerfil] = useState({ correo: "", telefono: "", direccion: "" });
+  const [formPerfil, setFormPerfil] = useState({ correo: "", telefono: "", calle: "", numero: "", depto: "", comuna: "" });
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
   const [msgExitoPerfil, setMsgExitoPerfil] = useState("");
   const [msgErrorPerfil, setMsgErrorPerfil] = useState("");
@@ -249,7 +250,10 @@ function Perfil() {
     setFormPerfil({
       correo: datos?.Administrador_Correo_Institucional || datos?.Docente_Correo_Institucional || datos?.Apoderado_Correo_Natural || "",
       telefono: datos?.Usuario_Telefono || "",
-      direccion: datos?.Apoderado_Direccion || "",
+      calle: datos?.Apoderado_Direccion_Calle || "",
+      numero: datos?.Apoderado_Direccion_Numero || "",
+      depto: datos?.Apoderado_Direccion_Depto || "",
+      comuna: datos?.Apoderado_Direccion_Comuna || "",
     });
     setMsgExitoPerfil("");
     setMsgErrorPerfil("");
@@ -266,12 +270,29 @@ function Perfil() {
     e.preventDefault();
     setMsgErrorPerfil("");
     setMsgExitoPerfil("");
+
+    // CU19 - Excepción "Formato de datos incorrecto": se valida antes de enviar
+    if (!validarTelefonoChileno(formPerfil.telefono)) {
+      setMsgErrorPerfil(MENSAJE_TELEFONO);
+      return;
+    }
+    if (datos?.Es_Apoderado) {
+      const erroresDireccion = Object.values(validarDireccion(formPerfil));
+      if (erroresDireccion.length > 0) {
+        setMsgErrorPerfil(erroresDireccion[0]);
+        return;
+      }
+    }
+
     setGuardandoPerfil(true);
     try {
       const tieneCorreo = !!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado);
       const payload = { telefono: formPerfil.telefono };
       if (tieneCorreo) payload.correo = formPerfil.correo;
-      if (datos?.Es_Apoderado) payload.direccion = formPerfil.direccion;
+      if (datos?.Es_Apoderado) {
+        const { calle, numero, depto, comuna } = formPerfil;
+        payload.direccion = { calle, numero, depto, comuna };
+      }
 
       const data = await editarPerfilPropio(payload);
       setMsgExitoPerfil(data.mensaje || "Cambios guardados correctamente");
@@ -414,7 +435,7 @@ function Perfil() {
           {datos?.Es_Apoderado ? (
             <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
               <label>Dirección</label>
-              <span>{datos.Apoderado_Direccion || "Sin dirección registrada"}</span>
+              <span>{formatearDireccion(datos) || "Sin dirección registrada"}</span>
             </div>
           ) : null}
         </div>
@@ -656,20 +677,28 @@ function Perfil() {
                 <label htmlFor="telefonoPerfil">Teléfono</label>
                 <input
                   id="telefonoPerfil"
+                  type="tel"
+                  placeholder="912345678 o +56912345678"
                   value={formPerfil.telefono}
                   onChange={(e) => setFormPerfil((f) => ({ ...f, telefono: e.target.value }))}
                 />
               </div>
-              {!!datos?.Es_Apoderado && (
-                <div className="campo-pwd">
-                  <label htmlFor="direccionPerfil">Dirección</label>
+              {!!datos?.Es_Apoderado && [
+                { name: "calle",  label: "Calle",                  maxLength: 100 },
+                { name: "numero", label: "Número",                 maxLength: 7 },
+                { name: "depto",  label: "Depto./Casa (opcional)", maxLength: 20 },
+                { name: "comuna", label: "Comuna",                 maxLength: 60 },
+              ].map((campo) => (
+                <div className="campo-pwd" key={campo.name}>
+                  <label htmlFor={`${campo.name}Perfil`}>{campo.label}</label>
                   <input
-                    id="direccionPerfil"
-                    value={formPerfil.direccion}
-                    onChange={(e) => setFormPerfil((f) => ({ ...f, direccion: e.target.value }))}
+                    id={`${campo.name}Perfil`}
+                    maxLength={campo.maxLength}
+                    value={formPerfil[campo.name]}
+                    onChange={(e) => setFormPerfil((f) => ({ ...f, [campo.name]: e.target.value }))}
                   />
                 </div>
-              )}
+              ))}
 
               {msgExitoPerfil && <div className="msg-exito">{msgExitoPerfil}</div>}
               {msgErrorPerfil && <div className="msg-error-form">{msgErrorPerfil}</div>}

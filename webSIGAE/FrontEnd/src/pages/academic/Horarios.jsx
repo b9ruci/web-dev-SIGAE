@@ -206,7 +206,6 @@ export default function Horarios() {
   const [errorPanel, setErrorPanel] = useState("");
 
   // Bulk suspend
-  const [confirmandoSuspender, setConfirmandoSuspender] = useState(false);
   const [suspendiendo, setSuspendiendo] = useState(false);
 
   // Listado sidebar
@@ -391,6 +390,7 @@ export default function Horarios() {
   };
 
   const handleSuspenderTodo = async () => {
+    if (!window.confirm(`¿Suspender ${bloquesActivos} bloque(s) activo(s)?`)) return;
     setSuspendiendo(true);
     try {
       const activos = horarios.filter((h) => h.estado === "Activo");
@@ -403,7 +403,6 @@ export default function Horarios() {
           })
         )
       );
-      setConfirmandoSuspender(false);
       cargarHorarios(cursoSeleccionado);
       cargarAsignaturas(cursoSeleccionado);
     } catch {
@@ -628,28 +627,13 @@ export default function Horarios() {
               {/* Bulk suspend */}
               {bloquesActivos > 0 && (
                 <div style={{ marginTop: "auto", padding: "0.75rem 0.5rem 0", borderTop: "1px solid #e5e7eb" }}>
-                  {!confirmandoSuspender ? (
-                    <button
-                      style={s.btnSuspenderTodo}
-                      onClick={() => setConfirmandoSuspender(true)}
-                    >
-                      ⚠ Suspender todas las clases
-                    </button>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
-                      <span style={{ fontSize: "0.78rem", color: "#92400e", fontWeight: 600 }}>
-                        ¿Suspender {bloquesActivos} bloque(s) activo(s)?
-                      </span>
-                      <div style={{ display: "flex", gap: "0.4rem" }}>
-                        <button style={s.btnConfirmar} onClick={handleSuspenderTodo} disabled={suspendiendo}>
-                          {suspendiendo ? "..." : "Sí"}
-                        </button>
-                        <button style={s.btnCancelarConf} onClick={() => setConfirmandoSuspender(false)}>
-                          No
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    style={s.btnSuspenderTodo}
+                    onClick={handleSuspenderTodo}
+                    disabled={suspendiendo}
+                  >
+                    {suspendiendo ? "Suspendiendo..." : "⚠ Suspender todas las clases"}
+                  </button>
                 </div>
               )}
             </div>
@@ -1617,26 +1601,6 @@ const s = {
     fontSize: "0.78rem",
     textAlign: "center",
   },
-  btnConfirmar: {
-    background: "#dc2626",
-    color: "#fff",
-    border: "none",
-    padding: "0.35rem 0.7rem",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: 700,
-    fontSize: "0.82rem",
-  },
-  btnCancelarConf: {
-    background: "#f9fafb",
-    border: "1px solid #d1d5db",
-    color: "#374151",
-    padding: "0.35rem 0.7rem",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "0.82rem",
-  },
-
   cellBtn: {
     width: 18,
     height: 18,
