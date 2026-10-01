@@ -1,0 +1,95 @@
+# Contrato API — Módulo de Citaciones (CU74–CU79 / RF48–RF53)
+
+El frontend (`src/pages/communications/Citaciones.jsx`, `HistorialCitaciones.jsx` y
+`src/components/citaciones/`) consume estos endpoints desde `src/services/api.js`.
+Los nombres de las funciones siguen los mensajes de los diagramas de secuencia.
+Implementación en el backend: `BackEnd/controllers/citacionController.js` y `BackEnd/routes/citacionRoutes.js`
+(pruebas en `BackEnd/tests/citaciones.test.js`).
+
+Todas las respuestas de error usan `{ "mensaje": "..." }`; el frontend muestra ese texto tal cual.
+
+| Función frontend | Método y ruta | CU |
+| --- | --- | --- |
+| `getCitaciones(rol)` | `GET /api/citaciones?rol=Docente\|Apoderado\|Administrador` | CU78 |
+| `getCitacionesPendientes(rol)` | `GET /api/citaciones/pendientes?rol=...` | CU75 |
+| `getDetalleCitacion(id)` | `GET /api/citaciones/:id` | CU76, CU77 |
+| `crearCitacion(datos)` | `POST /api/citaciones` | CU74 |
+| `confirmarCitacion(id)` | `PATCH /api/citaciones/:id/confirmar` | CU75 |
+| `cancelarCitacion(id, motivo)` | `PATCH /api/citaciones/:id/cancelar` | CU76 |
+| `reprogramarCitacion(id, datos)` | `PATCH /api/citaciones/:id/reprogramar` | CU77 |
+| `getHistorialCitaciones(estudianteId)` | `GET /api/citaciones/estudiante/:id/historial` | CU79 |
+
+`rol` es el rol activo del usuario (uno con rol "Docente y Apoderado" ve una agenda distinta según el rol elegido).
+
+## Objeto citación
+
+Columnas de la tabla `citacion` más los nombres unidos por JOIN:
+
+```json
+{
+  "Citacion_Id": 33,
+  "Citacion_Fecha": "2026-06-20",
+  "Citacion_Tramo_Horario": "17:00 - 17:30",
+  "Citacion_Motivo": "Bullying",
+  "Citacion_Modalidad": "Presencial",
+  "Citacion_Estado": "Pendiente de confirmación",
+  "Citacion_Fecha_Confirmacion": null,
+  "Citacion_Motivo_Cancelacion": null,
+  "Citacion_Observaciones_Posteriores": null,
+  "Estudiante_Id": 222222222,
+  "Estudiante_Nombre_Completo": "…",
+  "Curso_Nombre": "…",
+  "Apoderado_Usuario_Id": 4,
+  "Apoderado_Nombre": "…",
+  "Docente_Usuario_Id": 3,
+  "Docente_Nombre": "…",
+  "Requiere_Confirmacion_De": "Apoderado",
+  "Puede_Confirmar": false
+}
+```
+
+- `Citacion_Estado`: `"Pendiente de confirmación"`, `"Confirmada"` o `"Cancelada"` (igual que el dump).
+- `Requiere_Confirmacion_De`: `"Apoderado"` o `"Docente"` (o `null` si no está pendiente). Tras una
+  reprogramación (CU77) debe confirmar la contraparte de quien reprogramó. No es una columna: el backend
+  lo deriva del último registro "Reprogramación de citación" en `historial` (`Usuario_Responsable_Id`).
+  Si se omite, el frontend asume `"Apoderado"`. `"Docente"` se refiere a quien citó (`Docente_Usuario_Id`),
+  que puede ser un docente o el administrador que creó la citación.
+- `Puede_Confirmar`: `true` si al usuario que consulta le corresponde confirmar la citación (pendiente,
+  no vencida y él es la contraparte que debe responder).
+- Tramos válidos: bloques de 30 min entre 08:00 y 18:00 con el formato `"HH:MM - HH:MM"`.
+- Modalidades válidas: `"Presencial"`, `"Online"`.
+
+## Respuestas esperadas
+
+- **Listas** (`GET /api/citaciones`, `/pendientes`): un arreglo de citaciones, o bien
+  `200 { "mensaje": "No existen citaciones…", "citaciones": [] }` cuando no hay registros
+  (CU78 Exc. 1 / CU75 Exc. 1).
+- **Detalle**: la citación, o `{ "citacion": {...} }`. `404` si no existe o no pertenece al usuario (CU76/CU77 Exc. 1).
+- **Crear**, body `{ Estudiante_Id, Citacion_Fecha, Citacion_Tramo_Horario, Citacion_Motivo, Citacion_Modalidad }`:
+  - `201 { mensaje }`: se registra como `"Pendiente de confirmación"`.
+  - `400 { mensaje, errores? }`: datos inválidos (Exc. 1). `errores` puede venir por campo
+    (`estudianteId`, `fecha`, `tramo`, `motivo`, `modalidad`).
+  - `409 { mensaje }`: sin disponibilidad para el docente o el apoderado en esa fecha y tramo (Exc. 2).
+- **Confirmar**: `200 { mensaje }`. Actualiza a `"Confirmada"`, registra `Citacion_Fecha_Confirmacion`
+  e inserta en `historial` (fecha y hora). Si algo falla, `500 { mensaje }` (Exc. 2).
+- **Cancelar**, body `{ Citacion_Motivo_Cancelacion }`: `200 { mensaje }`. Actualiza a `"Cancelada"`
+  e inserta en `historial`. Si el motivo está vacío, `400` (Exc. 2).
+- **Reprogramar**, body `{ Citacion_Fecha, Citacion_Tramo_Horario }`: `200 { mensaje }`. Vuelve a
+  `"Pendiente de confirmación"` y fija `Requiere_Confirmacion_De`. `409` si hay conflicto de horario (Exc. 2).
+- **Historial**: `{ "citaciones": [ { ...citación, "historial": [ ... ] } ] }`, ordenado por fecha.
+  El historial también puede venir plano en `{ citaciones, historial }` (cada registro con `Citacion_Id`).
+  Campos del historial: `Historial_Fecha_Registro`, `Historial_Hora_Registro`, `Historial_Descripcion_Cambio`,
+  `Historial_Atributo_Modificado`, `Historial_Valor_Anterior`, `Historial_Valor_Nuevo` y,
+  opcionalmente, `Usuario_Responsable_Nombre`. Sin registros: `200 { mensaje, citaciones: [] }` (Exc. 1).
+  Error: `500 { mensaje }` (Exc. 2).
+
+## Permisos
+
+- Docente: solo sus citaciones (`Docente_Usuario_Id`). Crea citaciones solo para estudiantes de sus cursos que tengan apoderado.
+- Apoderado: solo sus citaciones (`Apoderado_Usuario_Id`) y el historial de sus estudiantes asociados. No crea citaciones.
+- Administrador / Super Admin (`?rol=Administrador`):
+  - Ve la agenda de toda la institución y el historial de cualquier estudiante.
+  - Crea citaciones para cualquier estudiante con apoderado; queda como citador (`Docente_Usuario_Id`).
+  - Cancela y reprograma cualquier citación. Si reprograma una ajena, confirma el apoderado.
+  - Solo confirma las citaciones en que él es la contraparte que debe responder (`Puede_Confirmar`);
+    nunca en nombre de otro.

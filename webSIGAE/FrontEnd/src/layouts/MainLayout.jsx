@@ -146,6 +146,8 @@ function MainLayout() {
                   )}
                 </div>
 
+                <Link to="/citaciones">Citaciones</Link>
+                <Link to="/citaciones/historial">Historial de Citaciones</Link>
                 <Link to="/reportes">Reportes</Link>
               </>
             )}
@@ -158,6 +160,7 @@ function MainLayout() {
                 <Link to="/estudiantes">Estudiantes</Link>
                 <Link to="/mi-horario">Mi Horario</Link>
                 <Link to="/citaciones">Citaciones</Link>
+                <Link to="/citaciones/historial">Historial de Citaciones</Link>
                 <Link to="/mensajes">Mensajes</Link>
               </>
             )}
@@ -166,6 +169,7 @@ function MainLayout() {
               <>
                 <span className="menu-section">Apoderado</span>
                 <Link to="/citaciones">Citaciones</Link>
+                <Link to="/citaciones/historial">Historial de Citaciones</Link>
                 <Link to="/mensajes">Mensajes</Link>
               </>
             )}

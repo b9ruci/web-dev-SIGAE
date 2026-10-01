@@ -52,6 +52,7 @@ import Asignaturas from "../pages/academic/Asignaturas";
 
 import Mensajes from "../pages/communications/Mensajes";
 import Citaciones from "../pages/communications/Citaciones";
+import HistorialCitaciones from "../pages/communications/HistorialCitaciones";
 
 /* REPORTS */
 
@@ -99,7 +100,25 @@ function AppRouter() {
             }
           />
           {/* Accesibles por Docente y Apoderado */}
-          <Route path="/citaciones" element={<Citaciones />} />
+          {/* CU74–CU78: agenda, creación, confirmación, cancelación y reprogramación de citaciones
+              (el Administrador/Super Admin ve y gestiona las de toda la institución) */}
+          <Route
+            path="/citaciones"
+            element={
+              <RoleRoute roles={["Docente", "Apoderado", "Administrador"]}>
+                <Citaciones />
+              </RoleRoute>
+            }
+          />
+          {/* CU79: historial y detalle de citaciones de un estudiante (también Admin/Super Admin) */}
+          <Route
+            path="/citaciones/historial"
+            element={
+              <RoleRoute roles={["Docente", "Apoderado", "Administrador"]}>
+                <HistorialCitaciones />
+              </RoleRoute>
+            }
+          />
           <Route path="/mensajes"   element={<Mensajes />} />
 
           {/* Accesibles por Docente */}

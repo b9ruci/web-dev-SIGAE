@@ -395,3 +395,92 @@ export async function buscarUsuarioExistente({ rut, nombre, correo }) {
 
   return handleResponse(res);
 }
+
+// ── CITACIONES (CU74–CU79 / RF48–RF53) ────────
+// Los nombres siguen los mensajes de los diagramas de secuencia (V_Citaciones → C_Citaciones).
+
+// CU78: agenda cronológica de las citaciones del usuario autenticado según su rol activo
+export async function getCitaciones(rol) {
+  const params = new URLSearchParams();
+  if (rol) params.set('rol', rol);
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/citaciones${query ? `?${query}` : ''}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// CU75: solicitudes pendientes de confirmación para el usuario autenticado
+export async function getCitacionesPendientes(rol) {
+  const params = new URLSearchParams();
+  if (rol) params.set('rol', rol);
+  const query = params.toString();
+  const res = await fetch(`${BASE_URL}/citaciones/pendientes${query ? `?${query}` : ''}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// CU76 / CU77: detalle de una citación (404 → "no existe o no está disponible")
+export async function getDetalleCitacion(citacionId) {
+  const res = await fetch(`${BASE_URL}/citaciones/${citacionId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// CU74: crear citación (el backend valida disponibilidad y la registra "Pendiente de confirmación")
+export async function crearCitacion({ estudianteId, fecha, tramo, motivo, modalidad }) {
+  const res = await fetch(`${BASE_URL}/citaciones`, {
+    method : 'POST',
+    headers: authHeaders(),
+    body   : JSON.stringify({
+      Estudiante_Id          : Number(estudianteId),
+      Citacion_Fecha         : fecha,
+      Citacion_Tramo_Horario : tramo,
+      Citacion_Motivo        : motivo.trim(),
+      Citacion_Modalidad     : modalidad,
+    }),
+  });
+  return handleResponse(res);
+}
+
+// CU75: confirmar citación pendiente (registra fecha y hora exacta de confirmación)
+export async function confirmarCitacion(citacionId) {
+  const res = await fetch(`${BASE_URL}/citaciones/${citacionId}/confirmar`, {
+    method : 'PATCH',
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// CU76: cancelar citación con motivo obligatorio (queda registrado en el historial)
+export async function cancelarCitacion(citacionId, motivo) {
+  const res = await fetch(`${BASE_URL}/citaciones/${citacionId}/cancelar`, {
+    method : 'PATCH',
+    headers: authHeaders(),
+    body   : JSON.stringify({ Citacion_Motivo_Cancelacion: motivo.trim() }),
+  });
+  return handleResponse(res);
+}
+
+// CU77: reprogramar fecha y/o tramo; la citación vuelve a "Pendiente de confirmación" para la contraparte
+export async function reprogramarCitacion(citacionId, { fecha, tramo }) {
+  const res = await fetch(`${BASE_URL}/citaciones/${citacionId}/reprogramar`, {
+    method : 'PATCH',
+    headers: authHeaders(),
+    body   : JSON.stringify({
+      Citacion_Fecha        : fecha,
+      Citacion_Tramo_Horario: tramo,
+    }),
+  });
+  return handleResponse(res);
+}
+
+// CU79: historial completo de citaciones de un estudiante (con registros de la tabla historial)
+export async function getHistorialCitaciones(estudianteId) {
+  const res = await fetch(`${BASE_URL}/citaciones/estudiante/${estudianteId}/historial`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
