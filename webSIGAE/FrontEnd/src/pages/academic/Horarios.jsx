@@ -208,6 +208,12 @@ export default function Horarios() {
   // Bulk suspend
   const [suspendiendo, setSuspendiendo] = useState(false);
 
+  // Selección múltiple de bloques (CU63 / CU64)
+  const [modoSeleccion, setModoSeleccion] = useState(false);
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [modalMasivo, setModalMasivo] = useState(null); // "reasignar" | "editar" | null
+  const [exito, setExito] = useState("");
+
   // Listado sidebar
   const [listadoAbierto, setListadoAbierto] = useState(false);
   const [resumenCursos, setResumenCursos] = useState([]);
@@ -284,6 +290,8 @@ export default function Horarios() {
     setCursoSeleccionado(id);
     setAsignaturaActiva(null);
     setPanelAbierto(false);
+    setModoSeleccion(false);
+    setSeleccionados([]);
     if (id) {
       cargarHorarios(id);
       cargarAsignaturas(id);
@@ -412,6 +420,30 @@ export default function Horarios() {
     }
   };
 
+  // ── Selección múltiple (CU63 / CU64) ──
+  const toggleModoSeleccion = () => {
+    setModoSeleccion((v) => !v);
+    setSeleccionados([]);
+    setAsignaturaActiva(null);
+    setPanelAbierto(false);
+  };
+
+  const toggleSeleccionado = (id) => {
+    setSeleccionados((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleExitoMasivo = (mensaje) => {
+    setModalMasivo(null);
+    setSeleccionados([]);
+    setModoSeleccion(false);
+    cargarHorarios(cursoSeleccionado);
+    cargarAsignaturas(cursoSeleccionado);
+    setExito(mensaje);
+    setTimeout(() => setExito(""), 3500);
+  };
+
   if (esApoderado) return <AccesoDenegado />;
 
   const cursoObj = cursos.find((c) => String(c.Curso_Id) === String(cursoSeleccionado));
@@ -476,6 +508,7 @@ export default function Horarios() {
       </div>
 
       {error && <div style={s.errorBanner}>{error}</div>}
+      {exito && <div style={s.exitoBanner}>✓ {exito}</div>}
 
       {/* Course selector */}
       {esAdmin && (
@@ -498,8 +531,17 @@ export default function Horarios() {
               ⚠ Este curso no tiene asignaturas en el plan educativo.
             </span>
           )}
+          {/* CU63 / CU64 — activar casillas de selección en la grilla */}
+          {cursoSeleccionado && horarios.length > 0 && (
+            <button
+              style={{ marginLeft: "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #c4b5fd", background: modoSeleccion ? "#5b21b6" : "#fff", color: modoSeleccion ? "#fff" : "#5b21b6", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
+              onClick={toggleModoSeleccion}
+            >
+              ☑ Selección múltiple
+            </button>
+          )}
           <button
-            style={{ marginLeft: "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #93c5fd", background: listadoAbierto ? "#4f46e5" : "#fff", color: listadoAbierto ? "#fff" : "#4f46e5", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
+            style={{ marginLeft: cursoSeleccionado && horarios.length > 0 ? 0 : "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #93c5fd", background: listadoAbierto ? "#4f46e5" : "#fff", color: listadoAbierto ? "#fff" : "#4f46e5", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
             onClick={() => setListadoAbierto(v => !v)}
           >
             📋 Desplegar listado
@@ -558,7 +600,7 @@ export default function Horarios() {
                     return (
                       <div
                         key={a.Asignatura_Id}
-                        onClick={() => setAsignaturaActiva(activa ? null : a)}
+                        onClick={() => { if (!modoSeleccion) setAsignaturaActiva(activa ? null : a); }}
                         style={{
                           ...s.asigCard,
                           borderColor: activa ? color.border : "#e5e7eb",
@@ -641,6 +683,35 @@ export default function Horarios() {
 
           {/* Right: institutional block grid */}
           <div style={s.gridArea}>
+            {/* CU63 / CU64 — barra de acciones de la selección múltiple */}
+            {esAdmin && modoSeleccion && (
+              <div style={s.barraSeleccion}>
+                <span>
+                  <strong>{seleccionados.length}</strong> bloque(s) seleccionado(s)
+                  {seleccionados.length === 0 && " — haz clic en los bloques programados para seleccionarlos"}
+                </span>
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button
+                    style={s.btnAccionSeleccion}
+                    disabled={seleccionados.length === 0}
+                    onClick={() => setModalMasivo("reasignar")}
+                  >
+                    👤 Reasignar docente
+                  </button>
+                  <button
+                    style={s.btnAccionSeleccion}
+                    disabled={seleccionados.length === 0}
+                    onClick={() => setModalMasivo("editar")}
+                  >
+                    ✏ Editar seleccionados
+                  </button>
+                  <button style={s.btnCancelar} onClick={toggleModoSeleccion}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
             {asignaturaActiva && esAdmin && (
               <div style={s.asigActivaBanner}>
                 <span>
@@ -666,6 +737,9 @@ export default function Horarios() {
               onCelda={esAdmin ? abrirDesdeGrid : null}
               onEditar={esAdmin ? abrirEditar : null}
               onCambiarEstado={esAdmin ? handleCambiarEstado : null}
+              modoSeleccion={esAdmin && modoSeleccion}
+              seleccionados={seleccionados}
+              onToggleSeleccion={toggleSeleccionado}
             />
           </div>
         </div>
@@ -684,6 +758,24 @@ export default function Horarios() {
           onChange={handleFormChange}
           onSubmit={handleGuardar}
           onClose={cerrarPanel}
+        />
+      )}
+
+      {/* CU63 — Reasignando docente en múltiples bloques */}
+      {esAdmin && modalMasivo === "reasignar" && (
+        <ReasignarDocenteModal
+          seleccion={horarios.filter((h) => seleccionados.includes(h.Horario_Asignatura_Id))}
+          onClose={() => setModalMasivo(null)}
+          onExito={handleExitoMasivo}
+        />
+      )}
+
+      {/* CU64 — Modificando múltiples bloques horarios */}
+      {esAdmin && modalMasivo === "editar" && (
+        <EditarMultiplesModal
+          seleccion={horarios.filter((h) => seleccionados.includes(h.Horario_Asignatura_Id))}
+          onClose={() => setModalMasivo(null)}
+          onExito={handleExitoMasivo}
         />
       )}
 
@@ -713,6 +805,9 @@ function VistaBloqueGrid({
   onCelda,
   onEditar,
   onCambiarEstado,
+  modoSeleccion = false,
+  seleccionados = [],
+  onToggleSeleccion,
 }) {
   const [hoveredCell, setHoveredCell] = useState(null); // { bloqueId, dia }
 
@@ -849,7 +944,8 @@ function VistaBloqueGrid({
               const isHovered =
                 hoveredCell?.bloqueId === bloque.Bloque_Horario_Id &&
                 hoveredCell?.dia === dia;
-              const canClick = esAdmin && !esRecreo && !h && !!onCelda;
+              const canClick = esAdmin && !esRecreo && !h && !!onCelda && !modoSeleccion;
+              const seleccionado = !!h && seleccionados.includes(h.Horario_Asignatura_Id);
               const asigColor = h ? colorMap[h.Asignatura_Id] || ASIG_COLORS[0] : null;
 
               return (
@@ -860,6 +956,10 @@ function VistaBloqueGrid({
                   }}
                   onMouseLeave={() => setHoveredCell(null)}
                   onClick={() => {
+                    if (modoSeleccion) {
+                      if (h) onToggleSeleccion(h.Horario_Asignatura_Id);
+                      return;
+                    }
                     if (h && esAdmin && onEditar) { onEditar(h); return; }
                     if (canClick) onCelda(bloque.Bloque_Horario_Id, dia);
                   }}
@@ -950,13 +1050,23 @@ function VistaBloqueGrid({
                           h.estado === "Suspendido" ? "#ef4444" : asigColor?.text || "#1e40af"
                         }`,
                         borderRadius: 5,
-                        padding: "3px 5px",
+                        padding: modoSeleccion ? "3px 5px 3px 22px" : "3px 5px",
                         height: "100%",
                         minHeight: 44,
                         boxSizing: "border-box",
                         position: "relative",
+                        boxShadow: seleccionado ? "0 0 0 2px #7c3aed" : "none",
                       }}
                     >
+                      {/* CU63 / CU64 — casilla de selección */}
+                      {modoSeleccion && (
+                        <input
+                          type="checkbox"
+                          checked={seleccionado}
+                          readOnly
+                          style={{ position: "absolute", top: 4, left: 4, margin: 0, cursor: "pointer", accentColor: "#7c3aed" }}
+                        />
+                      )}
                       <div
                         style={{
                           fontSize: "0.72rem",
@@ -991,7 +1101,7 @@ function VistaBloqueGrid({
                         </div>
                       )}
                       {/* Hover action buttons */}
-                      {isHovered && esAdmin && (
+                      {isHovered && esAdmin && !modoSeleccion && (
                         <div
                           style={{
                             position: "absolute",
@@ -1071,7 +1181,9 @@ function VistaBloqueGrid({
         <LegendItem color="rgba(251,146,60,0.10)" border="#f97316" dashed label="Vista previa" />
         {esAdmin && (
           <span style={{ fontSize: "0.7rem", color: "#6b7280", marginLeft: "auto" }}>
-            Clic en celda vacía → agregar · Clic en bloque → editar
+            {modoSeleccion
+              ? "Clic en bloque → seleccionar / quitar de la selección"
+              : "Clic en celda vacía → agregar · Clic en bloque → editar"}
           </span>
         )}
       </div>
@@ -1437,6 +1549,390 @@ function PanelForm({
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
+/*  Edición masiva de bloques (CU63 / CU64)                       */
+/*  Flujo de los diagramas de secuencia: el actor completa el      */
+/*  formulario → el sistema valida (validar…) → muestra el resumen */
+/*  y solicita confirmación → el actor confirma → se aplica el     */
+/*  UPDATE. Si la validación falla se devuelve al formulario.      */
+/* ═══════════════════════════════════════════════════════════════ */
+function hhmm(t) {
+  return t ? String(t).slice(0, 5) : "";
+}
+
+function useFlujoMasivo({ urlValidar, urlAplicar, onExito }) {
+  const [paso, setPaso] = useState("formulario"); // formulario | resumen
+  const [resumen, setResumen] = useState([]);
+  const [error, setError] = useState("");
+  const [conflictos, setConflictos] = useState([]);
+  const [enviando, setEnviando] = useState(false);
+
+  const enviar = async (url, method, body) => {
+    setEnviando(true);
+    setError("");
+    setConflictos([]);
+    try {
+      const res = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "No fue posible completar la operación");
+        setConflictos(Array.isArray(data.conflictos) ? data.conflictos : []);
+        setPaso("formulario");
+        return null;
+      }
+      return data;
+    } catch {
+      setError("No fue posible completar la operación");
+      setPaso("formulario");
+      return null;
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const validar = async (body) => {
+    const data = await enviar(urlValidar, "POST", body);
+    if (data) {
+      setResumen(data.resumen || []);
+      setPaso("resumen");
+    }
+  };
+
+  const confirmar = async (body) => {
+    const data = await enviar(urlAplicar, "PUT", body);
+    if (data) onExito(data.mensaje);
+  };
+
+  const mostrarError = (mensaje) => {
+    setError(mensaje);
+    setConflictos([]);
+  };
+
+  return {
+    paso, resumen, error, conflictos, enviando,
+    validar, confirmar, mostrarError,
+    volver: () => setPaso("formulario"),
+  };
+}
+
+function ModalMasivo({ titulo, subtitulo, onClose, children }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" style={{ maxWidth: 760 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h2>{titulo}</h2>
+            {subtitulo && <p className="modal-subtitulo" style={{ margin: "4px 0 0" }}>{subtitulo}</p>}
+          </div>
+          <button className="btn-cerrar" onClick={onClose} title="Cerrar">✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ErrorMasivo({ error, conflictos }) {
+  if (!error) return null;
+  return (
+    <div style={{ ...s.errorBanner, marginTop: "0.75rem" }}>
+      <strong>{error}</strong>
+      {conflictos.length > 0 && (
+        <ul style={{ margin: "0.4rem 0 0", paddingLeft: "1.2rem" }}>
+          {conflictos.map((c, i) => <li key={i}>{c}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function ListaSeleccion({ seleccion }) {
+  return (
+    <table style={s.tablaResumen}>
+      <thead>
+        <tr>
+          <th style={s.thResumen}>Día</th>
+          <th style={s.thResumen}>Horario</th>
+          <th style={s.thResumen}>Asignatura</th>
+          <th style={s.thResumen}>Docente actual</th>
+        </tr>
+      </thead>
+      <tbody>
+        {seleccion.map((h) => (
+          <tr key={h.Horario_Asignatura_Id}>
+            <td style={s.tdResumen}>{h.dia}</td>
+            <td style={s.tdResumen}>{hhmm(h.hora_inicio)} – {hhmm(h.hora_fin)}</td>
+            <td style={s.tdResumen}>{h.asignatura}</td>
+            <td style={s.tdResumen}>{h.docente || "Sin asignar"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ValorCambio({ antes, despues }) {
+  if (antes === despues) return <span>{despues}</span>;
+  return (
+    <span>
+      <span style={{ color: "#94a3b8", textDecoration: "line-through" }}>{antes}</span>
+      {" → "}
+      <strong style={{ color: "#5b21b6" }}>{despues}</strong>
+    </span>
+  );
+}
+
+function ResumenCambios({ resumen }) {
+  return (
+    <table style={s.tablaResumen}>
+      <thead>
+        <tr>
+          <th style={s.thResumen}>Curso</th>
+          <th style={s.thResumen}>Día</th>
+          <th style={s.thResumen}>Horario</th>
+          <th style={s.thResumen}>Asignatura</th>
+          <th style={s.thResumen}>Docente</th>
+        </tr>
+      </thead>
+      <tbody>
+        {resumen.map((r) => (
+          <tr key={r.Horario_Asignatura_Id}>
+            <td style={s.tdResumen}>{r.curso}</td>
+            <td style={s.tdResumen}><ValorCambio antes={r.antes.dia} despues={r.despues.dia} /></td>
+            <td style={s.tdResumen}>
+              <ValorCambio
+                antes={`${hhmm(r.antes.hora_inicio)} – ${hhmm(r.antes.hora_fin)}`}
+                despues={`${hhmm(r.despues.hora_inicio)} – ${hhmm(r.despues.hora_fin)}`}
+              />
+            </td>
+            <td style={s.tdResumen}><ValorCambio antes={r.antes.asignatura} despues={r.despues.asignatura} /></td>
+            <td style={s.tdResumen}>
+              <ValorCambio antes={r.antes.docente || "Sin asignar"} despues={r.despues.docente || "Sin asignar"} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function AccionesMasivas({ flujo, textoValidar, onValidar, onConfirmar, onClose }) {
+  return (
+    <div className="modal-actions" style={{ marginTop: "1.25rem" }}>
+      {flujo.paso === "formulario" ? (
+        <>
+          <button type="button" style={s.btnCancelar} onClick={onClose} disabled={flujo.enviando}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-primary" onClick={onValidar} disabled={flujo.enviando}>
+            {flujo.enviando ? "Validando..." : textoValidar}
+          </button>
+        </>
+      ) : (
+        <>
+          <button type="button" style={s.btnCancelar} onClick={flujo.volver} disabled={flujo.enviando}>
+            Volver
+          </button>
+          <button type="button" className="btn-primary" onClick={onConfirmar} disabled={flujo.enviando}>
+            {flujo.enviando ? "Guardando..." : "Confirmar cambios"}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* CU63 — Reasignando docente en múltiples bloques */
+function ReasignarDocenteModal({ seleccion, onClose, onExito }) {
+  const [docentes, setDocentes] = useState([]);
+  const [docenteId, setDocenteId] = useState("");
+  const flujo = useFlujoMasivo({
+    urlValidar: `${API}/horarios/reasignar-docente/validar`,
+    urlAplicar: `${API}/horarios/reasignar-docente`,
+    onExito,
+  });
+
+  // getDocentes(): docentes con cuenta activa
+  useEffect(() => {
+    fetch(`${API}/horarios/docentes`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => setDocentes(Array.isArray(data) ? data : []))
+      .catch(() => setDocentes([]));
+  }, []);
+
+  const body = () => ({
+    horario_ids: seleccion.map((h) => h.Horario_Asignatura_Id),
+    Usuario_Id: docenteId ? Number(docenteId) : null,
+  });
+
+  return (
+    <ModalMasivo
+      titulo="Reasignar docente"
+      subtitulo={`${seleccion.length} bloque(s) seleccionado(s)`}
+      onClose={onClose}
+    >
+      {flujo.paso === "formulario" ? (
+        <>
+          <ListaSeleccion seleccion={seleccion} />
+          <label style={s.label}>Nuevo docente *</label>
+          <select value={docenteId} onChange={(e) => setDocenteId(e.target.value)} style={s.input}>
+            <option value="">— Selecciona un docente —</option>
+            {docentes.map((d) => (
+              <option key={d.Usuario_Id} value={d.Usuario_Id}>
+                {d.Usuario_Nombre_Completo}
+                {d.Docente_Especialidad ? ` — ${d.Docente_Especialidad}` : ""}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : (
+        <>
+          <p className="modal-subtitulo">Revisa los cambios antes de confirmar la reasignación.</p>
+          <ResumenCambios resumen={flujo.resumen} />
+        </>
+      )}
+
+      <ErrorMasivo error={flujo.error} conflictos={flujo.conflictos} />
+
+      <AccionesMasivas
+        flujo={flujo}
+        textoValidar="Validar reasignación"
+        onValidar={() => flujo.validar(body())}
+        onConfirmar={() => flujo.confirmar(body())}
+        onClose={onClose}
+      />
+    </ModalMasivo>
+  );
+}
+
+/* CU64 — Modificando múltiples bloques horarios */
+const CAMPOS_EDICION = [
+  { campo: "Horario_Asignatura_Dia_Semana", etiqueta: "Día" },
+  { campo: "Bloque_Horario_Id", etiqueta: "Hora (bloque horario)" },
+  { campo: "Asignatura_Id", etiqueta: "Asignatura" },
+  { campo: "Usuario_Id", etiqueta: "Docente" },
+];
+
+function EditarMultiplesModal({ seleccion, onClose, onExito }) {
+  const [opciones, setOpciones] = useState({ bloques: [], asignaturas: [], docentes: [] });
+  const [activos, setActivos] = useState({});
+  const [valores, setValores] = useState({});
+  const flujo = useFlujoMasivo({
+    urlValidar: `${API}/horarios/multiples/validar`,
+    urlAplicar: `${API}/horarios/multiples`,
+    onExito,
+  });
+
+  // getOpcionesEdicion(): bloques, asignaturas y docentes activos
+  useEffect(() => {
+    fetch(`${API}/horarios/opciones-edicion`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) =>
+        setOpciones({
+          bloques: Array.isArray(data.bloques) ? data.bloques : [],
+          asignaturas: Array.isArray(data.asignaturas) ? data.asignaturas : [],
+          docentes: Array.isArray(data.docentes) ? data.docentes : [],
+        })
+      )
+      .catch(() => {});
+  }, []);
+
+  const opcionesDe = (campo) => {
+    if (campo === "Horario_Asignatura_Dia_Semana") return DIAS.map((d) => ({ value: d, label: d }));
+    if (campo === "Bloque_Horario_Id")
+      return opciones.bloques
+        .filter((b) => b.Bloque_Horario_Tipo !== "Recreo")
+        .map((b) => ({
+          value: b.Bloque_Horario_Id,
+          label: `${hhmm(b.Bloque_Horario_Hora_Inicio)} – ${hhmm(b.Bloque_Horario_Hora_Fin)} · ${b.Bloque_Horario_Jornada}`,
+        }));
+    if (campo === "Asignatura_Id")
+      return opciones.asignaturas.map((a) => ({ value: a.Asignatura_Id, label: a.Asignatura_Nombre }));
+    return opciones.docentes.map((d) => ({
+      value: d.Usuario_Id,
+      label: `${d.Usuario_Nombre_Completo}${d.Docente_Especialidad ? ` — ${d.Docente_Especialidad}` : ""}`,
+    }));
+  };
+
+  const cambios = () => {
+    const out = {};
+    for (const { campo } of CAMPOS_EDICION) {
+      if (activos[campo]) out[campo] = valores[campo] ?? "";
+    }
+    return out;
+  };
+
+  const body = () => ({
+    horario_ids: seleccion.map((h) => h.Horario_Asignatura_Id),
+    cambios: cambios(),
+  });
+
+  const handleValidar = () => {
+    const c = cambios();
+    // Excepción 1: un campo marcado para modificar quedó sin valor
+    if (Object.values(c).some((v) => v === "")) {
+      flujo.mostrarError("Seleccione bloques y campos válidos a modificar");
+      return;
+    }
+    flujo.validar(body());
+  };
+
+  return (
+    <ModalMasivo
+      titulo="Editar bloques seleccionados"
+      subtitulo={`${seleccion.length} bloque(s) seleccionado(s)`}
+      onClose={onClose}
+    >
+      {flujo.paso === "formulario" ? (
+        <>
+          <ListaSeleccion seleccion={seleccion} />
+          <p className="modal-subtitulo" style={{ margin: "1rem 0 0.25rem" }}>
+            Marca los campos a modificar e ingresa el nuevo valor. Se aplicará a todos los bloques seleccionados.
+          </p>
+          {CAMPOS_EDICION.map(({ campo, etiqueta }) => (
+            <div key={campo} style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginTop: "0.5rem" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "0.4rem", width: 190, fontSize: "0.875rem", fontWeight: 600, color: "#374151", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={!!activos[campo]}
+                  onChange={(e) => setActivos((p) => ({ ...p, [campo]: e.target.checked }))}
+                />
+                {etiqueta}
+              </label>
+              <select
+                value={valores[campo] ?? ""}
+                onChange={(e) => setValores((p) => ({ ...p, [campo]: e.target.value }))}
+                disabled={!activos[campo]}
+                style={{ ...s.input, flex: 1 }}
+              >
+                <option value="">— Selecciona —</option>
+                {opcionesDe(campo).map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </>
+      ) : (
+        <>
+          <p className="modal-subtitulo">Revisa los cambios antes de confirmar la modificación.</p>
+          <ResumenCambios resumen={flujo.resumen} />
+        </>
+      )}
+
+      <ErrorMasivo error={flujo.error} conflictos={flujo.conflictos} />
+
+      <AccionesMasivas
+        flujo={flujo}
+        textoValidar="Validar cambios"
+        onValidar={handleValidar}
+        onConfirmar={() => flujo.confirmar(body())}
+        onClose={onClose}
+      />
+    </ModalMasivo>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════ */
 /*  Helpers                                                       */
 /* ═══════════════════════════════════════════════════════════════ */
 function AccesoDenegado() {
@@ -1587,6 +2083,61 @@ const s = {
     alignItems: "center",
     justifyContent: "space-between",
     gap: "0.5rem",
+  },
+
+  exitoBanner: {
+    color: "#166534",
+    background: "#dcfce7",
+    border: "1px solid #bbf7d0",
+    padding: "0.75rem 1rem",
+    borderRadius: "8px",
+    marginBottom: "1rem",
+    fontSize: "0.9rem",
+  },
+
+  barraSeleccion: {
+    padding: "0.55rem 0.75rem",
+    background: "#f5f3ff",
+    border: "1px solid #c4b5fd",
+    borderRadius: "8px",
+    marginBottom: "0.75rem",
+    fontSize: "0.84rem",
+    color: "#5b21b6",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "0.5rem",
+    flexWrap: "wrap",
+  },
+  btnAccionSeleccion: {
+    padding: "0.35rem 0.8rem",
+    borderRadius: "6px",
+    border: "1px solid #7c3aed",
+    background: "#7c3aed",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: "0.8rem",
+  },
+
+  tablaResumen: {
+    width: "100%",
+    borderCollapse: "collapse",
+    fontSize: "0.8rem",
+  },
+  thResumen: {
+    textAlign: "left",
+    padding: "0.4rem 0.5rem",
+    background: "#f1f5f9",
+    color: "#475569",
+    fontWeight: 700,
+    borderBottom: "1px solid #e2e8f0",
+  },
+  tdResumen: {
+    padding: "0.4rem 0.5rem",
+    borderBottom: "1px solid #f1f5f9",
+    color: "#1e293b",
+    verticalAlign: "top",
   },
 
   btnSuspenderTodo: {
