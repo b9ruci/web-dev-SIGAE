@@ -15,6 +15,9 @@ const {
   getAsignacionesDocente,
   getHorarioDocente,
   getHorarioMaestro,
+  filtrarHorarios,
+  getBloquesLibres,
+  getDetalleBloqueHorario,
 } = require('../controllers/horarioController');
 
 // CU 60-62 — Exportación de horarios (maestro / por docente / por curso)
@@ -38,6 +41,15 @@ router.get('/asignaturas-curso',     getAsignaturasCurso);
 router.get('/docentes',              getDocentes);
 router.get('/docentes-disponibles',  getDocentesDisponibles);
 
+// CU68 / RF44: Filtrar grilla horaria reactivamente
+router.get('/filtrar', filtrarHorarios);
+
+// CU67 / RF43: Consultar bloques horarios libres
+router.get('/bloques-libres', getBloquesLibres);
+
+// CU69, CU71 / RF45: Detalle informativo de un bloque horario
+router.get('/bloque-detalle/:id', getDetalleBloqueHorario);
+
 // CU42: Cursos y asignaturas asignadas a un docente (propias o vistas desde su perfil)
 router.get('/docente/:docenteId/asignaciones', getAsignacionesDocente);
 
@@ -48,15 +60,11 @@ router.get('/docente/:docenteId/horario', getHorarioDocente);
 router.get('/maestro', verifyAdmin, getHorarioMaestro);
 
 // Exportación de horarios (CU60, CU61, CU62) — Super Admin/Admin.
-// exportarPorDocente permite además que un Docente exporte su propio
-// horario (autorización fina dentro del controlador).
-// formato = pdf | excel | png  (query param, ?formato=pdf por defecto)
 router.get('/exportar/maestro',            verifyAdmin, exportarMaestro);
 router.get('/exportar/docente/:usuarioId', exportarPorDocente);
 router.get('/exportar/curso/:cursoId',     verifyAdmin, exportarPorCurso);
 
-// CRUD horario — solo admin puede crear/editar (CU54); la lectura permite
-// el filtrado por rol ya implementado dentro de getHorarios.
+// CRUD horario — solo admin puede crear/editar (CU54)
 router.get('/',            getHorarios);
 router.post('/',           verifyAdmin, createHorario);
 router.put('/:id',         verifyAdmin, updateHorario);
