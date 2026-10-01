@@ -144,7 +144,7 @@ function HistorialCitaciones() {
           <h1>Historial de citaciones</h1>
           <p>Consulta las citaciones de un estudiante, sus estados, observaciones y el detalle de cada reunión</p>
         </div>
-        {(rol === "Docente" || rol === "Apoderado") && (
+        {(rol === "Docente" || rol === "Apoderado" || rol === "Administrador" || usuario?.administradorTipo === "Super Admin") && (
           <Link to="/citaciones" className="btn-secondary cit-link-btn">← Volver a la agenda</Link>
         )}
       </div>
@@ -242,7 +242,7 @@ function HistorialCitaciones() {
                       <tr>
                         <th>Fecha</th>
                         <th>Tramo</th>
-                        <th>Docente</th>
+                        <th>Citado por</th>
                         <th>Motivo</th>
                         <th>Modalidad</th>
                         <th>Estado</th>
@@ -305,7 +305,7 @@ function HistorialCitaciones() {
               <dd>{seleccionada.Citacion_Modalidad}</dd>
               <dt>Estudiante</dt>
               <dd>{seleccionada.Estudiante_Nombre_Completo || estudianteActual?.Estudiante_Nombre_Completo || "—"}</dd>
-              <dt>Docente</dt>
+              <dt>Citado por</dt>
               <dd>{seleccionada.Docente_Nombre || "—"}</dd>
               <dt>Apoderado</dt>
               <dd>{seleccionada.Apoderado_Nombre || "—"}</dd>

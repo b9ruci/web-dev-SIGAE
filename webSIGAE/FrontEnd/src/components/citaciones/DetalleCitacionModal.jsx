@@ -142,9 +142,6 @@ function DetalleCitacionModal({ citacionId, rol, onClose, onActualizada }) {
     }
   };
 
-  const contraparte = rol === "Docente"
-    ? { etiqueta: "Apoderado", nombre: citacion?.Apoderado_Nombre }
-    : { etiqueta: "Docente", nombre: citacion?.Docente_Nombre };
 
   const titulo = {
     detalle: "Detalle de la citación",
@@ -189,8 +186,10 @@ function DetalleCitacionModal({ citacionId, rol, onClose, onActualizada }) {
                 {citacion.Estudiante_Nombre_Completo || "—"}
                 {citacion.Curso_Nombre ? ` (${citacion.Curso_Nombre})` : ""}
               </dd>
-              <dt>{contraparte.etiqueta}</dt>
-              <dd>{contraparte.nombre || <span className="dato-sin-registrar">Sin información</span>}</dd>
+              <dt>Citado por</dt>
+              <dd>{citacion.Docente_Nombre || <span className="dato-sin-registrar">Sin información</span>}</dd>
+              <dt>Apoderado</dt>
+              <dd>{citacion.Apoderado_Nombre || <span className="dato-sin-registrar">Sin información</span>}</dd>
               <dt>Motivo</dt>
               <dd className="cit-texto">{citacion.Citacion_Motivo}</dd>
               {citacion.Citacion_Fecha_Confirmacion && (

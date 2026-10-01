@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getCitaciones, getCitacionesPendientes, getEstudiantes } from "../../services/api";
 import {
@@ -39,13 +39,16 @@ function consultarCitaciones(rol) {
   ]).then(([agenda, pendientes]) => ({ agenda, pendientes }));
 }
 
-// Módulo de citaciones para Docente y Apoderado:
-//  CU74 crear (Docente) · CU75 confirmar · CU76 cancelar · CU77 reprogramar · CU78 agenda
+// Módulo de citaciones para Docente, Apoderado y Administrador/Super Admin:
+//  CU74 crear (Docente/Admin) · CU75 confirmar · CU76 cancelar · CU77 reprogramar · CU78 agenda
+// El administrador ve y gestiona las citaciones de toda la institución.
 function Citaciones() {
   const { usuario, rolActivo } = useAuth();
   const rol = rolActivo || usuario?.roles?.[0];
   const esDocente = rol === "Docente";
   const esApoderado = rol === "Apoderado";
+  const esAdmin = rol === "Administrador" || usuario?.administradorTipo === "Super Admin";
+  const rolAgenda = esDocente || esApoderado ? rol : "Administrador";
 
   const [citaciones, setCitaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -85,33 +88,26 @@ function Citaciones() {
     setMsgPendientes(
       pend.error ||
         (pendientesValidas.length === 0
-          ? pend.mensaje || `No existen citaciones pendientes para el ${esApoderado ? "apoderado" : "docente"}.`
+          ? pend.mensaje || "No existen citaciones pendientes de tu confirmación."
           : "")
     );
     setCargando(false);
   };
 
   useEffect(() => {
-    if (!esDocente && !esApoderado) return;
     let activo = true;
-    consultarCitaciones(rol).then((resultado) => activo && aplicarResultado(resultado));
+    consultarCitaciones(rolAgenda).then((resultado) => activo && aplicarResultado(resultado));
     return () => { activo = false; };
-    // aplicarResultado solo usa setters y esApoderado, que se deriva de rol
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rol, esDocente, esApoderado]);
+  }, [rolAgenda]);
 
   // Recarga tras una acción (crear, confirmar, cancelar, reprogramar) o al reintentar
   const recargar = () => {
     setCargando(true);
-    consultarCitaciones(rol).then(aplicarResultado);
+    consultarCitaciones(rolAgenda).then(aplicarResultado);
   };
 
-  // Administradores solo consultan el historial (CU79)
-  if (!esDocente && !esApoderado) {
-    return <Navigate to="/citaciones/historial" replace />;
-  }
-
-  // CU74 pasos 3–4: desplegar el formulario con los estudiantes del docente que tienen apoderado
+  // CU74 pasos 3–4: desplegar el formulario con los estudiantes citables
+  // (Docente: los de sus cursos; Administrador: todos los de la institución)
   const abrirFormulario = async () => {
     setMsgExito("");
     setFormAbierto(true);
@@ -156,7 +152,14 @@ function Citaciones() {
   }, []);
 
   const hoy = hoyISO();
-  const nombreContraparte = (c) => (esDocente ? c.Apoderado_Nombre : c.Docente_Nombre);
+  // Quién participa en cada citación, según desde qué rol se mira la agenda
+  const participantes = (c) => {
+    const citador = c.Docente_Nombre ? `Citado por: ${c.Docente_Nombre}` : "";
+    const apoderado = c.Apoderado_Nombre ? `Apoderado: ${c.Apoderado_Nombre}` : "";
+    if (esDocente) return apoderado;
+    if (esApoderado) return citador;
+    return [citador, apoderado].filter(Boolean).join(" · ");
+  };
 
   return (
     <div className="usuarios-container">
@@ -166,14 +169,16 @@ function Citaciones() {
           <p>
             {esDocente
               ? "Agenda de citaciones con apoderados de tus estudiantes"
-              : "Agenda de citaciones con los docentes de tus estudiantes"}
+              : esApoderado
+                ? "Agenda de citaciones con los docentes de tus estudiantes"
+                : "Agenda de citaciones de toda la institución"}
           </p>
         </div>
         <div className="acciones-grupo">
           <Link to="/citaciones/historial" className="btn-secondary cit-link-btn">
             Historial de citaciones
           </Link>
-          {esDocente && (
+          {(esDocente || esAdmin) && (
             <button type="button" className="btn-primario" onClick={abrirFormulario}>
               + Nueva citación
             </button>
@@ -204,7 +209,7 @@ function Citaciones() {
                   <strong>{formatearFecha(c.Citacion_Fecha, { corta: true })}</strong> · {c.Citacion_Tramo_Horario}
                   <div className="cit-sub">
                     {c.Estudiante_Nombre_Completo}
-                    {nombreContraparte(c) ? ` · ${esDocente ? "Apoderado" : "Docente"}: ${nombreContraparte(c)}` : ""}
+                    {participantes(c) ? ` · ${participantes(c)}` : ""}
                     {` · ${c.Citacion_Modalidad}`}
                   </div>
                 </div>
@@ -284,7 +289,7 @@ function Citaciones() {
                           {c.Curso_Nombre && <span className="cit-sub"> · {c.Curso_Nombre}</span>}
                         </div>
                         <div className="cit-sub">
-                          {nombreContraparte(c) && `${esDocente ? "Apoderado" : "Docente"}: ${nombreContraparte(c)} · `}
+                          {participantes(c) && `${participantes(c)} · `}
                           {c.Citacion_Modalidad}
                         </div>
                         <div className="cit-card-motivo">{c.Citacion_Motivo}</div>

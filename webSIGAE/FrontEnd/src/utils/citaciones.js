@@ -107,9 +107,11 @@ export function esEditable(c) {
 }
 
 // CU75/CU77: tras una reprogramación la confirmación le corresponde a la contraparte.
-// Si el backend no informa quién debe confirmar, se asume el flujo base (el apoderado confirma).
+// El backend informa Puede_Confirmar para el usuario actual; si no viene, se deduce del rol
+// asumiendo el flujo base (el apoderado confirma).
 export function puedeConfirmar(c, rol) {
   if (!esPendiente(c)) return false;
+  if (typeof c.Puede_Confirmar === "boolean") return c.Puede_Confirmar;
   const responsable = c.Requiere_Confirmacion_De || "Apoderado";
   return responsable === rol;
 }

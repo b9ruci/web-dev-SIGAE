@@ -10,7 +10,7 @@ Todas las respuestas de error usan `{ "mensaje": "..." }`; el frontend muestra e
 
 | Función frontend | Método y ruta | CU |
 | --- | --- | --- |
-| `getCitaciones(rol)` | `GET /api/citaciones?rol=Docente\|Apoderado` | CU78 |
+| `getCitaciones(rol)` | `GET /api/citaciones?rol=Docente\|Apoderado\|Administrador` | CU78 |
 | `getCitacionesPendientes(rol)` | `GET /api/citaciones/pendientes?rol=...` | CU75 |
 | `getDetalleCitacion(id)` | `GET /api/citaciones/:id` | CU76, CU77 |
 | `crearCitacion(datos)` | `POST /api/citaciones` | CU74 |
@@ -43,7 +43,8 @@ Columnas de la tabla `citacion` más los nombres unidos por JOIN:
   "Apoderado_Nombre": "…",
   "Docente_Usuario_Id": 3,
   "Docente_Nombre": "…",
-  "Requiere_Confirmacion_De": "Apoderado"
+  "Requiere_Confirmacion_De": "Apoderado",
+  "Puede_Confirmar": false
 }
 ```
 
@@ -51,7 +52,10 @@ Columnas de la tabla `citacion` más los nombres unidos por JOIN:
 - `Requiere_Confirmacion_De`: `"Apoderado"` o `"Docente"` (o `null` si no está pendiente). Tras una
   reprogramación (CU77) debe confirmar la contraparte de quien reprogramó. No es una columna: el backend
   lo deriva del último registro "Reprogramación de citación" en `historial` (`Usuario_Responsable_Id`).
-  Si se omite, el frontend asume `"Apoderado"`.
+  Si se omite, el frontend asume `"Apoderado"`. `"Docente"` se refiere a quien citó (`Docente_Usuario_Id`),
+  que puede ser un docente o el administrador que creó la citación.
+- `Puede_Confirmar`: `true` si al usuario que consulta le corresponde confirmar la citación (pendiente,
+  no vencida y él es la contraparte que debe responder).
 - Tramos válidos: bloques de 30 min entre 08:00 y 18:00 con el formato `"HH:MM - HH:MM"`.
 - Modalidades válidas: `"Presencial"`, `"Online"`.
 
@@ -82,5 +86,10 @@ Columnas de la tabla `citacion` más los nombres unidos por JOIN:
 ## Permisos
 
 - Docente: solo sus citaciones (`Docente_Usuario_Id`). Crea citaciones solo para estudiantes de sus cursos que tengan apoderado.
-- Apoderado: solo sus citaciones (`Apoderado_Usuario_Id`) y el historial de sus estudiantes asociados.
-- Administrador / Super Admin: solo lectura del historial de cualquier estudiante (CU79).
+- Apoderado: solo sus citaciones (`Apoderado_Usuario_Id`) y el historial de sus estudiantes asociados. No crea citaciones.
+- Administrador / Super Admin (`?rol=Administrador`):
+  - Ve la agenda de toda la institución y el historial de cualquier estudiante.
+  - Crea citaciones para cualquier estudiante con apoderado; queda como citador (`Docente_Usuario_Id`).
+  - Cancela y reprograma cualquier citación. Si reprograma una ajena, confirma el apoderado.
+  - Solo confirma las citaciones en que él es la contraparte que debe responder (`Puede_Confirmar`);
+    nunca en nombre de otro.

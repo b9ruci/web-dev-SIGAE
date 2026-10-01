@@ -69,13 +69,28 @@ describe('Pruebas Unitarias - CU74–CU79: Módulo de Citaciones', () => {
     expect(res.json).toHaveBeenCalledWith({ mensaje: 'No existen citaciones asociadas al usuario', citaciones: [] });
   });
 
-  test('CU78: un usuario sin rol Docente ni Apoderado recibe 403', async () => {
-    req.user = { id: 1, roles: ['Administrador'] };
+  test('CU78: un usuario sin rol Docente, Apoderado ni Administrador recibe 403', async () => {
+    req.user = { id: 99, roles: [] };
 
     await citacionController.getCitaciones(req, res);
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('CU78: el Administrador ve las citaciones de toda la institución', async () => {
+    req.user = { id: 2, roles: ['Administrador'] };
+    req.query.rol = 'Administrador';
+    pool.query.mockResolvedValueOnce([[filaCitacion(), filaCitacion({ Citacion_Id: 51, Docente_Usuario_Id: 5 })]]);
+
+    await citacionController.getCitaciones(req, res);
+
+    expect(pool.query.mock.calls[0][0]).not.toMatch(/(Docente|Apoderado)_Usuario_Id = \?/);
+    expect(pool.query.mock.calls[0][1]).toBeUndefined();
+    const lista = res.json.mock.calls[0][0];
+    expect(lista).toHaveLength(2);
+    // No le corresponde confirmar citaciones ajenas
+    expect(lista.every((c) => c.Puede_Confirmar === false)).toBe(true);
   });
 
   test('CU78: usa el rol activo enviado por el frontend para filtrar la agenda', async () => {
@@ -154,6 +169,30 @@ describe('Pruebas Unitarias - CU74–CU79: Módulo de Citaciones', () => {
     }));
   });
 
+  test('CU74: un Administrador puede citar a cualquier estudiante y queda como citador', async () => {
+    req.user = { id: 2, roles: ['Administrador'] };
+    req.body = {
+      Estudiante_Id: 222222226,
+      Citacion_Fecha: FECHA,
+      Citacion_Tramo_Horario: '09:00 - 09:30',
+      Citacion_Motivo: 'Reunión con dirección',
+      Citacion_Modalidad: 'Presencial',
+    };
+    pool.query
+      .mockResolvedValueOnce([[{ Estudiante_Id: 222222226, Apoderado_Usuario_Id: 8 }]])
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([{ insertId: 60 }])
+      .mockResolvedValueOnce([[filaCitacion({ Citacion_Id: 60, Docente_Usuario_Id: 2 })]]);
+
+    await citacionController.crearCitacion(req, res);
+
+    // Sin restricción por cursos para el administrador
+    expect(pool.query.mock.calls[0][0]).not.toContain('horario_asignatura');
+    // Docente_Usuario_Id (último valor del INSERT) = el administrador
+    expect(pool.query.mock.calls[2][1].at(-1)).toBe(2);
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   test('CU74: un Apoderado no puede crear citaciones', async () => {
     req.user = { id: 4, roles: ['Apoderado'] };
 
@@ -206,6 +245,17 @@ describe('Pruebas Unitarias - CU74–CU79: Módulo de Citaciones', () => {
     expect(pool.getConnection).not.toHaveBeenCalled();
   });
 
+  test('CU75: el Administrador no puede confirmar en nombre del apoderado', async () => {
+    req.user = { id: 2, roles: ['Administrador'] };
+    req.params.id = '50';
+    pool.query.mockResolvedValueOnce([[filaCitacion()]]);
+
+    await citacionController.confirmarCitacion(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(pool.getConnection).not.toHaveBeenCalled();
+  });
+
   // ── CU76 ──
   test('CU76 Excepción 2: motivo de cancelación vacío retorna 400', async () => {
     req.user = { id: 3, roles: ['Docente'] };
@@ -217,6 +267,21 @@ describe('Pruebas Unitarias - CU74–CU79: Módulo de Citaciones', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ mensaje: 'Debe ingresar un motivo de cancelación válido' });
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test('CU76: el Administrador puede cancelar cualquier citación de la institución', async () => {
+    req.user = { id: 2, roles: ['Administrador'] };
+    req.params.id = '50';
+    req.body = { Citacion_Motivo_Cancelacion: 'Suspensión de actividades' };
+    pool.query.mockResolvedValueOnce([[filaCitacion()]]);
+    conn.query.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([{}]);
+
+    await citacionController.cancelarCitacion(req, res);
+
+    // Busca la citación sin restringir por participante
+    expect(pool.query.mock.calls[0][0]).not.toContain('Apoderado_Usuario_Id = ?');
+    expect(conn.commit).toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ mensaje: 'Citación cancelada correctamente' });
   });
 
   test('CU76 Excepción 1: citación inexistente o ajena retorna 404', async () => {

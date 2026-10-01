@@ -100,11 +100,12 @@ function AppRouter() {
             }
           />
           {/* Accesibles por Docente y Apoderado */}
-          {/* CU74–CU78: agenda, creación, confirmación, cancelación y reprogramación de citaciones */}
+          {/* CU74–CU78: agenda, creación, confirmación, cancelación y reprogramación de citaciones
+              (el Administrador/Super Admin ve y gestiona las de toda la institución) */}
           <Route
             path="/citaciones"
             element={
-              <RoleRoute roles={["Docente", "Apoderado"]}>
+              <RoleRoute roles={["Docente", "Apoderado", "Administrador"]}>
                 <Citaciones />
               </RoleRoute>
             }

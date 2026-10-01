@@ -65,14 +65,15 @@ function validarMotivo(motivo, campo = 'motivo') {
   return '';
 }
 
+const ROLES_CITACIONES = ['Docente', 'Apoderado', 'Administrador'];
+const esAdministrador = (user) => (user?.roles || []).includes('Administrador');
+
 // Rol con el que el usuario consulta la agenda: el rol activo enviado por el frontend (?rol=),
 // siempre que lo tenga; si no, el primero de sus roles que participe en citaciones.
 function resolverRol(user, rolSolicitado) {
   const roles = user?.roles || [];
-  if (['Docente', 'Apoderado'].includes(rolSolicitado) && roles.includes(rolSolicitado)) return rolSolicitado;
-  if (roles.includes('Docente')) return 'Docente';
-  if (roles.includes('Apoderado')) return 'Apoderado';
-  return null;
+  if (ROLES_CITACIONES.includes(rolSolicitado) && roles.includes(rolSolicitado)) return rolSolicitado;
+  return ROLES_CITACIONES.find((r) => roles.includes(r)) || null;
 }
 
 // SELECT base con los datos que muestra la agenda. Las fechas se devuelven como texto (YYYY-MM-DD)
@@ -113,8 +114,10 @@ const SELECT_CITACION = `
 
 const ORDEN_CRONOLOGICO = 'ORDER BY c.Citacion_Fecha ASC, c.Citacion_Tramo_Horario ASC, c.Citacion_Id ASC';
 
-// CU75/CU77: por defecto confirma el apoderado; si el apoderado reprogramó, confirma el docente.
-function formatearCitacion(fila) {
+// CU75/CU77: por defecto confirma el apoderado; si el apoderado reprogramó, confirma quien citó
+// (el docente o el administrador que creó la citación, guardado en Docente_Usuario_Id).
+// Puede_Confirmar indica si al usuario que consulta le corresponde confirmarla.
+function formatearCitacion(fila, userId) {
   const { Ultimo_Reprogramador_Id, ...citacion } = fila;
   let requiere = null;
   if (esPendiente(citacion)) {
@@ -124,19 +127,25 @@ function formatearCitacion(fila) {
       Number(Ultimo_Reprogramador_Id) !== Number(citacion.Docente_Usuario_Id);
     requiere = reprogramoApoderado ? 'Docente' : 'Apoderado';
   }
-  return { ...citacion, Requiere_Confirmacion_De: requiere };
+  const responsableId = requiere === 'Docente' ? citacion.Docente_Usuario_Id : citacion.Apoderado_Usuario_Id;
+  const puedeConfirmar =
+    requiere !== null && citacion.Citacion_Fecha >= hoyISO() && Number(responsableId) === Number(userId);
+  return { ...citacion, Requiere_Confirmacion_De: requiere, Puede_Confirmar: puedeConfirmar };
 }
 
-// Busca una citación en la que el usuario participe (como docente o apoderado).
+// Busca una citación visible para el usuario: un Administrador/Super Admin accede a todas las de la
+// institución; docentes y apoderados solo a aquellas en que participan.
 // Devuelve null si no existe o no le pertenece: ambos casos son "no existe o no está disponible".
-async function buscarCitacionDelUsuario(citacionId, userId, conn = pool) {
+async function buscarCitacionDelUsuario(citacionId, user, conn = pool) {
   const id = Number(citacionId);
   if (!Number.isInteger(id) || id <= 0) return null;
-  const [rows] = await conn.query(
-    `${SELECT_CITACION} WHERE c.Citacion_Id = ? AND (c.Docente_Usuario_Id = ? OR c.Apoderado_Usuario_Id = ?)`,
-    [id, userId, userId]
-  );
-  return rows.length ? formatearCitacion(rows[0]) : null;
+  const [rows] = esAdministrador(user)
+    ? await conn.query(`${SELECT_CITACION} WHERE c.Citacion_Id = ?`, [id])
+    : await conn.query(
+      `${SELECT_CITACION} WHERE c.Citacion_Id = ? AND (c.Docente_Usuario_Id = ? OR c.Apoderado_Usuario_Id = ?)`,
+      [id, user.id, user.id]
+    );
+  return rows.length ? formatearCitacion(rows[0], user.id) : null;
 }
 
 // Verifica que ni el docente ni el apoderado tengan otra citación activa en la misma fecha y tramo
@@ -166,21 +175,26 @@ async function registrarHistorial(conn, { citacionId, atributo, anterior, nuevo,
   );
 }
 
-// ── CU78: agenda cronológica de las citaciones del usuario ──
+// ── CU78: agenda cronológica de las citaciones del usuario (Administrador: toda la institución) ──
 const getCitaciones = async (req, res) => {
   const rol = resolverRol(req.user, req.query.rol);
   if (!rol) {
     return res.status(403).json({ mensaje: 'No tienes permiso para consultar citaciones' });
   }
   try {
-    const columna = rol === 'Docente' ? 'c.Docente_Usuario_Id' : 'c.Apoderado_Usuario_Id';
-    const [rows] = await pool.query(`${SELECT_CITACION} WHERE ${columna} = ? ${ORDEN_CRONOLOGICO}`, [req.user.id]);
+    let rows;
+    if (rol === 'Administrador') {
+      [rows] = await pool.query(`${SELECT_CITACION} ${ORDEN_CRONOLOGICO}`);
+    } else {
+      const columna = rol === 'Docente' ? 'c.Docente_Usuario_Id' : 'c.Apoderado_Usuario_Id';
+      [rows] = await pool.query(`${SELECT_CITACION} WHERE ${columna} = ? ${ORDEN_CRONOLOGICO}`, [req.user.id]);
+    }
 
     // Excepción 1: no existen citaciones asociadas al usuario
     if (rows.length === 0) {
       return res.status(200).json({ mensaje: 'No existen citaciones asociadas al usuario', citaciones: [] });
     }
-    return res.json(rows.map(formatearCitacion));
+    return res.json(rows.map((fila) => formatearCitacion(fila, req.user.id)));
   } catch (error) {
     console.error(error);
     // Excepción 2: error al recuperar la información
@@ -195,14 +209,17 @@ const getCitacionesPendientes = async (req, res) => {
     return res.status(403).json({ mensaje: 'No tienes permiso para consultar citaciones' });
   }
   try {
-    const columna = rol === 'Docente' ? 'c.Docente_Usuario_Id' : 'c.Apoderado_Usuario_Id';
+    // El administrador solo confirma las citaciones que él mismo creó (queda como citador)
+    const columna = rol === 'Apoderado' ? 'c.Apoderado_Usuario_Id' : 'c.Docente_Usuario_Id';
     const [rows] = await pool.query(
       `${SELECT_CITACION}
        WHERE ${columna} = ? AND c.Citacion_Estado = ? AND c.Citacion_Fecha >= CURDATE()
        ${ORDEN_CRONOLOGICO}`,
       [req.user.id, ESTADO_PENDIENTE]
     );
-    const pendientes = rows.map(formatearCitacion).filter((c) => c.Requiere_Confirmacion_De === rol);
+    const pendientes = rows
+      .map((fila) => formatearCitacion(fila, req.user.id))
+      .filter((c) => c.Requiere_Confirmacion_De === (rol === 'Apoderado' ? 'Apoderado' : 'Docente') && c.Puede_Confirmar);
 
     // Excepción 1: no existen citaciones pendientes
     if (pendientes.length === 0) {
@@ -221,7 +238,7 @@ const getCitacionesPendientes = async (req, res) => {
 // ── CU76 / CU77: getDetalleCitacion(Citacion_Id) ──
 const getDetalleCitacion = async (req, res) => {
   try {
-    const citacion = await buscarCitacionDelUsuario(req.params.id, req.user.id);
+    const citacion = await buscarCitacionDelUsuario(req.params.id, req.user);
     // Excepción 1: la citación no existe o no está disponible
     if (!citacion) {
       return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
@@ -233,10 +250,13 @@ const getDetalleCitacion = async (req, res) => {
   }
 };
 
-// ── CU74: crearCitacion(datos) — solo Docente ──
+// ── CU74: crearCitacion(datos) — Docente o Administrador/Super Admin ──
+// Quien crea la citación queda como citador (Docente_Usuario_Id, FK a usuario).
 const crearCitacion = async (req, res) => {
-  if (!(req.user?.roles || []).includes('Docente')) {
-    return res.status(403).json({ mensaje: 'Solo un docente puede crear citaciones' });
+  const roles = req.user?.roles || [];
+  const esAdmin = roles.includes('Administrador');
+  if (!esAdmin && !roles.includes('Docente')) {
+    return res.status(403).json({ mensaje: 'Solo un docente o un administrador puede crear citaciones' });
   }
 
   const {
@@ -264,19 +284,27 @@ const crearCitacion = async (req, res) => {
 
   const docenteId = req.user.id;
   try {
-    // Precondición: el estudiante pertenece a un curso del docente y tiene apoderado asociado
-    const [estudiantes] = await pool.query(
-      `SELECT e.Estudiante_Id, e.Apoderado_Usuario_Id
-       FROM estudiante e
-       WHERE e.Estudiante_Id = ?
-         AND e.Estudiante_Fecha_Eliminacion IS NULL
-         AND e.Curso_Id IN (SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?)`,
-      [estudianteId, docenteId]
-    );
+    // Precondición: el estudiante existe y tiene apoderado asociado. Un docente solo puede citar
+    // a estudiantes de sus cursos; un administrador, a cualquier estudiante de la institución.
+    const [estudiantes] = esAdmin
+      ? await pool.query(
+        `SELECT e.Estudiante_Id, e.Apoderado_Usuario_Id
+         FROM estudiante e
+         WHERE e.Estudiante_Id = ? AND e.Estudiante_Fecha_Eliminacion IS NULL`,
+        [estudianteId]
+      )
+      : await pool.query(
+        `SELECT e.Estudiante_Id, e.Apoderado_Usuario_Id
+         FROM estudiante e
+         WHERE e.Estudiante_Id = ?
+           AND e.Estudiante_Fecha_Eliminacion IS NULL
+           AND e.Curso_Id IN (SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?)`,
+        [estudianteId, docenteId]
+      );
     if (estudiantes.length === 0) {
       return res.status(400).json({
         mensaje: 'Datos incompletos o inválidos en el formulario',
-        errores: { estudianteId: 'El estudiante no pertenece a tus cursos' },
+        errores: { estudianteId: esAdmin ? 'El estudiante no existe' : 'El estudiante no pertenece a tus cursos' },
       });
     }
     const apoderadoId = estudiantes[0].Apoderado_Usuario_Id;
@@ -317,7 +345,7 @@ const crearCitacion = async (req, res) => {
       ]
     );
 
-    const citacion = await buscarCitacionDelUsuario(resultado.insertId, docenteId);
+    const citacion = await buscarCitacionDelUsuario(resultado.insertId, req.user);
     return res.status(201).json({ mensaje: 'Citación creada, pendiente de confirmación', citacion });
   } catch (error) {
     console.error(error);
@@ -330,7 +358,7 @@ const confirmarCitacion = async (req, res) => {
   const userId = req.user.id;
   let conn;
   try {
-    const citacion = await buscarCitacionDelUsuario(req.params.id, userId);
+    const citacion = await buscarCitacionDelUsuario(req.params.id, req.user);
     if (!citacion) {
       return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
     }
@@ -340,10 +368,9 @@ const confirmarCitacion = async (req, res) => {
     if (citacion.Citacion_Fecha < hoyISO()) {
       return res.status(409).json({ mensaje: 'La fecha de la citación ya pasó; no puede confirmarse' });
     }
-    const responsableId = citacion.Requiere_Confirmacion_De === 'Docente'
-      ? citacion.Docente_Usuario_Id
-      : citacion.Apoderado_Usuario_Id;
-    if (Number(responsableId) !== Number(userId)) {
+    // Confirmar es aceptar la asistencia: solo la contraparte que corresponde, nunca un tercero
+    // (ni siquiera un administrador en nombre de otro).
+    if (!citacion.Puede_Confirmar) {
       return res.status(403).json({ mensaje: 'La confirmación de esta citación le corresponde a la contraparte' });
     }
 
@@ -386,7 +413,7 @@ const confirmarCitacion = async (req, res) => {
   }
 };
 
-// ── CU76: cancelarCitacion(Citacion_Id, motivo) — Docente o Apoderado ──
+// ── CU76: cancelarCitacion(Citacion_Id, motivo) — Docente, Apoderado o Administrador ──
 const cancelarCitacion = async (req, res) => {
   // Excepción 2: el actor no ingresa un motivo de cancelación válido
   const motivo = req.body?.Citacion_Motivo_Cancelacion;
@@ -398,7 +425,7 @@ const cancelarCitacion = async (req, res) => {
   const userId = req.user.id;
   let conn;
   try {
-    const citacion = await buscarCitacionDelUsuario(req.params.id, userId);
+    const citacion = await buscarCitacionDelUsuario(req.params.id, req.user);
     // Excepción 1: la citación seleccionada no existe o no está disponible
     if (!citacion || esCancelada(citacion) || citacion.Citacion_Fecha < hoyISO()) {
       return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
@@ -437,7 +464,7 @@ const cancelarCitacion = async (req, res) => {
   }
 };
 
-// ── CU77: reprogramarCitacion(nuevos_datos) — Docente o Apoderado ──
+// ── CU77: reprogramarCitacion(nuevos_datos) — Docente, Apoderado o Administrador ──
 const reprogramarCitacion = async (req, res) => {
   const { Citacion_Fecha, Citacion_Tramo_Horario } = req.body || {};
 
@@ -450,7 +477,7 @@ const reprogramarCitacion = async (req, res) => {
   const userId = req.user.id;
   let conn;
   try {
-    const citacion = await buscarCitacionDelUsuario(req.params.id, userId);
+    const citacion = await buscarCitacionDelUsuario(req.params.id, req.user);
     // Excepción 1: la citación no existe o no está disponible para edición
     if (!citacion || esCancelada(citacion) || citacion.Citacion_Fecha < hoyISO()) {
       return res.status(404).json({
@@ -572,7 +599,7 @@ const getHistorialCitaciones = async (req, res) => {
 
     // Pasos 10–11: historial completo organizado por fecha y estado
     const citaciones = filas.map((fila) => ({
-      ...formatearCitacion(fila),
+      ...formatearCitacion(fila, userId),
       historial: historial.filter((h) => h.Citacion_Id === fila.Citacion_Id),
     }));
 

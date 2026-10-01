@@ -146,6 +146,7 @@ function MainLayout() {
                   )}
                 </div>
 
+                <Link to="/citaciones">Citaciones</Link>
                 <Link to="/citaciones/historial">Historial de Citaciones</Link>
                 <Link to="/reportes">Reportes</Link>
               </>
