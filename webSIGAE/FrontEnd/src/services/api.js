@@ -484,3 +484,53 @@ export async function getHistorialCitaciones(estudianteId) {
   });
   return handleResponse(res);
 }
+// ── MENSAJES ─────────────────────────────────
+
+export async function getConversaciones() {
+  const res = await apiFetch(`${BASE_URL}/mensajes/conversaciones`);
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
+export async function getMensajesConversacion(conversacionId) {
+  const res = await apiFetch(
+    `${BASE_URL}/mensajes/conversaciones/${conversacionId}/mensajes`
+  );
+
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
+export async function enviarMensaje(conversacionId, contenido) {
+  const res = await apiFetch(
+    `${BASE_URL}/mensajes/conversaciones/${conversacionId}/mensajes`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contenido,
+      }),
+    }
+  );
+
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
+export async function marcarMensajesLeidos(conversacionId) {
+  const res = await apiFetch(
+    `${BASE_URL}/mensajes/conversaciones/${conversacionId}/leidos`,
+    {
+      method: 'PATCH',
+    }
+  );
+
+  if (!res) return null;
+
+  return handleResponse(res);
+}
