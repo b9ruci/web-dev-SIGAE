@@ -987,6 +987,445 @@ const getHorarioMaestro = async (req, res) => {
   }
 };
 
+// ══════════════════════════════════════════════════════════════════
+//  CU63 Reasignando docente en múltiples bloques
+//  CU64 Modificando múltiples bloques horarios
+//
+//  Ambos casos de uso siguen el mismo patrón de sus diagramas de
+//  secuencia: (1) validar los cambios propuestos sobre los bloques
+//  seleccionados y devolver un resumen, (2) tras la confirmación del
+//  actor, aplicar el UPDATE sobre horario_asignatura WHERE
+//  Horario_Asignatura_Id IN (Horario_Ids). CU63 es el caso particular
+//  en que el único campo modificado es el docente.
+// ══════════════════════════════════════════════════════════════════
+
+const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+
+const MENSAJES_CU63 = {
+  datosInvalidos: 'Seleccione bloques y un docente válido',
+  conflicto:      'El docente presenta conflicto horario',
+  exito:          'Docente reasignado en los bloques seleccionados',
+};
+
+const MENSAJES_CU64 = {
+  datosInvalidos: 'Seleccione bloques y campos válidos a modificar',
+  conflicto:      'Los cambios generan conflicto de horario',
+  exito:          'Bloques horarios actualizados correctamente',
+};
+
+function hhmm(t) {
+  return t ? String(t).slice(0, 5) : '';
+}
+
+// Ids de horario_asignatura seleccionados: arreglo no vacío de enteros positivos
+function normalizarIds(ids) {
+  if (!Array.isArray(ids) || ids.length === 0) return null;
+  const unicos = [...new Set(ids.map(Number))];
+  if (unicos.some((n) => !Number.isInteger(n) || n <= 0)) return null;
+  return unicos;
+}
+
+// Deja solo los campos que el actor eligió modificar (día, hora/bloque,
+// asignatura, docente). Devuelve null si no hay ninguno o alguno es inválido.
+function normalizarCambios(cambios) {
+  if (!cambios || typeof cambios !== 'object') return null;
+  const out = {};
+
+  const dia = cambios.Horario_Asignatura_Dia_Semana;
+  if (dia != null && dia !== '') {
+    if (!DIAS_SEMANA.includes(dia)) return null;
+    out.Horario_Asignatura_Dia_Semana = dia;
+  }
+
+  for (const campo of ['Bloque_Horario_Id', 'Asignatura_Id', 'Usuario_Id']) {
+    const valor = cambios[campo];
+    if (valor == null || valor === '') continue;
+    const n = Number(valor);
+    if (!Number.isInteger(n) || n <= 0) return null;
+    out[campo] = n;
+  }
+
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+// Analiza los cambios propuestos sobre los bloques seleccionados.
+// `db` puede ser el pool (validación) o una conexión con transacción
+// abierta (aplicación); con `bloquear` se usan SELECT ... FOR UPDATE
+// para impedir que otra solicitud genere un conflicto entre la
+// validación y el UPDATE (RNF17).
+// Retorna { invalido: true } si algún bloque/campo no existe, o
+// { conflictos: string[], resumen: [...] }.
+async function analizarCambiosHorario(db, ids, cambios, { bloquear = false } = {}) {
+  const forUpdate = bloquear ? ' FOR UPDATE' : '';
+
+  const [seleccionados] = await db.query(
+    `SELECT ha.Horario_Asignatura_Id,
+            ha.Horario_Asignatura_Dia_Semana AS dia,
+            ha.Horario_Asignatura_Estado     AS estado,
+            ha.Curso_Id,
+            c.Curso_Nombre                   AS curso,
+            ha.Bloque_Horario_Id,
+            bh.Bloque_Horario_Hora_Inicio    AS hora_inicio,
+            bh.Bloque_Horario_Hora_Fin       AS hora_fin,
+            TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion,
+            ha.Asignatura_Id,
+            a.Asignatura_Nombre              AS asignatura,
+            ha.Usuario_Id,
+            u.Usuario_Nombre_Completo        AS docente
+     FROM horario_asignatura ha
+     JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+     JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+     JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+     LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
+     WHERE ha.Horario_Asignatura_Id IN (?)${forUpdate}`,
+    [ids]
+  );
+  if (seleccionados.length !== ids.length) return { invalido: true };
+
+  const cambiaDia    = 'Horario_Asignatura_Dia_Semana' in cambios;
+  const cambiaBloque = 'Bloque_Horario_Id' in cambios;
+  const cambiaAsig   = 'Asignatura_Id' in cambios;
+  const cambiaDoc    = 'Usuario_Id' in cambios;
+  const cambiaPosicion = cambiaDia || cambiaBloque;
+
+  // ── Valores nuevos: deben existir ──────────────────────────────
+  let nuevoBloque = null;
+  if (cambiaBloque) {
+    const [rows] = await db.query(
+      `SELECT Bloque_Horario_Id, Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Tipo,
+              TIME_TO_SEC(TIMEDIFF(Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio)) / 3600 AS duracion
+       FROM bloque_horario WHERE Bloque_Horario_Id = ?`,
+      [cambios.Bloque_Horario_Id]
+    );
+    if (rows.length === 0) return { invalido: true };
+    nuevoBloque = rows[0];
+  }
+
+  let nuevaAsignatura = null;
+  if (cambiaAsig) {
+    const [rows] = await db.query(
+      `SELECT Asignatura_Id, Asignatura_Nombre FROM asignatura WHERE Asignatura_Id = ?`,
+      [cambios.Asignatura_Id]
+    );
+    if (rows.length === 0) return { invalido: true };
+    nuevaAsignatura = rows[0];
+  }
+
+  let nuevoDocente = null;
+  if (cambiaDoc) {
+    const [rows] = await db.query(
+      `SELECT Usuario_Id, Usuario_Nombre_Completo FROM usuario
+       WHERE Usuario_Id = ? AND Es_Docente = 1 AND Usuario_Estado_Cuenta = 1`,
+      [cambios.Usuario_Id]
+    );
+    if (rows.length === 0) return { invalido: true };
+    nuevoDocente = rows[0];
+  }
+
+  // ── Estado propuesto de cada bloque seleccionado ───────────────
+  const propuestas = seleccionados.map((r) => ({
+    Horario_Asignatura_Id: r.Horario_Asignatura_Id,
+    estado:            r.estado,
+    Curso_Id:          r.Curso_Id,
+    curso:             r.curso,
+    dia:               cambiaDia ? cambios.Horario_Asignatura_Dia_Semana : r.dia,
+    Bloque_Horario_Id: cambiaBloque ? nuevoBloque.Bloque_Horario_Id : r.Bloque_Horario_Id,
+    hora_inicio:       cambiaBloque ? nuevoBloque.Bloque_Horario_Hora_Inicio : r.hora_inicio,
+    hora_fin:          cambiaBloque ? nuevoBloque.Bloque_Horario_Hora_Fin : r.hora_fin,
+    duracion:          Number(cambiaBloque ? nuevoBloque.duracion : r.duracion),
+    Asignatura_Id:     cambiaAsig ? nuevaAsignatura.Asignatura_Id : r.Asignatura_Id,
+    asignatura:        cambiaAsig ? nuevaAsignatura.Asignatura_Nombre : r.asignatura,
+    Usuario_Id:        cambiaDoc ? nuevoDocente.Usuario_Id : r.Usuario_Id,
+    docente:           cambiaDoc ? nuevoDocente.Usuario_Nombre_Completo : r.docente,
+  }));
+
+  const conflictos = [];
+
+  if (cambiaBloque && nuevoBloque.Bloque_Horario_Tipo === 'Recreo') {
+    conflictos.push('No se pueden programar clases en bloques de recreo');
+  }
+
+  // ── Resto de la programación de los cursos y docentes involucrados ─
+  const cursoIds   = [...new Set(propuestas.map((p) => p.Curso_Id))];
+  const docenteIds = [...new Set(propuestas.map((p) => p.Usuario_Id).filter(Boolean))];
+
+  const [otros] = await db.query(
+    `SELECT ha.Horario_Asignatura_Id,
+            ha.Horario_Asignatura_Dia_Semana AS dia,
+            ha.Horario_Asignatura_Estado     AS estado,
+            ha.Curso_Id,
+            c.Curso_Nombre                   AS curso,
+            ha.Bloque_Horario_Id,
+            ha.Asignatura_Id,
+            ha.Usuario_Id,
+            TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion
+     FROM horario_asignatura ha
+     JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
+     JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+     WHERE (ha.Curso_Id IN (?) OR ha.Usuario_Id IN (?))
+       AND ha.Horario_Asignatura_Id NOT IN (?)${forUpdate}`,
+    [cursoIds, docenteIds.length > 0 ? docenteIds : [0], ids]
+  );
+
+  const etiqueta = (p) => `${p.dia} ${hhmm(p.hora_inicio)}–${hhmm(p.hora_fin)}`;
+
+  // Superposición dentro del mismo curso (mismo día y bloque)
+  if (cambiaPosicion) {
+    const vistos = new Map();
+    for (const p of propuestas) {
+      const clave = `${p.Curso_Id}|${p.Bloque_Horario_Id}|${p.dia}`;
+      if (otros.some((o) => o.Curso_Id === p.Curso_Id && o.Bloque_Horario_Id === p.Bloque_Horario_Id && o.dia === p.dia)) {
+        conflictos.push(`${p.curso} ya tiene una clase programada el ${etiqueta(p)}`);
+      } else if (vistos.has(clave)) {
+        conflictos.push(`Dos bloques seleccionados de ${p.curso} quedarían el ${etiqueta(p)}`);
+      }
+      vistos.set(clave, true);
+    }
+  }
+
+  // Disponibilidad del docente (no puede estar en dos cursos a la vez)
+  if (cambiaPosicion || cambiaDoc) {
+    const vistos = new Map();
+    for (const p of propuestas) {
+      if (!p.Usuario_Id) continue;
+      const clave = `${p.Usuario_Id}|${p.Bloque_Horario_Id}|${p.dia}`;
+      const choque = otros.find(
+        (o) => o.Usuario_Id === p.Usuario_Id && o.Bloque_Horario_Id === p.Bloque_Horario_Id && o.dia === p.dia
+      );
+      if (choque) {
+        conflictos.push(`${p.docente} ya tiene clase en ${choque.curso} el ${etiqueta(p)}`);
+      } else if (vistos.has(clave)) {
+        conflictos.push(`${p.docente} quedaría con dos clases simultáneas el ${etiqueta(p)}`);
+      }
+      vistos.set(clave, true);
+    }
+  }
+
+  // Límite diario de bloques por curso (parámetro institucional)
+  if (cambiaDia) {
+    const [param] = await db.query(
+      `SELECT Parametro_Institucional_Bloques_Maximos_Diarios FROM parametro_institucional LIMIT 1`
+    );
+    const maxDiarios = param[0]?.Parametro_Institucional_Bloques_Maximos_Diarios;
+    if (maxDiarios != null) {
+      for (const cursoId of cursoIds) {
+        const dia = cambios.Horario_Asignatura_Dia_Semana;
+        const total =
+          otros.filter((o) => o.Curso_Id === cursoId && o.dia === dia && o.estado === 'Activo').length +
+          propuestas.filter((p) => p.Curso_Id === cursoId && p.dia === dia && p.estado === 'Activo').length;
+        if (total > maxDiarios) {
+          const curso = propuestas.find((p) => p.Curso_Id === cursoId).curso;
+          conflictos.push(`${curso} superaría el máximo de ${maxDiarios} bloque(s) diarios el ${dia}`);
+        }
+      }
+    }
+  }
+
+  // Asignatura asociada al curso y horas semanales del plan educativo
+  if (cambiaAsig || cambiaBloque) {
+    const pares = new Map();
+    for (const p of propuestas) pares.set(`${p.Curso_Id}|${p.Asignatura_Id}`, p);
+
+    for (const p of pares.values()) {
+      const [plan] = await db.query(
+        `SELECT ia.Horas_Semanales_Requeridas
+         FROM curso c
+         JOIN tieneasig ta      ON ta.Curso_Id = c.Curso_Id AND ta.Asignatura_Id = ?
+                               AND ta.Estado_Asignacion = 'Activa'
+         JOIN plan_educativo pe ON pe.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+         JOIN incluyeasig ia    ON ia.Plan_Educativo_Id = pe.Plan_Educativo_Id
+                               AND ia.Asignatura_Id = ta.Asignatura_Id
+         WHERE c.Curso_Id = ?
+         ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC LIMIT 1`,
+        [p.Asignatura_Id, p.Curso_Id]
+      );
+
+      if (plan.length === 0) {
+        if (cambiaAsig) {
+          conflictos.push(`${p.asignatura} no está asociada a ${p.curso} o no pertenece a su plan educativo`);
+        }
+        continue;
+      }
+
+      const requeridas = Number(plan[0].Horas_Semanales_Requeridas);
+      const mismaAsig = (r) => r.Curso_Id === p.Curso_Id && r.Asignatura_Id === p.Asignatura_Id && r.estado === 'Activo';
+      const horasOtros  = otros.filter(mismaAsig).reduce((acc, r) => acc + Number(r.duracion), 0);
+      const horasNuevas = horasOtros + propuestas.filter(mismaAsig).reduce((acc, r) => acc + r.duracion, 0);
+      const horasActuales = horasOtros + seleccionados.filter(mismaAsig).reduce((acc, r) => acc + Number(r.duracion), 0);
+      if (horasNuevas > requeridas && horasNuevas > horasActuales) {
+        conflictos.push(
+          `${p.asignatura} en ${p.curso} excedería sus ${requeridas}h semanales del plan educativo ` +
+          `(quedaría con ${horasNuevas.toFixed(1)}h)`
+        );
+      }
+    }
+  }
+
+  // Carga horaria máxima de los docentes involucrados
+  if ((cambiaDoc || cambiaBloque) && docenteIds.length > 0) {
+    const [docentes] = await db.query(
+      `SELECT Usuario_Id, Usuario_Nombre_Completo, Docente_Carga_Horaria_Maxima
+       FROM usuario WHERE Usuario_Id IN (?)`,
+      [docenteIds]
+    );
+    for (const d of docentes) {
+      if (d.Docente_Carga_Horaria_Maxima == null) continue;
+      const max = Number(d.Docente_Carga_Horaria_Maxima);
+      const delDocente = (r) => r.Usuario_Id === d.Usuario_Id && r.estado === 'Activo';
+      const cargaOtros   = otros.filter(delDocente).reduce((acc, r) => acc + Number(r.duracion), 0);
+      const cargaNueva   = cargaOtros + propuestas.filter(delDocente).reduce((acc, r) => acc + r.duracion, 0);
+      const cargaActual  = cargaOtros + seleccionados.filter(delDocente).reduce((acc, r) => acc + Number(r.duracion), 0);
+      if (cargaNueva > max && cargaNueva > cargaActual) {
+        conflictos.push(
+          `${d.Usuario_Nombre_Completo} excedería su carga horaria máxima de ${max}h semanales ` +
+          `(quedaría con ${cargaNueva.toFixed(1)}h)`
+        );
+      }
+    }
+  }
+
+  const resumen = seleccionados.map((r, i) => {
+    const p = propuestas[i];
+    return {
+      Horario_Asignatura_Id: r.Horario_Asignatura_Id,
+      curso: r.curso,
+      antes: {
+        dia: r.dia, hora_inicio: r.hora_inicio, hora_fin: r.hora_fin,
+        asignatura: r.asignatura, docente: r.docente || null,
+      },
+      despues: {
+        dia: p.dia, hora_inicio: p.hora_inicio, hora_fin: p.hora_fin,
+        asignatura: p.asignatura, docente: p.docente || null,
+      },
+    };
+  });
+
+  return { invalido: false, conflictos, resumen };
+}
+
+// Columnas de horario_asignatura que la edición masiva puede modificar
+const COLUMNAS_EDITABLES = ['Horario_Asignatura_Dia_Semana', 'Bloque_Horario_Id', 'Asignatura_Id', 'Usuario_Id'];
+
+// Paso "validar": responde 400 (Excepción 1), 409 (Excepción 2) o el resumen
+async function responderValidacion(res, ids, cambios, mensajes) {
+  if (!ids || !cambios) return res.status(400).json({ error: mensajes.datosInvalidos });
+
+  const analisis = await analizarCambiosHorario(pool, ids, cambios);
+  if (analisis.invalido) return res.status(400).json({ error: mensajes.datosInvalidos });
+  if (analisis.conflictos.length > 0) {
+    return res.status(409).json({ error: mensajes.conflicto, conflictos: analisis.conflictos });
+  }
+  return res.json({ mensaje: 'Sin conflictos', resumen: analisis.resumen });
+}
+
+// Paso "confirmar": revalida dentro de una transacción con bloqueo de filas y aplica el UPDATE
+async function aplicarCambios(res, ids, cambios, mensajes) {
+  if (!ids || !cambios) return res.status(400).json({ error: mensajes.datosInvalidos });
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const analisis = await analizarCambiosHorario(conn, ids, cambios, { bloquear: true });
+    if (analisis.invalido) {
+      await conn.rollback();
+      return res.status(400).json({ error: mensajes.datosInvalidos });
+    }
+    if (analisis.conflictos.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: mensajes.conflicto, conflictos: analisis.conflictos });
+    }
+
+    const columnas = COLUMNAS_EDITABLES.filter((c) => c in cambios);
+    await conn.query(
+      `UPDATE horario_asignatura SET ${columnas.map((c) => `${c} = ?`).join(', ')}
+       WHERE Horario_Asignatura_Id IN (?)`,
+      [...columnas.map((c) => cambios[c]), ids]
+    );
+
+    await conn.commit();
+    return res.json({ mensaje: mensajes.exito, actualizados: ids.length });
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally {
+    conn.release();
+  }
+}
+
+// ── GET /api/horarios/opciones-edicion — CU64: datos del formulario de edición múltiple ──
+const getOpcionesEdicion = async (req, res) => {
+  try {
+    const [bloques] = await pool.execute(
+      `SELECT Bloque_Horario_Id, Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin,
+              Bloque_Horario_Jornada, Bloque_Horario_Tipo
+       FROM bloque_horario
+       ORDER BY Bloque_Horario_Hora_Inicio`
+    );
+    const [asignaturas] = await pool.execute(
+      `SELECT Asignatura_Id, Asignatura_Nombre FROM asignatura ORDER BY Asignatura_Nombre`
+    );
+    const [docentes] = await pool.execute(
+      `SELECT Usuario_Id, Usuario_Nombre_Completo, Docente_Especialidad
+       FROM usuario
+       WHERE Es_Docente = 1 AND Usuario_Estado_Cuenta = 1
+       ORDER BY Usuario_Nombre_Completo`
+    );
+    res.json({ bloques, asignaturas, docentes });
+  } catch (error) {
+    console.error('Error en getOpcionesEdicion:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── POST /api/horarios/reasignar-docente/validar — CU63 validarReasignacion(Horario_Ids[], Usuario_Id) ──
+const validarReasignacion = async (req, res) => {
+  try {
+    const ids = normalizarIds(req.body?.horario_ids);
+    const cambios = normalizarCambios({ Usuario_Id: req.body?.Usuario_Id });
+    await responderValidacion(res, ids, cambios, MENSAJES_CU63);
+  } catch (error) {
+    console.error('Error en validarReasignacion:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── PUT /api/horarios/reasignar-docente — CU63 reasignarDocente(Horario_Ids[], Usuario_Id) ──
+const reasignarDocente = async (req, res) => {
+  try {
+    const ids = normalizarIds(req.body?.horario_ids);
+    const cambios = normalizarCambios({ Usuario_Id: req.body?.Usuario_Id });
+    await aplicarCambios(res, ids, cambios, MENSAJES_CU63);
+  } catch (error) {
+    console.error('Error en reasignarDocente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── POST /api/horarios/multiples/validar — CU64 validarCambiosMultiples(Horario_Ids[], cambios) ──
+const validarCambiosMultiples = async (req, res) => {
+  try {
+    const ids = normalizarIds(req.body?.horario_ids);
+    const cambios = normalizarCambios(req.body?.cambios);
+    await responderValidacion(res, ids, cambios, MENSAJES_CU64);
+  } catch (error) {
+    console.error('Error en validarCambiosMultiples:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── PUT /api/horarios/multiples — CU64 modificarMultiplesBloques(Horario_Ids[], cambios) ──
+const modificarMultiplesBloques = async (req, res) => {
+  try {
+    const ids = normalizarIds(req.body?.horario_ids);
+    const cambios = normalizarCambios(req.body?.cambios);
+    await aplicarCambios(res, ids, cambios, MENSAJES_CU64);
+  } catch (error) {
+    console.error('Error en modificarMultiplesBloques:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
@@ -994,4 +1433,7 @@ module.exports = {
   getAsignacionesDocente, // CU42
   getHorarioDocente, // CU43 / CU58
   getHorarioMaestro, // CU57
+  getOpcionesEdicion, // CU64
+  validarReasignacion, reasignarDocente, // CU63
+  validarCambiosMultiples, modificarMultiplesBloques, // CU64
 };
