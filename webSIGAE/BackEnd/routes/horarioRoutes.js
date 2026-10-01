@@ -18,6 +18,11 @@ const {
   filtrarHorarios,
   getBloquesLibres,
   getDetalleBloqueHorario,
+  getOpcionesEdicion,
+  validarReasignacion,
+  reasignarDocente,
+  validarCambiosMultiples,
+  modificarMultiplesBloques,
 } = require('../controllers/horarioController');
 
 // CU 60-62 — Exportación de horarios (maestro / por docente / por curso)
@@ -65,6 +70,18 @@ router.get('/exportar/docente/:usuarioId', exportarPorDocente);
 router.get('/exportar/curso/:cursoId',     verifyAdmin, exportarPorCurso);
 
 // CRUD horario — solo admin puede crear/editar (CU54)
+// Edición masiva de bloques programados — Super Admin/Admin.
+// Deben ir antes de '/:id' para no ser capturadas por el parámetro.
+// CU63: Reasignando docente en múltiples bloques
+router.post('/reasignar-docente/validar', verifyAdmin, validarReasignacion);
+router.put('/reasignar-docente',          verifyAdmin, reasignarDocente);
+// CU64: Modificando múltiples bloques horarios
+router.get('/opciones-edicion',           verifyAdmin, getOpcionesEdicion);
+router.post('/multiples/validar',         verifyAdmin, validarCambiosMultiples);
+router.put('/multiples',                  verifyAdmin, modificarMultiplesBloques);
+
+// CRUD horario — solo admin puede crear/editar (CU54); la lectura permite
+// el filtrado por rol ya implementado dentro de getHorarios.
 router.get('/',            getHorarios);
 router.post('/',           verifyAdmin, createHorario);
 router.put('/:id',         verifyAdmin, updateHorario);

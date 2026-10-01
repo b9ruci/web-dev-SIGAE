@@ -169,6 +169,9 @@ const updateBloque = async (req, res) => {
     if (existe.length === 0) return res.status(404).json({ error: 'Bloque no encontrado' });
 
     const [param] = await pool.execute(`SELECT * FROM parametro_institucional LIMIT 1`);
+    if (param.length === 0) {
+      return res.status(400).json({ error: 'Configure los parámetros institucionales antes de modificar bloques' });
+    }
     const p = param[0];
 
     if (Bloque_Horario_Hora_Inicio < p.Parametro_Institucional_Inicio_Jornada ||

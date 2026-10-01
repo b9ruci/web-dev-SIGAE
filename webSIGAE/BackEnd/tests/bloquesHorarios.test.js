@@ -41,6 +41,17 @@ describe('Pruebas Unitarias - CU49: Modificando Bloques Horarios', () => {
     expect(res.json).toHaveBeenCalledWith({ mensaje: 'Bloque actualizado correctamente' });
   });
 
+  test('Sin parámetros institucionales configurados: no permite guardar los cambios', async () => {
+    pool.execute
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 3, Parametro_Institucional_Id: 1 }]]) // existe
+      .mockResolvedValueOnce([[]]); // parametro_institucional vacío
+
+    await bloquesController.updateBloque(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(pool.execute).toHaveBeenCalledTimes(2);
+  });
+
   test('Excepción "Datos inválidos o fuera de rango": faltan campos obligatorios', async () => {
     req.body = { Bloque_Horario_Hora_Inicio: '09:00' };
 
