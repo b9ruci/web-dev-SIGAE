@@ -1,0 +1,599 @@
+// Módulo de citaciones (CU74–CU79 / RF48–RF53).
+// Cada función sigue los diagramas de secuencia del Incremento 3 (C_Citaciones → C_MySQL).
+const pool = require('../config/db');
+
+const ESTADO_PENDIENTE  = 'Pendiente de confirmación';
+const ESTADO_CONFIRMADA = 'Confirmada';
+const ESTADO_CANCELADA  = 'Cancelada';
+const DESCRIPCION_REPROGRAMACION = 'Reprogramación de citación';
+
+const MODALIDADES = ['Presencial', 'Online'];
+const MIN_MOTIVO = 5;
+const MAX_MOTIVO = 500;
+
+// Tramos de 30 minutos entre 08:00 y 18:00, en el formato de Citacion_Tramo_Horario ("17:00 - 17:30")
+const TRAMOS_HORARIOS = (() => {
+  const pad = (n) => String(n).padStart(2, '0');
+  const tramos = [];
+  for (let h = 8; h < 18; h++) {
+    tramos.push(`${pad(h)}:00 - ${pad(h)}:30`);
+    tramos.push(`${pad(h)}:30 - ${pad(h + 1)}:00`);
+  }
+  return tramos;
+})();
+
+const esPendiente = (c) => String(c.Citacion_Estado || '').startsWith('Pendiente');
+const esCancelada = (c) => String(c.Citacion_Estado || '').startsWith('Cancelada');
+
+function hoyISO() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function esFechaValida(fecha) {
+  if (typeof fecha !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
+  const [y, m, d] = fecha.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
+function esDiaHabil(fecha) {
+  const [y, m, d] = fecha.split('-').map(Number);
+  const dia = new Date(y, m - 1, d).getDay();
+  return dia !== 0 && dia !== 6;
+}
+
+// Valida fecha y tramo (compartido por CU74 y CU77). Devuelve { campo: mensaje } con los inválidos.
+function validarFechaTramo(fecha, tramo) {
+  const errores = {};
+  if (!fecha) errores.fecha = 'La fecha es obligatoria';
+  else if (!esFechaValida(fecha)) errores.fecha = 'Formato de fecha inválido';
+  else if (fecha < hoyISO()) errores.fecha = 'La fecha no puede ser anterior a hoy';
+  else if (!esDiaHabil(fecha)) errores.fecha = 'La citación debe agendarse en un día hábil (lunes a viernes)';
+
+  if (!tramo) errores.tramo = 'El tramo horario es obligatorio';
+  else if (!TRAMOS_HORARIOS.includes(tramo)) errores.tramo = 'Tramo horario inválido';
+  return errores;
+}
+
+function validarMotivo(motivo, campo = 'motivo') {
+  const limpio = typeof motivo === 'string' ? motivo.trim() : '';
+  if (!limpio) return campo === 'motivo' ? 'El motivo de la citación es obligatorio' : 'Debe ingresar un motivo de cancelación válido';
+  if (limpio.length < MIN_MOTIVO) return `El motivo debe tener al menos ${MIN_MOTIVO} caracteres`;
+  if (limpio.length > MAX_MOTIVO) return `El motivo no puede superar los ${MAX_MOTIVO} caracteres`;
+  return '';
+}
+
+// Rol con el que el usuario consulta la agenda: el rol activo enviado por el frontend (?rol=),
+// siempre que lo tenga; si no, el primero de sus roles que participe en citaciones.
+function resolverRol(user, rolSolicitado) {
+  const roles = user?.roles || [];
+  if (['Docente', 'Apoderado'].includes(rolSolicitado) && roles.includes(rolSolicitado)) return rolSolicitado;
+  if (roles.includes('Docente')) return 'Docente';
+  if (roles.includes('Apoderado')) return 'Apoderado';
+  return null;
+}
+
+// SELECT base con los datos que muestra la agenda. Las fechas se devuelven como texto (YYYY-MM-DD)
+// para evitar desfases de zona horaria al serializar DATE a JSON.
+// Ultimo_Reprogramador_Id permite saber a quién le toca confirmar tras una reprogramación (CU77).
+const SELECT_CITACION = `
+  SELECT
+    c.Citacion_Id,
+    DATE_FORMAT(c.Citacion_Fecha, '%Y-%m-%d') AS Citacion_Fecha,
+    c.Citacion_Tramo_Horario,
+    c.Citacion_Motivo,
+    c.Citacion_Modalidad,
+    c.Citacion_Estado,
+    DATE_FORMAT(c.Citacion_Fecha_Confirmacion, '%Y-%m-%d') AS Citacion_Fecha_Confirmacion,
+    c.Citacion_Motivo_Cancelacion,
+    c.Citacion_Observaciones_Posteriores,
+    c.Estudiante_Id,
+    e.Estudiante_Nombre_Completo,
+    cu.Curso_Nombre,
+    c.Apoderado_Usuario_Id,
+    ua.Usuario_Nombre_Completo AS Apoderado_Nombre,
+    c.Docente_Usuario_Id,
+    ud.Usuario_Nombre_Completo AS Docente_Nombre,
+    (
+      SELECT h.Usuario_Responsable_Id
+      FROM historial h
+      WHERE h.Citacion_Id = c.Citacion_Id
+        AND h.Historial_Descripcion_Cambio = '${DESCRIPCION_REPROGRAMACION}'
+      ORDER BY h.Historial_Fecha_Registro DESC, h.Historial_Hora_Registro DESC, h.Historial_Id DESC
+      LIMIT 1
+    ) AS Ultimo_Reprogramador_Id
+  FROM citacion c
+  JOIN estudiante e   ON e.Estudiante_Id = c.Estudiante_Id
+  LEFT JOIN curso cu  ON cu.Curso_Id = e.Curso_Id
+  JOIN usuario ua     ON ua.Usuario_Id = c.Apoderado_Usuario_Id
+  JOIN usuario ud     ON ud.Usuario_Id = c.Docente_Usuario_Id
+`;
+
+const ORDEN_CRONOLOGICO = 'ORDER BY c.Citacion_Fecha ASC, c.Citacion_Tramo_Horario ASC, c.Citacion_Id ASC';
+
+// CU75/CU77: por defecto confirma el apoderado; si el apoderado reprogramó, confirma el docente.
+function formatearCitacion(fila) {
+  const { Ultimo_Reprogramador_Id, ...citacion } = fila;
+  let requiere = null;
+  if (esPendiente(citacion)) {
+    const reprogramoApoderado =
+      Ultimo_Reprogramador_Id != null &&
+      Number(Ultimo_Reprogramador_Id) === Number(citacion.Apoderado_Usuario_Id) &&
+      Number(Ultimo_Reprogramador_Id) !== Number(citacion.Docente_Usuario_Id);
+    requiere = reprogramoApoderado ? 'Docente' : 'Apoderado';
+  }
+  return { ...citacion, Requiere_Confirmacion_De: requiere };
+}
+
+// Busca una citación en la que el usuario participe (como docente o apoderado).
+// Devuelve null si no existe o no le pertenece: ambos casos son "no existe o no está disponible".
+async function buscarCitacionDelUsuario(citacionId, userId, conn = pool) {
+  const id = Number(citacionId);
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const [rows] = await conn.query(
+    `${SELECT_CITACION} WHERE c.Citacion_Id = ? AND (c.Docente_Usuario_Id = ? OR c.Apoderado_Usuario_Id = ?)`,
+    [id, userId, userId]
+  );
+  return rows.length ? formatearCitacion(rows[0]) : null;
+}
+
+// Verifica que ni el docente ni el apoderado tengan otra citación activa en la misma fecha y tramo
+async function hayConflictoHorario(conn, { fecha, tramo, docenteId, apoderadoId, excluirId = null }) {
+  const [rows] = await conn.query(
+    `SELECT Citacion_Id FROM citacion
+     WHERE Citacion_Fecha = ? AND Citacion_Tramo_Horario = ?
+       AND Citacion_Estado <> ?
+       AND (Docente_Usuario_Id = ? OR Apoderado_Usuario_Id = ?)
+       ${excluirId ? 'AND Citacion_Id <> ?' : ''}
+     LIMIT 1`,
+    excluirId
+      ? [fecha, tramo, ESTADO_CANCELADA, docenteId, apoderadoId, excluirId]
+      : [fecha, tramo, ESTADO_CANCELADA, docenteId, apoderadoId]
+  );
+  return rows.length > 0;
+}
+
+async function registrarHistorial(conn, { citacionId, atributo, anterior, nuevo, descripcion, responsableId }) {
+  await conn.query(
+    `INSERT INTO historial (
+       Historial_Valor_Anterior, Historial_Hora_Registro, Historial_Descripcion_Cambio,
+       Historial_Atributo_Modificado, Historial_Valor_Nuevo, Historial_Fecha_Registro,
+       Citacion_Id, Usuario_Responsable_Id
+     ) VALUES (?, CURTIME(), ?, ?, ?, CURDATE(), ?, ?)`,
+    [anterior, descripcion, atributo, nuevo, citacionId, responsableId]
+  );
+}
+
+// ── CU78: agenda cronológica de las citaciones del usuario ──
+const getCitaciones = async (req, res) => {
+  const rol = resolverRol(req.user, req.query.rol);
+  if (!rol) {
+    return res.status(403).json({ mensaje: 'No tienes permiso para consultar citaciones' });
+  }
+  try {
+    const columna = rol === 'Docente' ? 'c.Docente_Usuario_Id' : 'c.Apoderado_Usuario_Id';
+    const [rows] = await pool.query(`${SELECT_CITACION} WHERE ${columna} = ? ${ORDEN_CRONOLOGICO}`, [req.user.id]);
+
+    // Excepción 1: no existen citaciones asociadas al usuario
+    if (rows.length === 0) {
+      return res.status(200).json({ mensaje: 'No existen citaciones asociadas al usuario', citaciones: [] });
+    }
+    return res.json(rows.map(formatearCitacion));
+  } catch (error) {
+    console.error(error);
+    // Excepción 2: error al recuperar la información
+    return res.status(500).json({ mensaje: 'No fue posible recuperar la agenda de citaciones. Intente nuevamente.' });
+  }
+};
+
+// ── CU75: solicitudes pendientes que esperan la confirmación del usuario ──
+const getCitacionesPendientes = async (req, res) => {
+  const rol = resolverRol(req.user, req.query.rol);
+  if (!rol) {
+    return res.status(403).json({ mensaje: 'No tienes permiso para consultar citaciones' });
+  }
+  try {
+    const columna = rol === 'Docente' ? 'c.Docente_Usuario_Id' : 'c.Apoderado_Usuario_Id';
+    const [rows] = await pool.query(
+      `${SELECT_CITACION}
+       WHERE ${columna} = ? AND c.Citacion_Estado = ? AND c.Citacion_Fecha >= CURDATE()
+       ${ORDEN_CRONOLOGICO}`,
+      [req.user.id, ESTADO_PENDIENTE]
+    );
+    const pendientes = rows.map(formatearCitacion).filter((c) => c.Requiere_Confirmacion_De === rol);
+
+    // Excepción 1: no existen citaciones pendientes
+    if (pendientes.length === 0) {
+      return res.status(200).json({
+        mensaje: `No existen citaciones pendientes para el ${rol.toLowerCase()}`,
+        citaciones: [],
+      });
+    }
+    return res.json(pendientes);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible recuperar las solicitudes pendientes' });
+  }
+};
+
+// ── CU76 / CU77: getDetalleCitacion(Citacion_Id) ──
+const getDetalleCitacion = async (req, res) => {
+  try {
+    const citacion = await buscarCitacionDelUsuario(req.params.id, req.user.id);
+    // Excepción 1: la citación no existe o no está disponible
+    if (!citacion) {
+      return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
+    }
+    return res.json(citacion);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible recuperar el detalle de la citación' });
+  }
+};
+
+// ── CU74: crearCitacion(datos) — solo Docente ──
+const crearCitacion = async (req, res) => {
+  if (!(req.user?.roles || []).includes('Docente')) {
+    return res.status(403).json({ mensaje: 'Solo un docente puede crear citaciones' });
+  }
+
+  const {
+    Estudiante_Id,
+    Citacion_Fecha,
+    Citacion_Tramo_Horario,
+    Citacion_Motivo,
+    Citacion_Modalidad,
+  } = req.body || {};
+
+  // Excepción 1: datos incompletos o inválidos en el formulario
+  const errores = validarFechaTramo(Citacion_Fecha, Citacion_Tramo_Horario);
+  const estudianteId = Number(Estudiante_Id);
+  if (!Number.isInteger(estudianteId) || estudianteId <= 0) {
+    errores.estudianteId = 'Selecciona el estudiante (y su apoderado) a citar';
+  }
+  const errorMotivo = validarMotivo(Citacion_Motivo);
+  if (errorMotivo) errores.motivo = errorMotivo;
+  if (!Citacion_Modalidad) errores.modalidad = 'La modalidad es obligatoria';
+  else if (!MODALIDADES.includes(Citacion_Modalidad)) errores.modalidad = 'Modalidad inválida';
+
+  if (Object.keys(errores).length > 0) {
+    return res.status(400).json({ mensaje: 'Datos incompletos o inválidos en el formulario', errores });
+  }
+
+  const docenteId = req.user.id;
+  try {
+    // Precondición: el estudiante pertenece a un curso del docente y tiene apoderado asociado
+    const [estudiantes] = await pool.query(
+      `SELECT e.Estudiante_Id, e.Apoderado_Usuario_Id
+       FROM estudiante e
+       WHERE e.Estudiante_Id = ?
+         AND e.Estudiante_Fecha_Eliminacion IS NULL
+         AND e.Curso_Id IN (SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?)`,
+      [estudianteId, docenteId]
+    );
+    if (estudiantes.length === 0) {
+      return res.status(400).json({
+        mensaje: 'Datos incompletos o inválidos en el formulario',
+        errores: { estudianteId: 'El estudiante no pertenece a tus cursos' },
+      });
+    }
+    const apoderadoId = estudiantes[0].Apoderado_Usuario_Id;
+    if (!apoderadoId) {
+      return res.status(400).json({
+        mensaje: 'Datos incompletos o inválidos en el formulario',
+        errores: { estudianteId: 'El estudiante no tiene un apoderado asociado' },
+      });
+    }
+
+    // Pasos 7–10: validar disponibilidad horaria del docente y del apoderado
+    // Excepción 2: no existe disponibilidad para la fecha y tramo seleccionado
+    const conflicto = await hayConflictoHorario(pool, {
+      fecha: Citacion_Fecha,
+      tramo: Citacion_Tramo_Horario,
+      docenteId,
+      apoderadoId,
+    });
+    if (conflicto) {
+      return res.status(409).json({ mensaje: 'No existe disponibilidad para la fecha y tramo seleccionado' });
+    }
+
+    // Pasos 11–14: INSERT con estado "Pendiente de confirmación"
+    const [resultado] = await pool.query(
+      `INSERT INTO citacion (
+         Citacion_Tramo_Horario, Citacion_Fecha, Citacion_Motivo, Citacion_Estado,
+         Citacion_Modalidad, Estudiante_Id, Apoderado_Usuario_Id, Docente_Usuario_Id
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        Citacion_Tramo_Horario,
+        Citacion_Fecha,
+        Citacion_Motivo.trim(),
+        ESTADO_PENDIENTE,
+        Citacion_Modalidad,
+        estudianteId,
+        apoderadoId,
+        docenteId,
+      ]
+    );
+
+    const citacion = await buscarCitacionDelUsuario(resultado.insertId, docenteId);
+    return res.status(201).json({ mensaje: 'Citación creada, pendiente de confirmación', citacion });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ mensaje: 'No fue posible registrar la citación. Intente nuevamente.' });
+  }
+};
+
+// ── CU75: confirmarCitacion(citacion_id) ──
+const confirmarCitacion = async (req, res) => {
+  const userId = req.user.id;
+  let conn;
+  try {
+    const citacion = await buscarCitacionDelUsuario(req.params.id, userId);
+    if (!citacion) {
+      return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
+    }
+    if (!esPendiente(citacion)) {
+      return res.status(409).json({ mensaje: 'La citación no se encuentra pendiente de confirmación' });
+    }
+    if (citacion.Citacion_Fecha < hoyISO()) {
+      return res.status(409).json({ mensaje: 'La fecha de la citación ya pasó; no puede confirmarse' });
+    }
+    const responsableId = citacion.Requiere_Confirmacion_De === 'Docente'
+      ? citacion.Docente_Usuario_Id
+      : citacion.Apoderado_Usuario_Id;
+    if (Number(responsableId) !== Number(userId)) {
+      return res.status(403).json({ mensaje: 'La confirmación de esta citación le corresponde a la contraparte' });
+    }
+
+    // Pasos 5–8: UPDATE estado a "Confirmada" y registro de fecha/hora en el historial
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const [resultado] = await conn.query(
+      `UPDATE citacion
+       SET Citacion_Estado = ?, Citacion_Fecha_Confirmacion = CURDATE()
+       WHERE Citacion_Id = ? AND Citacion_Estado = ?`,
+      [ESTADO_CONFIRMADA, citacion.Citacion_Id, ESTADO_PENDIENTE]
+    );
+    if (resultado.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(409).json({ mensaje: 'La citación no se encuentra pendiente de confirmación' });
+    }
+    await registrarHistorial(conn, {
+      citacionId: citacion.Citacion_Id,
+      atributo: 'Citacion_Estado',
+      anterior: citacion.Citacion_Estado,
+      nuevo: ESTADO_CONFIRMADA,
+      descripcion: 'Confirmación de citación',
+      responsableId: userId,
+    });
+    await conn.commit();
+
+    // Paso 9: el cambio de estado queda visible para la contraparte en su agenda y en el historial
+    return res.json({
+      mensaje: 'Citación confirmada correctamente. Se notificó el cambio de estado a la contraparte.',
+    });
+  } catch (error) {
+    console.error(error);
+    if (conn) await conn.rollback().catch(() => {});
+    // Excepción 2: error al actualizar el estado o registrar la confirmación
+    return res.status(500).json({
+      mensaje: 'Error al actualizar el estado o registrar la confirmación. Intente nuevamente.',
+    });
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
+// ── CU76: cancelarCitacion(Citacion_Id, motivo) — Docente o Apoderado ──
+const cancelarCitacion = async (req, res) => {
+  // Excepción 2: el actor no ingresa un motivo de cancelación válido
+  const motivo = req.body?.Citacion_Motivo_Cancelacion;
+  const errorMotivo = validarMotivo(motivo, 'cancelacion');
+  if (errorMotivo) {
+    return res.status(400).json({ mensaje: errorMotivo });
+  }
+
+  const userId = req.user.id;
+  let conn;
+  try {
+    const citacion = await buscarCitacionDelUsuario(req.params.id, userId);
+    // Excepción 1: la citación seleccionada no existe o no está disponible
+    if (!citacion || esCancelada(citacion) || citacion.Citacion_Fecha < hoyISO()) {
+      return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
+    }
+
+    // Pasos 15–19: UPDATE estado y motivo + INSERT historial
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    const [resultado] = await conn.query(
+      `UPDATE citacion
+       SET Citacion_Estado = ?, Citacion_Motivo_Cancelacion = ?
+       WHERE Citacion_Id = ? AND Citacion_Estado <> ?`,
+      [ESTADO_CANCELADA, motivo.trim(), citacion.Citacion_Id, ESTADO_CANCELADA]
+    );
+    if (resultado.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({ mensaje: 'La citación seleccionada no existe o no está disponible' });
+    }
+    await registrarHistorial(conn, {
+      citacionId: citacion.Citacion_Id,
+      atributo: 'Citacion_Estado',
+      anterior: citacion.Citacion_Estado,
+      nuevo: ESTADO_CANCELADA,
+      descripcion: `Cancelación de citación. Motivo: ${motivo.trim()}`,
+      responsableId: userId,
+    });
+    await conn.commit();
+
+    return res.json({ mensaje: 'Citación cancelada correctamente' });
+  } catch (error) {
+    console.error(error);
+    if (conn) await conn.rollback().catch(() => {});
+    return res.status(500).json({ mensaje: 'No fue posible cancelar la citación. Intente nuevamente.' });
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
+// ── CU77: reprogramarCitacion(nuevos_datos) — Docente o Apoderado ──
+const reprogramarCitacion = async (req, res) => {
+  const { Citacion_Fecha, Citacion_Tramo_Horario } = req.body || {};
+
+  // Excepción 2 (datos inválidos)
+  const errores = validarFechaTramo(Citacion_Fecha, Citacion_Tramo_Horario);
+  if (Object.keys(errores).length > 0) {
+    return res.status(400).json({ mensaje: Object.values(errores)[0], errores });
+  }
+
+  const userId = req.user.id;
+  let conn;
+  try {
+    const citacion = await buscarCitacionDelUsuario(req.params.id, userId);
+    // Excepción 1: la citación no existe o no está disponible para edición
+    if (!citacion || esCancelada(citacion) || citacion.Citacion_Fecha < hoyISO()) {
+      return res.status(404).json({
+        mensaje: 'La citación seleccionada no existe o no está disponible para edición',
+      });
+    }
+    if (Citacion_Fecha === citacion.Citacion_Fecha && Citacion_Tramo_Horario === citacion.Citacion_Tramo_Horario) {
+      return res.status(400).json({ mensaje: 'Debes modificar la fecha y/o el tramo horario para reprogramar' });
+    }
+
+    // Paso 5: validar disponibilidad horaria — Excepción 2 (conflicto)
+    const conflicto = await hayConflictoHorario(pool, {
+      fecha: Citacion_Fecha,
+      tramo: Citacion_Tramo_Horario,
+      docenteId: citacion.Docente_Usuario_Id,
+      apoderadoId: citacion.Apoderado_Usuario_Id,
+      excluirId: citacion.Citacion_Id,
+    });
+    if (conflicto) {
+      return res.status(409).json({ mensaje: 'Los nuevos datos generan conflicto de disponibilidad horaria' });
+    }
+
+    // Pasos 5–8: UPDATE fecha/tramo y estado a "pendiente" hasta confirmación de la contraparte.
+    // El registro en historial identifica a quién reprogramó (define quién debe confirmar).
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await conn.query(
+      `UPDATE citacion
+       SET Citacion_Fecha = ?, Citacion_Tramo_Horario = ?, Citacion_Estado = ?, Citacion_Fecha_Confirmacion = NULL
+       WHERE Citacion_Id = ?`,
+      [Citacion_Fecha, Citacion_Tramo_Horario, ESTADO_PENDIENTE, citacion.Citacion_Id]
+    );
+    await registrarHistorial(conn, {
+      citacionId: citacion.Citacion_Id,
+      atributo: 'Citacion_Fecha, Citacion_Tramo_Horario',
+      anterior: `${citacion.Citacion_Fecha} ${citacion.Citacion_Tramo_Horario}`,
+      nuevo: `${Citacion_Fecha} ${Citacion_Tramo_Horario}`,
+      descripcion: DESCRIPCION_REPROGRAMACION,
+      responsableId: userId,
+    });
+    await conn.commit();
+
+    return res.json({
+      mensaje: 'Citación reprogramada. Queda pendiente hasta la confirmación de la contraparte.',
+    });
+  } catch (error) {
+    console.error(error);
+    if (conn) await conn.rollback().catch(() => {});
+    return res.status(500).json({ mensaje: 'No fue posible reprogramar la citación. Intente nuevamente.' });
+  } finally {
+    if (conn) conn.release();
+  }
+};
+
+// ── CU79: getHistorialCitaciones(Estudiante_Id) — Docente, Apoderado, Admin y Super Admin ──
+const getHistorialCitaciones = async (req, res) => {
+  const estudianteId = Number(req.params.estudianteId);
+  // Excepción 1: no se especifica un estudiante válido
+  if (!Number.isInteger(estudianteId) || estudianteId <= 0) {
+    return res.status(400).json({ mensaje: 'No se especificó un estudiante válido' });
+  }
+
+  const { id: userId, roles = [] } = req.user;
+  try {
+    const [estudiantes] = await pool.query(
+      `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT, e.Curso_Id,
+              e.Apoderado_Usuario_Id, cu.Curso_Nombre
+       FROM estudiante e
+       LEFT JOIN curso cu ON cu.Curso_Id = e.Curso_Id
+       WHERE e.Estudiante_Id = ?`,
+      [estudianteId]
+    );
+    if (estudiantes.length === 0) {
+      return res.status(404).json({ mensaje: 'No se especificó un estudiante válido' });
+    }
+    const estudiante = estudiantes[0];
+
+    // Admin/Super Admin consultan cualquier estudiante; el apoderado solo a sus estudiantes
+    // asociados; el docente solo a estudiantes de sus cursos.
+    let autorizado = roles.includes('Administrador');
+    if (!autorizado && roles.includes('Apoderado')) {
+      autorizado = Number(estudiante.Apoderado_Usuario_Id) === Number(userId);
+    }
+    if (!autorizado && roles.includes('Docente')) {
+      const [cursos] = await pool.query(
+        'SELECT 1 FROM horario_asignatura WHERE Usuario_Id = ? AND Curso_Id = ? LIMIT 1',
+        [userId, estudiante.Curso_Id]
+      );
+      autorizado = cursos.length > 0;
+    }
+    if (!autorizado) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar el historial de este estudiante' });
+    }
+
+    // Pasos 5–7: SELECT citacion WHERE Estudiante_Id ORDER BY Citacion_Fecha
+    const [filas] = await pool.query(`${SELECT_CITACION} WHERE c.Estudiante_Id = ? ${ORDEN_CRONOLOGICO}`, [estudianteId]);
+    if (filas.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen citaciones registradas para el estudiante seleccionado',
+        estudiante,
+        citaciones: [],
+      });
+    }
+
+    // Pasos 8–9: SELECT historial WHERE Citacion_Id
+    const ids = filas.map((c) => c.Citacion_Id);
+    const [historial] = await pool.query(
+      `SELECT h.Historial_Id, h.Citacion_Id,
+              DATE_FORMAT(h.Historial_Fecha_Registro, '%Y-%m-%d') AS Historial_Fecha_Registro,
+              h.Historial_Hora_Registro, h.Historial_Descripcion_Cambio, h.Historial_Atributo_Modificado,
+              h.Historial_Valor_Anterior, h.Historial_Valor_Nuevo,
+              u.Usuario_Nombre_Completo AS Usuario_Responsable_Nombre
+       FROM historial h
+       LEFT JOIN usuario u ON u.Usuario_Id = h.Usuario_Responsable_Id
+       WHERE h.Citacion_Id IN (?)
+       ORDER BY h.Historial_Fecha_Registro ASC, h.Historial_Hora_Registro ASC, h.Historial_Id ASC`,
+      [ids]
+    );
+
+    // Pasos 10–11: historial completo organizado por fecha y estado
+    const citaciones = filas.map((fila) => ({
+      ...formatearCitacion(fila),
+      historial: historial.filter((h) => h.Citacion_Id === fila.Citacion_Id),
+    }));
+
+    return res.json({ estudiante, citaciones });
+  } catch (error) {
+    console.error(error);
+    // Excepción 2: error al recuperar el historial o datos inconsistentes
+    return res.status(500).json({ mensaje: 'No fue posible recuperar el historial de citaciones' });
+  }
+};
+
+module.exports = {
+  getCitaciones,
+  getCitacionesPendientes,
+  getDetalleCitacion,
+  crearCitacion,
+  confirmarCitacion,
+  cancelarCitacion,
+  reprogramarCitacion,
+  getHistorialCitaciones,
+  // Exportados para las pruebas unitarias
+  TRAMOS_HORARIOS,
+  validarFechaTramo,
+};

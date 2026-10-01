@@ -3,7 +3,8 @@
 El frontend (`src/pages/communications/Citaciones.jsx`, `HistorialCitaciones.jsx` y
 `src/components/citaciones/`) consume estos endpoints desde `src/services/api.js`.
 Los nombres de las funciones siguen los mensajes de los diagramas de secuencia.
-**El backend aún no los implementa.**
+Implementación en el backend: `BackEnd/controllers/citacionController.js` y `BackEnd/routes/citacionRoutes.js`
+(pruebas en `BackEnd/tests/citaciones.test.js`).
 
 Todas las respuestas de error usan `{ "mensaje": "..." }`; el frontend muestra ese texto tal cual.
 
@@ -47,8 +48,10 @@ Columnas de la tabla `citacion` más los nombres unidos por JOIN:
 ```
 
 - `Citacion_Estado`: `"Pendiente de confirmación"`, `"Confirmada"` o `"Cancelada"` (igual que el dump).
-- `Requiere_Confirmacion_De` (opcional): `"Apoderado"` o `"Docente"`. Tras una reprogramación (CU77)
-  debe confirmar la contraparte de quien reprogramó. Si se omite, el frontend asume `"Apoderado"`.
+- `Requiere_Confirmacion_De`: `"Apoderado"` o `"Docente"` (o `null` si no está pendiente). Tras una
+  reprogramación (CU77) debe confirmar la contraparte de quien reprogramó. No es una columna: el backend
+  lo deriva del último registro "Reprogramación de citación" en `historial` (`Usuario_Responsable_Id`).
+  Si se omite, el frontend asume `"Apoderado"`.
 - Tramos válidos: bloques de 30 min entre 08:00 y 18:00 con el formato `"HH:MM - HH:MM"`.
 - Modalidades válidas: `"Presencial"`, `"Online"`.
 
