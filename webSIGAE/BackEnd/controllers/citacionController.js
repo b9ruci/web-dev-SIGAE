@@ -611,6 +611,13 @@ const getHistorialCitaciones = async (req, res) => {
   }
 };
 
+/**
+ * @module CitacionController
+ * @description Controlador encargado de gestionar la lógica de negocio para 
+ * la creación, confirmación, cancelación, reprogramación y consulta de historial 
+ * de citaciones (CU74 - CU79).
+ */
+
 module.exports = {
   getCitaciones,
   getCitacionesPendientes,
