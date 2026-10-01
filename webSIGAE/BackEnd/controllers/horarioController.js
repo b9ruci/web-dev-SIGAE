@@ -987,6 +987,226 @@ const getHorarioMaestro = async (req, res) => {
   }
 };
 
+// ── GET /api/horarios/filtrar ── CU68 / RF44: Filtrar horarios reactivamente
+const filtrarHorarios = async (req, res) => {
+  try {
+    const {
+      docente_id,
+      curso_id,
+      nivel_educativo_id,
+      asignatura_id,
+      jornada,
+      dia_semana,
+      estado = 'Activo'
+    } = req.query;
+
+    let query = `
+      SELECT
+        ha.Horario_Asignatura_Id,
+        ha.Horario_Asignatura_Dia_Semana  AS dia,
+        ha.Horario_Asignatura_Estado      AS estado,
+        ha.Curso_Id                       AS cursoId,
+        c.Curso_Nombre                    AS curso,
+        c.Curso_Seccion                   AS seccion,
+        ne.Nivel_Educativo_Id             AS nivelEducativoId,
+        ne.Nivel_Educativo_Nombre         AS nivelEducativo,
+        ha.Bloque_Horario_Id              AS bloqueId,
+        bh.Bloque_Horario_Hora_Inicio     AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin        AS horaFin,
+        bh.Bloque_Horario_Jornada         AS jornada,
+        bh.Bloque_Horario_Tipo            AS tipoBloque,
+        ha.Asignatura_Id                  AS asignaturaId,
+        a.Asignatura_Nombre               AS asignatura,
+        ha.Usuario_Id                     AS docenteId,
+        COALESCE(u.Usuario_Nombre_Completo, 'Sin asignar') AS docente
+      FROM horario_asignatura ha
+      JOIN curso           c  ON c.Curso_Id           = ha.Curso_Id
+      JOIN nivel_educativo ne ON ne.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+      JOIN bloque_horario  bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      JOIN asignatura      a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      LEFT JOIN usuario    u  ON u.Usuario_Id         = ha.Usuario_Id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (estado && estado !== 'Todos') {
+      query += ' AND ha.Horario_Asignatura_Estado = ?';
+      params.push(estado);
+    }
+    if (docente_id) {
+      query += ' AND ha.Usuario_Id = ?';
+      params.push(docente_id);
+    }
+    if (curso_id) {
+      query += ' AND ha.Curso_Id = ?';
+      params.push(curso_id);
+    }
+    if (nivel_educativo_id) {
+      query += ' AND c.Nivel_Educativo_Id = ?';
+      params.push(nivel_educativo_id);
+    }
+    if (asignatura_id) {
+      query += ' AND ha.Asignatura_Id = ?';
+      params.push(asignatura_id);
+    }
+    if (jornada) {
+      query += ' AND bh.Bloque_Horario_Jornada = ?';
+      params.push(jornada);
+    }
+    if (dia_semana) {
+      query += ' AND ha.Horario_Asignatura_Dia_Semana = ?';
+      params.push(dia_semana);
+    }
+
+    query += ` ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes','Martes','Miércoles','Jueves','Viernes'),
+                        bh.Bloque_Horario_Hora_Inicio, c.Curso_Nombre`;
+
+    const [rows] = await pool.execute(query, params);
+
+    // CU68 - Excepción 2: Sin resultados coincidentes
+    if (rows.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No se encontraron horarios coincidentes con los filtros seleccionados',
+        horarios: []
+      });
+    }
+
+    return res.json(rows);
+  } catch (error) {
+    console.error('Error en filtrarHorarios:', error);
+    return res.status(500).json({ mensaje: 'Error al filtrar horarios, intente nuevamente' });
+  }
+};
+
+// ── GET /api/horarios/bloques-libres ── CU67 / RF43: Disponibilidad de bloques libres
+const getBloquesLibres = async (req, res) => {
+  try {
+    const { curso_id, docente_id, dia_semana, jornada } = req.query;
+
+    if (!curso_id && !docente_id) {
+      return res.status(400).json({
+        mensaje: 'Debe especificar curso_id o docente_id para consultar disponibilidad de bloques libres'
+      });
+    }
+
+    let bloqueQuery = `
+      SELECT
+        bh.Bloque_Horario_Id          AS bloqueId,
+        bh.Bloque_Horario_Hora_Inicio AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin    AS horaFin,
+        bh.Bloque_Horario_Jornada     AS jornada,
+        bh.Bloque_Horario_Tipo        AS tipo
+      FROM bloque_horario bh
+      WHERE bh.Bloque_Horario_Tipo != 'Recreo'
+    `;
+    const bloqueParams = [];
+
+    if (jornada) {
+      bloqueQuery += ' AND bh.Bloque_Horario_Jornada = ?';
+      bloqueParams.push(jornada);
+    }
+    bloqueQuery += ' ORDER BY bh.Bloque_Horario_Hora_Inicio';
+
+    const [todosLosBloques] = await pool.execute(bloqueQuery, bloqueParams);
+
+    // Días a evaluar
+    const dias = dia_semana
+      ? [dia_semana]
+      : ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+
+    // Consultar bloques ocupados
+    let ocupadosQuery = `
+      SELECT Bloque_Horario_Id, Horario_Asignatura_Dia_Semana
+      FROM horario_asignatura
+      WHERE Horario_Asignatura_Estado = 'Activo'
+    `;
+    const ocupadosParams = [];
+
+    if (curso_id) {
+      ocupadosQuery += ' AND Curso_Id = ?';
+      ocupadosParams.push(curso_id);
+    } else if (docente_id) {
+      ocupadosQuery += ' AND Usuario_Id = ?';
+      ocupadosParams.push(docente_id);
+    }
+
+    const [ocupados] = await pool.execute(ocupadosQuery, ocupadosParams);
+    const ocupadosSet = new Set(
+      ocupados.map(o => `${o.Horario_Asignatura_Dia_Semana}-${o.Bloque_Horario_Id}`)
+    );
+
+    const bloquesLibres = [];
+    for (const dia of dias) {
+      for (const bloque of todosLosBloques) {
+        const key = `${dia}-${bloque.bloqueId}`;
+        if (!ocupadosSet.has(key)) {
+          bloquesLibres.push({
+            dia,
+            ...bloque
+          });
+        }
+      }
+    }
+
+    // CU67 - Excepción 1: No existen bloques libres disponibles
+    if (bloquesLibres.length === 0) {
+      return res.status(200).json({
+        mensaje: 'No existen bloques libres disponibles para los criterios indicados',
+        bloquesLibres: []
+      });
+    }
+
+    return res.json(bloquesLibres);
+  } catch (error) {
+    console.error('Error en getBloquesLibres:', error);
+    return res.status(500).json({ mensaje: 'Error al consultar disponibilidad de bloques libres' });
+  }
+};
+
+// ── GET /api/horarios/bloque-detalle/:id ── CU69 / CU71 / RF45: Detalle de bloque horario
+const getDetalleBloqueHorario = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [rows] = await pool.execute(`
+      SELECT
+        ha.Horario_Asignatura_Id          AS horarioId,
+        ha.Horario_Asignatura_Dia_Semana  AS dia,
+        ha.Horario_Asignatura_Estado      AS estado,
+        c.Curso_Id                        AS cursoId,
+        c.Curso_Nombre                    AS curso,
+        ne.Nivel_Educativo_Nombre         AS nivelEducativo,
+        bh.Bloque_Horario_Id              AS bloqueId,
+        bh.Bloque_Horario_Hora_Inicio     AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin        AS horaFin,
+        bh.Bloque_Horario_Jornada         AS jornada,
+        bh.Bloque_Horario_Tipo            AS tipoBloque,
+        a.Asignatura_Id                   AS asignaturaId,
+        a.Asignatura_Nombre               AS asignatura,
+        a.Asignatura_Prioridad_Academica  AS prioridadAcademica,
+        u.Usuario_Id                      AS docenteId,
+        COALESCE(u.Usuario_Nombre_Completo, 'Sin docente asignado') AS docente,
+        u.Docente_Especialidad            AS especialidadDocente
+      FROM horario_asignatura ha
+      JOIN curso           c  ON c.Curso_Id           = ha.Curso_Id
+      JOIN nivel_educativo ne ON ne.Nivel_Educativo_Id = c.Nivel_Educativo_Id
+      JOIN bloque_horario  bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      JOIN asignatura      a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      LEFT JOIN usuario    u  ON u.Usuario_Id         = ha.Usuario_Id
+      WHERE ha.Horario_Asignatura_Id = ?
+    `, [id]);
+
+    // CU69 - Excepción 1: Bloque horario no existe
+    if (rows.length === 0) {
+      return res.status(404).json({ mensaje: 'El bloque horario seleccionado no existe o fue eliminado' });
+    }
+
+    return res.json(rows[0]);
+  } catch (error) {
+    console.error('Error en getDetalleBloqueHorario:', error);
+    return res.status(500).json({ mensaje: 'Error al recuperar el detalle del bloque horario' });
+  }
+};
 // ══════════════════════════════════════════════════════════════════
 //  CU63 Reasignando docente en múltiples bloques
 //  CU64 Modificando múltiples bloques horarios
@@ -1433,6 +1653,9 @@ module.exports = {
   getAsignacionesDocente, // CU42
   getHorarioDocente, // CU43 / CU58
   getHorarioMaestro, // CU57
+  filtrarHorarios,
+  getBloquesLibres,
+  getDetalleBloqueHorario,
   getOpcionesEdicion, // CU64
   validarReasignacion, reasignarDocente, // CU63
   validarCambiosMultiples, modificarMultiplesBloques, // CU64
