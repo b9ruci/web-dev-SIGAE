@@ -10,82 +10,78 @@ function Mensajes() {
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionSeleccionada, setConversacionSeleccionada] = useState(null);
   const [mensajes, setMensajes] = useState([]);
+  const [nuevoMensaje, setNuevoMensaje] = useState('');
 
-  const [cargando, setCargando] = useState(true);
+  const [cargandoConversaciones, setCargandoConversaciones] = useState(true);
   const [cargandoMensajes, setCargandoMensajes] = useState(false);
 
   const [error, setError] = useState('');
-  const [errorMensajes, setErrorMensajes] = useState('');
-
-  const [contenido, setContenido] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  // --------------------------------------------------
-  // Cargar conversaciones
-  // --------------------------------------------------
+  // ============================
+  // CARGAR CONVERSACIONES
+  // ============================
 
   useEffect(() => {
-    const cargarConversaciones = async () => {
-      try {
-        setCargando(true);
-        setError('');
-
-        const data = await getConversaciones();
-
-        console.log('Conversaciones:', data);
-
-        setConversaciones(data || []);
-      } catch (err) {
-        console.error('Error al cargar conversaciones:', err);
-
-        setError(
-          err.message || 'No se pudieron cargar las conversaciones'
-        );
-      } finally {
-        setCargando(false);
-      }
-    };
-
     cargarConversaciones();
   }, []);
 
-  // --------------------------------------------------
-  // Abrir conversación
-  // --------------------------------------------------
+  const cargarConversaciones = async () => {
+    try {
+      setCargandoConversaciones(true);
+      setError('');
+
+      const data = await getConversaciones();
+
+      console.log('Conversaciones:', data);
+
+      setConversaciones(data || []);
+
+    } catch (err) {
+      console.error('Error al cargar conversaciones:', err);
+
+      setError(
+        err.message || 'No se pudieron cargar las conversaciones'
+      );
+    } finally {
+      setCargandoConversaciones(false);
+    }
+  };
+
+  // ============================
+  // ABRIR CONVERSACIÓN
+  // ============================
 
   const abrirConversacion = async (conversacion) => {
     try {
       setConversacionSeleccionada(conversacion);
       setCargandoMensajes(true);
-      setErrorMensajes('');
-      setMensajes([]);
+      setError('');
 
       const data = await getMensajesConversacion(
         conversacion.Conversacion_Id
       );
 
-      console.log('Mensajes de la conversación:', data);
+      console.log('Mensajes:', data);
 
       setMensajes(data?.mensajes || []);
 
-      // Intentamos marcar como leídos.
-      // Si es administrador, el backend simplemente
-      // devuelve actualizados = 0.
+      // Marcar mensajes recibidos como leídos
       try {
         await marcarMensajesLeidos(
           conversacion.Conversacion_Id
         );
-      } catch (errorLeidos) {
-        console.warn(
-          'No se pudieron marcar los mensajes como leídos:',
-          errorLeidos
+      } catch (errorLectura) {
+        console.error(
+          'Error al marcar mensajes como leídos:',
+          errorLectura
         );
       }
 
     } catch (err) {
       console.error('Error al cargar mensajes:', err);
 
-      setErrorMensajes(
+      setError(
         err.message || 'No se pudieron cargar los mensajes'
       );
     } finally {
@@ -93,36 +89,33 @@ function Mensajes() {
     }
   };
 
-  // --------------------------------------------------
-  // Enviar mensaje
-  // --------------------------------------------------
+  // ============================
+  // ENVIAR MENSAJE
+  // ============================
 
   const handleEnviarMensaje = async (e) => {
     e.preventDefault();
+
+    if (!nuevoMensaje.trim()) {
+      return;
+    }
 
     if (!conversacionSeleccionada) {
       return;
     }
 
-    const texto = contenido.trim();
-
-    if (!texto) {
-      return;
-    }
-
     try {
       setEnviando(true);
-      setErrorMensajes('');
+      setError('');
 
       await enviarMensaje(
         conversacionSeleccionada.Conversacion_Id,
-        texto
+        nuevoMensaje.trim()
       );
 
-      setContenido('');
+      setNuevoMensaje('');
 
-      // Volvemos a cargar los mensajes para mostrar
-      // inmediatamente el mensaje recién enviado.
+      // Volver a cargar los mensajes
       const data = await getMensajesConversacion(
         conversacionSeleccionada.Conversacion_Id
       );
@@ -132,7 +125,7 @@ function Mensajes() {
     } catch (err) {
       console.error('Error al enviar mensaje:', err);
 
-      setErrorMensajes(
+      setError(
         err.message || 'No se pudo enviar el mensaje'
       );
     } finally {
@@ -140,281 +133,307 @@ function Mensajes() {
     }
   };
 
-  // --------------------------------------------------
-  // Volver a la lista
-  // --------------------------------------------------
+  // ============================
+  // VOLVER A CONVERSACIONES
+  // ============================
 
-  const cerrarConversacion = () => {
+  const volverConversaciones = () => {
     setConversacionSeleccionada(null);
     setMensajes([]);
-    setContenido('');
-    setErrorMensajes('');
+    setNuevoMensaje('');
+    setError('');
   };
 
-  // --------------------------------------------------
-  // Render
-  // --------------------------------------------------
+  // ============================
+  // RENDER
+  // ============================
 
   return (
     <div className="page-container">
 
-      <h1>
-        Mensajes
-      </h1>
-
-      {cargando && (
-        <p>
-          Cargando conversaciones...
-        </p>
-      )}
+      <h1>Mensajes</h1>
 
       {error && (
-        <p>
+        <div
+          style={{
+            background: '#ffe5e5',
+            color: '#b00020',
+            padding: '12px',
+            borderRadius: '8px',
+            marginBottom: '20px'
+          }}
+        >
           Error: {error}
-        </p>
+        </div>
       )}
 
-      {!cargando && !error && (
+      {/* ============================
+          LISTA DE CONVERSACIONES
+      ============================ */}
+
+      {!conversacionSeleccionada && (
         <>
-          {!conversacionSeleccionada ? (
-            <>
-              {conversaciones.length === 0 ? (
-                <p>
-                  No hay conversaciones disponibles.
-                </p>
-              ) : (
-                <div>
-                  {conversaciones.map((conversacion) => (
-                    <div
-                      key={conversacion.Conversacion_Id}
-                      onClick={() =>
-                        abrirConversacion(conversacion)
-                      }
-                      style={{
-                        border: '1px solid #ddd',
-                        padding: '15px',
-                        marginBottom: '10px',
-                        borderRadius: '8px',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <h3>
-                        Conversación #{conversacion.Conversacion_Id}
-                      </h3>
+          {cargandoConversaciones && (
+            <p>Cargando conversaciones...</p>
+          )}
 
-                      <p>
-                        <strong>Docente:</strong>{' '}
-                        {conversacion.Docente_Nombre ||
-                          'Sin nombre'}
-                      </p>
+          {!cargandoConversaciones &&
+            conversaciones.length === 0 && (
+              <p>
+                No hay conversaciones disponibles.
+              </p>
+            )}
 
-                      <p>
-                        <strong>Apoderado:</strong>{' '}
-                        {conversacion.Apoderado_Nombre ||
-                          'Sin nombre'}
-                      </p>
-
-                      <p>
-                        <strong>Estado:</strong>{' '}
-                        {conversacion.Conversacion_Estado
-                          ? 'Activa'
-                          : 'Inactiva'}
-                      </p>
-
-                      {conversacion.Ultimo_Mensaje && (
-                        <p>
-                          <strong>Último mensaje:</strong>{' '}
-                          {conversacion.Ultimo_Mensaje}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div>
-
-              {/* -------------------------------------- */}
-              {/* Cabecera conversación                   */}
-              {/* -------------------------------------- */}
-
+          {!cargandoConversaciones &&
+            conversaciones.length > 0 && (
               <div
                 style={{
-                  borderBottom: '1px solid #ddd',
-                  paddingBottom: '15px',
-                  marginBottom: '15px'
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
                 }}
               >
-
-                <button
-                  type="button"
-                  onClick={cerrarConversacion}
-                  style={{
-                    marginBottom: '15px',
-                    padding: '8px 12px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  ← Volver a conversaciones
-                </button>
-
-                <h2>
-                  Conversación #
-                  {conversacionSeleccionada.Conversacion_Id}
-                </h2>
-
-                <p>
-                  <strong>Docente:</strong>{' '}
-                  {conversacionSeleccionada.Docente_Nombre ||
-                    'Sin nombre'}
-                </p>
-
-                <p>
-                  <strong>Apoderado:</strong>{' '}
-                  {conversacionSeleccionada.Apoderado_Nombre ||
-                    'Sin nombre'}
-                </p>
-
-                <p>
-                  <strong>Estado:</strong>{' '}
-                  {conversacionSeleccionada.Conversacion_Estado
-                    ? 'Activa'
-                    : 'Inactiva'}
-                </p>
-
-              </div>
-
-              {/* -------------------------------------- */}
-              {/* Error de mensajes                       */}
-              {/* -------------------------------------- */}
-
-              {errorMensajes && (
-                <p>
-                  Error: {errorMensajes}
-                </p>
-              )}
-
-              {/* -------------------------------------- */}
-              {/* Cargando mensajes                       */}
-              {/* -------------------------------------- */}
-
-              {cargandoMensajes && (
-                <p>
-                  Cargando mensajes...
-                </p>
-              )}
-
-              {/* -------------------------------------- */}
-              {/* Lista de mensajes                      */}
-              {/* -------------------------------------- */}
-
-              {!cargandoMensajes && (
-                <div
-                  style={{
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    marginBottom: '15px',
-                    minHeight: '250px'
-                  }}
-                >
-
-                  {mensajes.length === 0 ? (
-                    <p>
-                      No hay mensajes en esta conversación.
-                    </p>
-                  ) : (
-                    mensajes.map((mensaje) => (
-                      <div
-                        key={mensaje.Mensaje_Id}
-                        style={{
-                          marginBottom: '12px',
-                          padding: '10px',
-                          border: '1px solid #eee',
-                          borderRadius: '8px'
-                        }}
-                      >
-
-                        <p>
-                          <strong>
-                            {mensaje.Mensaje_Remitente_Rol ||
-                              'Usuario'}
-                          </strong>
-                        </p>
-
-                        <p>
-                          {mensaje.Mensaje_Contenido}
-                        </p>
-
-                        <small>
-                          {mensaje.Mensaje_Fecha_Envio}{' '}
-                          {mensaje.Mensaje_Hora_Envio}
-                        </small>
-
-                      </div>
-                    ))
-                  )}
-
-                </div>
-              )}
-
-              {/* -------------------------------------- */}
-              {/* Formulario para enviar                  */}
-              {/* -------------------------------------- */}
-
-              {conversacionSeleccionada.Conversacion_Estado ? (
-                <form onSubmit={handleEnviarMensaje}>
-
-                  <textarea
-                    value={contenido}
-                    onChange={(e) =>
-                      setContenido(e.target.value)
-                    }
-                    placeholder="Escribe un mensaje..."
-                    maxLength={5000}
-                    rows={4}
-                    style={{
-                      width: '100%',
-                      resize: 'vertical',
-                      padding: '10px',
-                      boxSizing: 'border-box',
-                      marginBottom: '10px'
-                    }}
-                    disabled={enviando}
-                  />
-
+                {conversaciones.map((conversacion) => (
                   <button
-                    type="submit"
-                    disabled={
-                      enviando ||
-                      !contenido.trim()
+                    key={conversacion.Conversacion_Id}
+                    onClick={() =>
+                      abrirConversacion(conversacion)
                     }
                     style={{
-                      padding: '10px 16px',
-                      cursor:
-                        enviando ||
-                        !contenido.trim()
-                          ? 'not-allowed'
-                          : 'pointer'
+                      textAlign: 'left',
+                      background: 'white',
+                      border: '1px solid #ddd',
+                      borderRadius: '10px',
+                      padding: '16px',
+                      cursor: 'pointer'
                     }}
                   >
-                    {enviando
-                      ? 'Enviando...'
-                      : 'Enviar mensaje'}
-                  </button>
 
-                </form>
-              ) : (
-                <p>
-                  Esta conversación está cerrada y no permite
-                  enviar nuevos mensajes.
+                    <div
+                      style={{
+                        fontWeight: 'bold',
+                        fontSize: '16px',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Conversación #
+                      {conversacion.Conversacion_Id}
+                    </div>
+
+                    <div>
+                      Docente:{' '}
+                      {conversacion.Docente_Nombre ||
+                        'Sin nombre'}
+                    </div>
+
+                    <div>
+                      Apoderado:{' '}
+                      {conversacion.Apoderado_Nombre ||
+                        'Sin nombre'}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        fontSize: '14px',
+                        color: '#666'
+                      }}
+                    >
+                      {conversacion.Ultimo_Mensaje
+                        ? conversacion.Ultimo_Mensaje
+                        : 'Sin mensajes todavía'}
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        fontSize: '13px'
+                      }}
+                    >
+                      Estado:{' '}
+                      {conversacion.Conversacion_Estado
+                        ? 'Activa'
+                        : 'Inactiva'}
+                    </div>
+
+                  </button>
+                ))}
+              </div>
+            )}
+        </>
+      )}
+
+      {/* ============================
+          CONVERSACIÓN ABIERTA
+      ============================ */}
+
+      {conversacionSeleccionada && (
+        <div>
+
+          {/* CABECERA */}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '15px',
+              marginBottom: '20px'
+            }}
+          >
+
+            <button
+              onClick={volverConversaciones}
+              style={{
+                padding: '8px 14px',
+                cursor: 'pointer'
+              }}
+            >
+              ← Volver
+            </button>
+
+            <div>
+              <h2 style={{ margin: 0 }}>
+                Conversación #
+                {conversacionSeleccionada.Conversacion_Id}
+              </h2>
+
+              <p
+                style={{
+                  margin: '5px 0',
+                  color: '#666'
+                }}
+              >
+                {conversacionSeleccionada.Docente_Nombre}
+                {' ↔ '}
+                {conversacionSeleccionada.Apoderado_Nombre}
+              </p>
+            </div>
+
+          </div>
+
+          {/* MENSAJES */}
+
+          <div
+            style={{
+              border: '1px solid #ddd',
+              borderRadius: '10px',
+              padding: '20px',
+              minHeight: '350px',
+              maxHeight: '500px',
+              overflowY: 'auto',
+              background: '#f7f7f7'
+            }}
+          >
+
+            {cargandoMensajes && (
+              <p>Cargando mensajes...</p>
+            )}
+
+            {!cargandoMensajes &&
+              mensajes.length === 0 && (
+                <p
+                  style={{
+                    textAlign: 'center',
+                    color: '#777'
+                  }}
+                >
+                  No hay mensajes todavía.
                 </p>
               )}
 
-            </div>
+            {!cargandoMensajes &&
+              mensajes.map((mensaje) => (
+                <div
+                  key={mensaje.Mensaje_Id}
+                  style={{
+                    marginBottom: '12px',
+                    padding: '12px',
+                    background: 'white',
+                    borderRadius: '8px'
+                  }}
+                >
+
+                  <div
+                    style={{
+                      fontWeight: 'bold',
+                      marginBottom: '5px'
+                    }}
+                  >
+                    {mensaje.Mensaje_Remitente_Rol}
+                  </div>
+
+                  <div>
+                    {mensaje.Mensaje_Contenido}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '12px',
+                      color: '#888',
+                      marginTop: '6px'
+                    }}
+                  >
+                    {mensaje.Mensaje_Fecha_Envio}{' '}
+                    {mensaje.Mensaje_Hora_Envio}
+                  </div>
+
+                </div>
+              ))}
+
+          </div>
+
+          {/* FORMULARIO ENVIAR */}
+
+          {conversacionSeleccionada.Conversacion_Estado ? (
+            <form
+              onSubmit={handleEnviarMensaje}
+              style={{
+                display: 'flex',
+                gap: '10px',
+                marginTop: '15px'
+              }}
+            >
+
+              <input
+                type="text"
+                value={nuevoMensaje}
+                onChange={(e) =>
+                  setNuevoMensaje(e.target.value)
+                }
+                placeholder="Escribe un mensaje..."
+                maxLength={5000}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #ccc',
+                  borderRadius: '8px'
+                }}
+              />
+
+              <button
+                type="submit"
+                disabled={enviando || !nuevoMensaje.trim()}
+                style={{
+                  padding: '12px 20px',
+                  cursor: 'pointer'
+                }}
+              >
+                {enviando ? 'Enviando...' : 'Enviar'}
+              </button>
+
+            </form>
+          ) : (
+            <p
+              style={{
+                marginTop: '15px',
+                color: '#777'
+              }}
+            >
+              Esta conversación está cerrada.
+            </p>
           )}
-        </>
+
+        </div>
       )}
 
     </div>
