@@ -6,18 +6,26 @@ const pool = require('../config/db');
  * Un usuario puede participar como:
  * - Docente
  * - Apoderado
+ *
+ * Un Administrador puede visualizar todas las conversaciones.
  */
 const obtenerConversaciones = async (req, res) => {
   const usuarioId = req.user.id;
   const roles = req.user.roles || [];
 
   try {
-    let columnaUsuario;
+    let where = '';
+    let parametros = [];
 
-    if (roles.includes('Docente')) {
-      columnaUsuario = 'c.Docente_Usuario_Id';
+    if (roles.includes('Administrador')) {
+      // El administrador puede visualizar todas las conversaciones.
+      where = '';
+    } else if (roles.includes('Docente')) {
+      where = 'WHERE c.Docente_Usuario_Id = ?';
+      parametros = [usuarioId];
     } else if (roles.includes('Apoderado')) {
-      columnaUsuario = 'c.Apoderado_Usuario_Id';
+      where = 'WHERE c.Apoderado_Usuario_Id = ?';
+      parametros = [usuarioId];
     } else {
       return res.status(403).json({
         mensaje: 'No tienes permisos para acceder a los mensajes'
@@ -65,11 +73,11 @@ const obtenerConversaciones = async (req, res) => {
       INNER JOIN usuario apoderado
         ON apoderado.Usuario_Id = c.Apoderado_Usuario_Id
 
-      WHERE ${columnaUsuario} = ?
+      ${where}
 
       ORDER BY c.Conversacion_Id DESC
       `,
-      [usuarioId]
+      parametros
     );
 
     return res.json(rows);
@@ -89,6 +97,9 @@ const obtenerConversaciones = async (req, res) => {
  */
 const obtenerMensajes = async (req, res) => {
   const usuarioId = req.user.id;
+  const roles = req.user.roles || [];
+  const esAdministrador = roles.includes('Administrador');
+
   const conversacionId = Number(req.params.id);
 
   if (!Number.isInteger(conversacionId) || conversacionId <= 0) {
@@ -98,8 +109,24 @@ const obtenerMensajes = async (req, res) => {
   }
 
   try {
-    // Primero verificamos que la conversación pertenezca
-    // al usuario autenticado.
+    let whereAcceso = `
+      AND (
+        Docente_Usuario_Id = ?
+        OR Apoderado_Usuario_Id = ?
+      )
+    `;
+
+    let parametros = [
+      conversacionId,
+      usuarioId,
+      usuarioId
+    ];
+
+    if (esAdministrador) {
+      whereAcceso = '';
+      parametros = [conversacionId];
+    }
+
     const [conversaciones] = await pool.query(
       `
       SELECT
@@ -109,13 +136,10 @@ const obtenerMensajes = async (req, res) => {
         Conversacion_Estado
       FROM conversacion
       WHERE Conversacion_Id = ?
-        AND (
-          Docente_Usuario_Id = ?
-          OR Apoderado_Usuario_Id = ?
-        )
+      ${whereAcceso}
       LIMIT 1
       `,
-      [conversacionId, usuarioId, usuarioId]
+      parametros
     );
 
     if (conversaciones.length === 0) {
@@ -175,12 +199,15 @@ const obtenerMensajes = async (req, res) => {
 
 /**
  * Envía un mensaje dentro de una conversación.
+ *
+ * Solo Docentes y Apoderados pueden enviar mensajes.
  */
 const enviarMensaje = async (req, res) => {
   const usuarioId = req.user.id;
   const roles = req.user.roles || [];
 
   const conversacionId = Number(req.params.id);
+
   const contenido = typeof req.body.contenido === 'string'
     ? req.body.contenido.trim()
     : '';
@@ -216,7 +243,6 @@ const enviarMensaje = async (req, res) => {
   }
 
   try {
-    // Verificar que el usuario pertenezca a la conversación.
     const [conversaciones] = await pool.query(
       `
       SELECT
@@ -243,9 +269,6 @@ const enviarMensaje = async (req, res) => {
 
     const conversacion = conversaciones[0];
 
-    // Evitamos que un usuario con rol Docente
-    // escriba usando una conversación de Apoderado,
-    // o viceversa.
     if (
       rolRemitente === 'Docente' &&
       conversacion.Docente_Usuario_Id !== usuarioId
@@ -273,7 +296,6 @@ const enviarMensaje = async (req, res) => {
     const ahora = new Date();
 
     const fecha = ahora.toISOString().slice(0, 10);
-
     const hora = ahora.toTimeString().slice(0, 8);
 
     const [resultado] = await pool.query(
@@ -318,6 +340,9 @@ const enviarMensaje = async (req, res) => {
  */
 const marcarMensajesLeidos = async (req, res) => {
   const usuarioId = req.user.id;
+  const roles = req.user.roles || [];
+  const esAdministrador = roles.includes('Administrador');
+
   const conversacionId = Number(req.params.id);
 
   if (!Number.isInteger(conversacionId) || conversacionId <= 0) {
@@ -327,6 +352,24 @@ const marcarMensajesLeidos = async (req, res) => {
   }
 
   try {
+    let whereAcceso = `
+      AND (
+        Docente_Usuario_Id = ?
+        OR Apoderado_Usuario_Id = ?
+      )
+    `;
+
+    let parametros = [
+      conversacionId,
+      usuarioId,
+      usuarioId
+    ];
+
+    if (esAdministrador) {
+      whereAcceso = '';
+      parametros = [conversacionId];
+    }
+
     const [conversaciones] = await pool.query(
       `
       SELECT
@@ -335,13 +378,10 @@ const marcarMensajesLeidos = async (req, res) => {
         Apoderado_Usuario_Id
       FROM conversacion
       WHERE Conversacion_Id = ?
-        AND (
-          Docente_Usuario_Id = ?
-          OR Apoderado_Usuario_Id = ?
-        )
+      ${whereAcceso}
       LIMIT 1
       `,
-      [conversacionId, usuarioId, usuarioId]
+      parametros
     );
 
     if (conversaciones.length === 0) {
@@ -351,6 +391,15 @@ const marcarMensajesLeidos = async (req, res) => {
     }
 
     const conversacion = conversaciones[0];
+
+    // Un administrador puede visualizar conversaciones,
+    // pero no tiene un rol de remitente dentro de ellas.
+    if (esAdministrador) {
+      return res.json({
+        mensaje: 'Los mensajes pueden ser visualizados por el administrador',
+        actualizados: 0
+      });
+    }
 
     let rolUsuario;
 
