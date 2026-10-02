@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getConversaciones } from '../services/api';
+import { getConversaciones } from '../../services/api';
 
 function Mensajes() {
   const [conversaciones, setConversaciones] = useState([]);
