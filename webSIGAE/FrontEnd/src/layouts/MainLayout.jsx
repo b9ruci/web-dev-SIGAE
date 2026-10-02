@@ -22,7 +22,10 @@ function MainLayout() {
 
   const rolEfectivo = rolActivo || usuario?.roles?.[0];
   const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
-  const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
+  const esAdmin =
+    rolEfectivo === "Administrador" ||
+    esSuperAdmin ||
+    usuario?.roles?.includes("Administrador");
   const esDocente = rolEfectivo === "Docente";
   const esApoderado = rolEfectivo === "Apoderado";
 
@@ -43,16 +46,28 @@ function MainLayout() {
         >
           ☰
         </button>
-        <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="mobile-topbar-logo" />
+
+        <img
+          src="/logo-colegio.png"
+          alt="Logo Colegio Jacques Cousteau"
+          className="mobile-topbar-logo"
+        />
       </header>
 
       {/* Fondo oscuro al abrir la sidebar en móvil */}
       {sidebarMovilAbierta && (
-        <div className="sidebar-overlay" onClick={() => setSidebarMovilAbierta(false)} />
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarMovilAbierta(false)}
+        />
       )}
 
       {/* SIDEBAR */}
-      <aside className={`sidebar ${sidebarMovilAbierta ? "sidebar-abierta" : ""}`}>
+      <aside
+        className={`sidebar ${
+          sidebarMovilAbierta ? "sidebar-abierta" : ""
+        }`}
+      >
         <button
           className="sidebar-close"
           onClick={() => setSidebarMovilAbierta(false)}
@@ -60,17 +75,27 @@ function MainLayout() {
         >
           ✕
         </button>
+
         <div>
           <div className="logo-row">
-            <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="sidebar-logo-img" />
+            <img
+              src="/logo-colegio.png"
+              alt="Logo Colegio Jacques Cousteau"
+              className="sidebar-logo-img"
+            />
           </div>
 
           {usuario && (
             <div className="sidebar-user-info">
               <div className="nombre">
-                {usuario.nombre || usuario.Usuario_Nombre_Completo || "Usuario"}
+                {usuario.nombre ||
+                  usuario.Usuario_Nombre_Completo ||
+                  "Usuario"}
               </div>
-              <div className="rol-badge">{rolEfectivo || "Usuario"}</div>
+
+              <div className="rol-badge">
+                {rolEfectivo || "Usuario"}
+              </div>
             </div>
           )}
 
@@ -89,16 +114,45 @@ function MainLayout() {
                     onClick={() => setGestionAbierto(!gestionAbierto)}
                   >
                     Gestión Usuarios
-                    <span className={`dropdown-arrow ${gestionAbierto ? 'open' : ''}`}>▾</span>
+
+                    <span
+                      className={`dropdown-arrow ${
+                        gestionAbierto ? "open" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
                   </button>
+
                   {gestionAbierto && (
                     <div className="submenu">
-                      <Link to="/usuarios">Gestión de Usuarios</Link>
-                      <Link to="/buscar-usuarios">Buscar Usuarios</Link>
-                      {esSuperAdmin && <Link to="/administradores">Gestión de Administradores</Link>}
-                      {esSuperAdmin && <Link to="/gestion-roles">Gestión de Roles</Link>}
-                      <Link to="/docentes">Gestión de Docentes</Link>
-                      <Link to="/apoderados">Gestión de Apoderados</Link>
+                      <Link to="/usuarios">
+                        Gestión de Usuarios
+                      </Link>
+
+                      <Link to="/buscar-usuarios">
+                        Buscar Usuarios
+                      </Link>
+
+                      {esSuperAdmin && (
+                        <Link to="/administradores">
+                          Gestión de Administradores
+                        </Link>
+                      )}
+
+                      {esSuperAdmin && (
+                        <Link to="/gestion-roles">
+                          Gestión de Roles
+                        </Link>
+                      )}
+
+                      <Link to="/docentes">
+                        Gestión de Docentes
+                      </Link>
+
+                      <Link to="/apoderados">
+                        Gestión de Apoderados
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -107,17 +161,36 @@ function MainLayout() {
                 <div className="menu-item-dropdown">
                   <button
                     className="dropdown-toggle"
-                    onClick={() => setRegistrarAbierto(!registrarAbierto)}
+                    onClick={() =>
+                      setRegistrarAbierto(!registrarAbierto)
+                    }
                   >
                     Registrar Usuario
-                    <span className={`dropdown-arrow ${registrarAbierto ? 'open' : ''}`}>▾</span>
+
+                    <span
+                      className={`dropdown-arrow ${
+                        registrarAbierto ? "open" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
                   </button>
+
                   {registrarAbierto && (
                     <div className="submenu">
-                      {esSuperAdmin && <Link to="/registrar-admin">Registrar Admin</Link>}
-                      <Link to="/registrar-docente">Registrar Docente</Link>
-                      <Link to="/registrar-apoderado">Registrar Apoderado</Link>
-                      
+                      {esSuperAdmin && (
+                        <Link to="/registrar-admin">
+                          Registrar Admin
+                        </Link>
+                      )}
+
+                      <Link to="/registrar-docente">
+                        Registrar Docente
+                      </Link>
+
+                      <Link to="/registrar-apoderado">
+                        Registrar Apoderado
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -126,57 +199,143 @@ function MainLayout() {
                 <div className="menu-item-dropdown">
                   <button
                     className="dropdown-toggle"
-                    onClick={() => setGestionAcademicaAbierto(!gestionAcademicaAbierto)}
+                    onClick={() =>
+                      setGestionAcademicaAbierto(
+                        !gestionAcademicaAbierto
+                      )
+                    }
                   >
                     Gestión Académica
-                    <span className={`dropdown-arrow ${gestionAcademicaAbierto ? 'open' : ''}`}>▾</span>
+
+                    <span
+                      className={`dropdown-arrow ${
+                        gestionAcademicaAbierto ? "open" : ""
+                      }`}
+                    >
+                      ▾
+                    </span>
                   </button>
+
                   {gestionAcademicaAbierto && (
                     <div className="submenu">
-                      <Link to="/plan-educativo">Plan Educativo</Link>
-                      <Link to="/asignaturas">Asignaturas</Link>
-                      <Link to="/cursos">Cursos</Link>
-                      <Link to="/estudiantes">Estudiantes</Link>
-                      <Link to="/horarios">Horarios</Link>
-                      <Link to="/mi-horario">Horario de Docente</Link>
-                      <Link to="/horario-maestro">Horario Maestro</Link>
-                      <Link to="/bloques-horarios">Bloques Horarios</Link>
-                      <Link to="/registrar-estudiante">Registrar Estudiante</Link>
+                      <Link to="/plan-educativo">
+                        Plan Educativo
+                      </Link>
+
+                      <Link to="/asignaturas">
+                        Asignaturas
+                      </Link>
+
+                      <Link to="/cursos">
+                        Cursos
+                      </Link>
+
+                      <Link to="/estudiantes">
+                        Estudiantes
+                      </Link>
+
+                      <Link to="/horarios">
+                        Horarios
+                      </Link>
+
+                      <Link to="/mi-horario">
+                        Horario de Docente
+                      </Link>
+
+                      <Link to="/horario-maestro">
+                        Horario Maestro
+                      </Link>
+
+                      <Link to="/bloques-horarios">
+                        Bloques Horarios
+                      </Link>
+
+                      <Link to="/registrar-estudiante">
+                        Registrar Estudiante
+                      </Link>
                     </div>
                   )}
                 </div>
 
                 <Link to="/citaciones">Citaciones</Link>
-                <Link to="/citaciones/historial">Historial de Citaciones</Link>
-                <Link to="/reportes">Reportes</Link>
+
+                <Link to="/citaciones/historial">
+                  Historial de Citaciones
+                </Link>
+
+                {/* MENSAJES */}
+                <Link to="/mensajes">
+                  Mensajes
+                </Link>
+
+                <Link to="/reportes">
+                  Reportes
+                </Link>
               </>
             )}
 
             {esDocente && (
               <>
-                <span className="menu-section">Docente</span>
-                <Link to="/plan-educativo">Plan Educativo</Link>
-                <Link to="/cursos">Mis Cursos</Link>
-                <Link to="/estudiantes">Estudiantes</Link>
-                <Link to="/mi-horario">Mi Horario</Link>
-                <Link to="/citaciones">Citaciones</Link>
-                <Link to="/citaciones/historial">Historial de Citaciones</Link>
-                <Link to="/mensajes">Mensajes</Link>
+                <span className="menu-section">
+                  Docente
+                </span>
+
+                <Link to="/plan-educativo">
+                  Plan Educativo
+                </Link>
+
+                <Link to="/cursos">
+                  Mis Cursos
+                </Link>
+
+                <Link to="/estudiantes">
+                  Estudiantes
+                </Link>
+
+                <Link to="/mi-horario">
+                  Mi Horario
+                </Link>
+
+                <Link to="/citaciones">
+                  Citaciones
+                </Link>
+
+                <Link to="/citaciones/historial">
+                  Historial de Citaciones
+                </Link>
+
+                <Link to="/mensajes">
+                  Mensajes
+                </Link>
               </>
             )}
 
             {esApoderado && (
               <>
-                <span className="menu-section">Apoderado</span>
-                <Link to="/citaciones">Citaciones</Link>
-                <Link to="/citaciones/historial">Historial de Citaciones</Link>
-                <Link to="/mensajes">Mensajes</Link>
+                <span className="menu-section">
+                  Apoderado
+                </span>
+
+                <Link to="/citaciones">
+                  Citaciones
+                </Link>
+
+                <Link to="/citaciones/historial">
+                  Historial de Citaciones
+                </Link>
+
+                <Link to="/mensajes">
+                  Mensajes
+                </Link>
               </>
             )}
           </nav>
         </div>
 
-        <button className="logout-button" onClick={confirmarCierre}>
+        <button
+          className="logout-button"
+          onClick={confirmarCierre}
+        >
           Cerrar Sesión
         </button>
       </aside>
