@@ -484,10 +484,35 @@ export async function getHistorialCitaciones(estudianteId) {
   });
   return handleResponse(res);
 }
-// ── MENSAJES ─────────────────────────────────
+// ── MENSAJES (CU73) ──────────────────────────
 
-export async function getConversaciones() {
-  const res = await apiFetch(`${BASE_URL}/mensajes/conversaciones`);
+// Conversaciones del usuario según su rol activo (Docente | Apoderado)
+export async function getConversaciones(rol) {
+  const query = rol ? `?${new URLSearchParams({ rol })}` : '';
+  const res = await apiFetch(`${BASE_URL}/mensajes/conversaciones${query}`);
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
+// Contactos válidos según la relación docente-apoderado
+export async function getContactosMensajeria(rol) {
+  const query = rol ? `?${new URLSearchParams({ rol })}` : '';
+  const res = await apiFetch(`${BASE_URL}/mensajes/contactos${query}`);
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
+// Inicia una conversación con un contacto (o devuelve la que ya existe)
+export async function iniciarConversacion(contactoId, rol) {
+  const res = await apiFetch(`${BASE_URL}/mensajes/conversaciones`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ contactoId, rol }),
+  });
   if (!res) return null;
 
   return handleResponse(res);
@@ -532,5 +557,61 @@ export async function marcarMensajesLeidos(conversacionId) {
 
   if (!res) return null;
 
+  return handleResponse(res);
+}
+
+// ── CONSULTAS DE HORARIO (CU67, CU68, CU69) ──
+
+function queryHorario(filtros = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filtros).forEach(([clave, valor]) => {
+    if (valor !== undefined && valor !== null && valor !== '') params.set(clave, valor);
+  });
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
+// CU68: horarios que coinciden con los filtros (docente, curso, nivel, asignatura, jornada, día, estado)
+export async function filtrarHorarios(filtros) {
+  const res = await fetch(`${BASE_URL}/horarios/filtrar${queryHorario(filtros)}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// CU67: bloques libres (sin asignaciones activas) — Super Admin/Admin
+export async function getBloquesLibres(filtros) {
+  const res = await fetch(`${BASE_URL}/horarios/bloques-libres${queryHorario(filtros)}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// CU69: detalle de un bloque programado (Horario_Asignatura_Id)
+export async function getDetalleBloqueHorario(horarioId) {
+  const res = await fetch(`${BASE_URL}/horarios/bloque-detalle/${horarioId}`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// Datos de apoyo para los criterios de filtrado
+export async function getCursosHorario() {
+  const res = await fetch(`${BASE_URL}/horarios/cursos`, { headers: authHeaders() });
+  return handleResponse(res);
+}
+
+export async function getAsignaturasHorario() {
+  const res = await fetch(`${BASE_URL}/horarios/asignaturas`, { headers: authHeaders() });
+  return handleResponse(res);
+}
+
+export async function getBloquesInstitucionales() {
+  const res = await fetch(`${BASE_URL}/horarios/bloques`, { headers: authHeaders() });
+  return handleResponse(res);
+}
+
+export async function getNivelesEducativos() {
+  const res = await fetch(`${BASE_URL}/cursos/niveles`, { headers: authHeaders() });
   return handleResponse(res);
 }
