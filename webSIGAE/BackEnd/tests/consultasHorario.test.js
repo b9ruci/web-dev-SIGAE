@@ -42,21 +42,65 @@ describe('Pruebas Unitarias - CU67, CU68, CU69: Consultas y filtros de horario',
   });
 
   // ── CU67 ──
+  // 2026-10-05 es lunes
   test('CU67: sin curso ni docente considera las asignaciones de toda la institución', async () => {
     pool.execute
       .mockResolvedValueOnce([[{ bloqueId: 1, tipo: 'Clase' }, { bloqueId: 2, tipo: 'Clase' }]])
-      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 1, Horario_Asignatura_Dia_Semana: 'Lunes' }]]);
-    req.query = { dia_semana: 'Lunes' };
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 1, Horario_Asignatura_Dia_Semana: 'Lunes' }]])
+      .mockResolvedValueOnce([[]]);
+    req.query = { fecha: '2026-10-05' };
 
     await horarioController.getBloquesLibres(req, res);
 
     expect(pool.execute.mock.calls[1][0]).not.toContain('Curso_Id = ?');
-    expect(res.json).toHaveBeenCalledWith([{ dia: 'Lunes', bloqueId: 2, tipo: 'Clase' }]);
+    expect(res.json).toHaveBeenCalledWith([{ dia: 'Lunes', fecha: '2026-10-05', bloqueId: 2, tipo: 'Clase' }]);
+  });
+
+  test('CU67: un bloque con una actividad institucional en la fecha evaluada no está libre', async () => {
+    pool.execute
+      .mockResolvedValueOnce([[{ bloqueId: 1, tipo: 'Clase' }, { bloqueId: 2, tipo: 'Clase' }]])
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 1, fecha: '2026-10-05', evento: 'Acto' }]]);
+    req.query = { fecha: '2026-10-05' };
+
+    await horarioController.getBloquesLibres(req, res);
+
+    const [sql, params] = pool.execute.mock.calls[2];
+    expect(sql).toContain('FROM afecta af');
+    expect(params).toEqual(['2026-10-05']);
+    expect(res.json).toHaveBeenCalledWith([{ dia: 'Lunes', fecha: '2026-10-05', bloqueId: 2, tipo: 'Clase' }]);
+  });
+
+  test('CU67: sin fecha evalúa la próxima ocurrencia de cada día hábil', async () => {
+    pool.execute
+      .mockResolvedValueOnce([[{ bloqueId: 1, tipo: 'Clase' }]])
+      .mockResolvedValueOnce([[]])
+      .mockResolvedValueOnce([[]]);
+
+    await horarioController.getBloquesLibres(req, res);
+
+    const fechas = pool.execute.mock.calls[2][1];
+    expect(fechas).toHaveLength(5);
+    const respuesta = res.json.mock.calls[0][0];
+    expect(respuesta.map((b) => b.dia)).toEqual(['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes']);
+    respuesta.forEach((b) => expect(fechas).toContain(b.fecha));
+  });
+
+  test('CU67: una fecha de fin de semana o con formato inválido responde 400', async () => {
+    req.query = { fecha: '2026-10-04' }; // domingo
+    await horarioController.getBloquesLibres(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+
+    req.query = { fecha: '2026-02-30' };
+    await horarioController.getBloquesLibres(req, res);
+    expect(res.status).toHaveBeenCalledTimes(2);
+    expect(pool.execute).not.toHaveBeenCalled();
   });
 
   test('CU67: con curso y docente, un bloque usado por cualquiera de los dos queda ocupado', async () => {
     pool.execute
       .mockResolvedValueOnce([[{ bloqueId: 1, tipo: 'Clase' }]])
+      .mockResolvedValueOnce([[]])
       .mockResolvedValueOnce([[]]);
     req.query = { curso_id: '222', docente_id: '3' };
 
@@ -70,7 +114,8 @@ describe('Pruebas Unitarias - CU67, CU68, CU69: Consultas y filtros de horario',
   test('CU67 Excepción 1: sin bloques libres responde con mensaje informativo', async () => {
     pool.execute
       .mockResolvedValueOnce([[{ bloqueId: 1, tipo: 'Clase' }]])
-      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 1, Horario_Asignatura_Dia_Semana: 'Lunes' }]]);
+      .mockResolvedValueOnce([[{ Bloque_Horario_Id: 1, Horario_Asignatura_Dia_Semana: 'Lunes' }]])
+      .mockResolvedValueOnce([[]]);
     req.query = { curso_id: '222', dia_semana: 'Lunes' };
 
     await horarioController.getBloquesLibres(req, res);

@@ -23,10 +23,15 @@ const FILTROS_VACIOS = {
   estado: "Activo",
 };
 
-const LIBRES_VACIOS = { curso_id: "", docente_id: "", dia_semana: "", jornada: "" };
+const LIBRES_VACIOS = { curso_id: "", docente_id: "", dia_semana: "", jornada: "", fecha: "" };
 
 function hhmm(t) {
   return t ? String(t).slice(0, 5) : "";
+}
+
+// "2026-10-05" → "05-10-2026"
+function fechaLegible(f) {
+  return f ? f.split("-").reverse().join("-") : "";
 }
 
 // Criterios en grilla compacta: varias columnas en escritorio, una en móvil
@@ -168,7 +173,7 @@ function ConsultaHorarios() {
       if (!grupos.has(b.dia)) grupos.set(b.dia, []);
       grupos.get(b.dia).push(b);
     });
-    return DIAS.filter((d) => grupos.has(d)).map((d) => ({ dia: d, bloques: grupos.get(d) }));
+    return DIAS.filter((d) => grupos.has(d)).map((d) => ({ dia: d, fecha: grupos.get(d)[0].fecha, bloques: grupos.get(d) }));
   }, [bloquesLibres]);
 
   const estiloPestana = (activa) => ({
@@ -326,8 +331,20 @@ function ConsultaHorarios() {
           <form style={ESTILO_FORM} onSubmit={consultarLibres}>
             {selector("Curso", criteriosLibres.curso_id, cambiarCriterioLibre("curso_id"), opcionesCursos, "Toda la institución")}
             {selector("Docente", criteriosLibres.docente_id, cambiarCriterioLibre("docente_id"), opcionesDocentes, "Cualquier docente")}
-            {selector("Día", criteriosLibres.dia_semana, cambiarCriterioLibre("dia_semana"), opcionesDias, "Todos los días")}
+            {/* Con una fecha puntual, el día de la semana queda definido por ella */}
+            {criteriosLibres.fecha
+              ? <select className="usuarios-select" style={{ width: "100%" }} aria-label="Día" disabled><option>Día según la fecha</option></select>
+              : selector("Día", criteriosLibres.dia_semana, cambiarCriterioLibre("dia_semana"), opcionesDias, "Todos los días")}
             {selector("Jornada", criteriosLibres.jornada, cambiarCriterioLibre("jornada"), opcionesJornadas, "Todas las jornadas")}
+            <input
+              type="date"
+              className="usuarios-select"
+              style={{ width: "100%", boxSizing: "border-box" }}
+              aria-label="Fecha"
+              title="Fecha a evaluar (opcional)"
+              value={criteriosLibres.fecha}
+              onChange={cambiarCriterioLibre("fecha")}
+            />
             <button type="submit" className="btn-primary" disabled={consultandoLibres}>
               {consultandoLibres ? "Consultando..." : "Consultar disponibilidad"}
             </button>
@@ -335,7 +352,8 @@ function ConsultaHorarios() {
 
           <p style={{ color: "#64748b", fontSize: "0.85rem", marginTop: 0 }}>
             Un bloque está libre cuando no tiene asignaciones activas del curso o docente seleccionados
-            (o de ningún curso, si no se selecciona ninguno).
+            (o de ningún curso, si no se selecciona ninguno) ni actividades institucionales en la fecha
+            evaluada. Sin fecha, se evalúa la próxima ocurrencia de cada día.
           </p>
 
           {errorLibres && <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorLibres}</div>}
@@ -354,9 +372,14 @@ function ConsultaHorarios() {
                   </tr>
                 </thead>
                 <tbody>
-                  {libresPorDia.map(({ dia, bloques }) => (
+                  {libresPorDia.map(({ dia, fecha, bloques }) => (
                     <tr key={dia}>
-                      <td style={{ fontWeight: 600 }}>{dia}</td>
+                      <td style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {dia}
+                        {fecha && (
+                          <div style={{ fontWeight: 400, fontSize: "0.8rem", color: "#64748b" }}>{fechaLegible(fecha)}</div>
+                        )}
+                      </td>
                       <td>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem" }}>
                           {bloques.map((b) => (

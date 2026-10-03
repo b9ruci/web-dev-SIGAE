@@ -1078,12 +1078,53 @@ const filtrarHorarios = async (req, res) => {
   }
 };
 
+const DIAS_POR_INDICE = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function fechaISO(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Fecha (YYYY-MM-DD) en que se evalúa cada día hábil para CU67: la fecha indicada
+// por el actor o, por defecto, la próxima ocurrencia de cada día (hoy incluido).
+// Devuelve { error } si la fecha es inválida o no es un día hábil.
+function fechasAEvaluar(fecha, diaSemana) {
+  if (fecha) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { error: 'Formato de fecha inválido (use AAAA-MM-DD)' };
+    const [y, m, d] = fecha.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) {
+      return { error: 'Formato de fecha inválido (use AAAA-MM-DD)' };
+    }
+    const dia = DIAS_POR_INDICE[dt.getDay()];
+    if (!DIAS_SEMANA.includes(dia)) return { error: 'La fecha debe corresponder a un día hábil (lunes a viernes)' };
+    return { fechas: { [dia]: fecha } };
+  }
+
+  const fechas = {};
+  const hoy = new Date();
+  for (let i = 0; i < 7; i++) {
+    const dt = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + i);
+    const dia = DIAS_POR_INDICE[dt.getDay()];
+    if (DIAS_SEMANA.includes(dia) && (!diaSemana || diaSemana === dia)) fechas[dia] = fechaISO(dt);
+  }
+  return { fechas };
+}
+
 // ── GET /api/horarios/bloques-libres ── CU67 / RF43: Disponibilidad de bloques libres
+// Un bloque está libre si no tiene asignaciones activas de cursos o docentes en ese
+// día de la semana, ni actividades institucionales (eventos registrados en `afecta`)
+// en la fecha evaluada.
 const getBloquesLibres = async (req, res) => {
   try {
     // curso_id y docente_id son opcionales: sin ellos se consideran libres los
     // bloques sin ninguna asignación activa en toda la institución.
-    const { curso_id, docente_id, dia_semana, jornada } = req.query;
+    const { curso_id, docente_id, dia_semana, jornada, fecha } = req.query;
+
+    const { fechas, error } = fechasAEvaluar(fecha, dia_semana);
+    if (error) {
+      return res.status(400).json({ mensaje: error });
+    }
 
     let bloqueQuery = `
       SELECT
@@ -1105,10 +1146,8 @@ const getBloquesLibres = async (req, res) => {
 
     const [todosLosBloques] = await pool.execute(bloqueQuery, bloqueParams);
 
-    // Días a evaluar
-    const dias = dia_semana
-      ? [dia_semana]
-      : ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+    // Días a evaluar, en orden de lunes a viernes
+    const dias = DIAS_SEMANA.filter((d) => fechas[d]);
 
     // Consultar bloques ocupados
     let ocupadosQuery = `
@@ -1137,13 +1176,30 @@ const getBloquesLibres = async (req, res) => {
       ocupados.map(o => `${o.Horario_Asignatura_Dia_Semana}-${o.Bloque_Horario_Id}`)
     );
 
+    // Actividades institucionales: bloques afectados por eventos en las fechas evaluadas
+    const fechasEvaluadas = dias.map((d) => fechas[d]);
+    const eventosPorClave = new Map();
+    if (fechasEvaluadas.length > 0) {
+      const [afectados] = await pool.execute(
+        `SELECT af.Bloque_Horario_Id,
+                DATE_FORMAT(ei.Evento_Institucional_Fecha, '%Y-%m-%d') AS fecha,
+                ei.Evento_Institucional_Nombre AS evento
+         FROM afecta af
+         JOIN evento_institucional ei ON ei.Evento_Institucional_Id = af.Evento_Institucional_Id
+         WHERE ei.Evento_Institucional_Fecha IN (${fechasEvaluadas.map(() => '?').join(', ')})`,
+        fechasEvaluadas
+      );
+      afectados.forEach((a) => eventosPorClave.set(`${a.fecha}-${a.Bloque_Horario_Id}`, a.evento));
+    }
+
     const bloquesLibres = [];
     for (const dia of dias) {
       for (const bloque of todosLosBloques) {
         const key = `${dia}-${bloque.bloqueId}`;
-        if (!ocupadosSet.has(key)) {
+        if (!ocupadosSet.has(key) && !eventosPorClave.has(`${fechas[dia]}-${bloque.bloqueId}`)) {
           bloquesLibres.push({
             dia,
+            fecha: fechas[dia],
             ...bloque
           });
         }
