@@ -1081,13 +1081,9 @@ const filtrarHorarios = async (req, res) => {
 // ── GET /api/horarios/bloques-libres ── CU67 / RF43: Disponibilidad de bloques libres
 const getBloquesLibres = async (req, res) => {
   try {
+    // curso_id y docente_id son opcionales: sin ellos se consideran libres los
+    // bloques sin ninguna asignación activa en toda la institución.
     const { curso_id, docente_id, dia_semana, jornada } = req.query;
-
-    if (!curso_id && !docente_id) {
-      return res.status(400).json({
-        mensaje: 'Debe especificar curso_id o docente_id para consultar disponibilidad de bloques libres'
-      });
-    }
 
     let bloqueQuery = `
       SELECT
@@ -1122,12 +1118,18 @@ const getBloquesLibres = async (req, res) => {
     `;
     const ocupadosParams = [];
 
+    // Con curso y docente a la vez, el bloque está ocupado si lo usa cualquiera de los dos
+    const condiciones = [];
     if (curso_id) {
-      ocupadosQuery += ' AND Curso_Id = ?';
+      condiciones.push('Curso_Id = ?');
       ocupadosParams.push(curso_id);
-    } else if (docente_id) {
-      ocupadosQuery += ' AND Usuario_Id = ?';
+    }
+    if (docente_id) {
+      condiciones.push('Usuario_Id = ?');
       ocupadosParams.push(docente_id);
+    }
+    if (condiciones.length > 0) {
+      ocupadosQuery += ` AND (${condiciones.join(' OR ')})`;
     }
 
     const [ocupados] = await pool.execute(ocupadosQuery, ocupadosParams);
@@ -1166,7 +1168,12 @@ const getBloquesLibres = async (req, res) => {
 // ── GET /api/horarios/bloque-detalle/:id ── CU69 / CU71 / RF45: Detalle de bloque horario
 const getDetalleBloqueHorario = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = Number(req.params.id);
+
+    // CU69 - Excepción 1: identificador inválido equivale a bloque inexistente
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(404).json({ mensaje: 'El bloque horario seleccionado no existe o fue eliminado' });
+    }
 
     const [rows] = await pool.execute(`
       SELECT
@@ -1201,7 +1208,40 @@ const getDetalleBloqueHorario = async (req, res) => {
       return res.status(404).json({ mensaje: 'El bloque horario seleccionado no existe o fue eliminado' });
     }
 
-    return res.json(rows[0]);
+    const detalle = rows[0];
+
+    // RF42/RF45: próximos eventos institucionales que suspenden este bloque
+    // (tabla afecta) en una fecha que cae el mismo día de la semana.
+    const [eventos] = await pool.execute(`
+      SELECT
+        ei.Evento_Institucional_Id                              AS eventoId,
+        ei.Evento_Institucional_Nombre                          AS nombre,
+        DATE_FORMAT(ei.Evento_Institucional_Fecha, '%Y-%m-%d')  AS fecha,
+        ei.Evento_Institucional_Impacto_Clases                  AS impacto,
+        af.Estado_Bloque                                        AS estadoBloque
+      FROM afecta af
+      JOIN evento_institucional ei ON ei.Evento_Institucional_Id = af.Evento_Institucional_Id
+      WHERE af.Bloque_Horario_Id = ?
+        AND ei.Evento_Institucional_Fecha >= CURDATE()
+        AND ELT(DAYOFWEEK(ei.Evento_Institucional_Fecha),
+                'Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado') = ?
+      ORDER BY ei.Evento_Institucional_Fecha
+    `, [detalle.bloqueId, detalle.dia]);
+
+    const observaciones = [];
+    if (detalle.estado === 'Suspendido') {
+      observaciones.push('El bloque se encuentra suspendido en el horario semanal del curso.');
+    }
+    if (!detalle.docenteId) {
+      observaciones.push('El bloque no tiene un docente asignado.');
+    }
+    eventos.forEach((ev) => {
+      observaciones.push(
+        `${ev.estadoBloque || 'Suspendido'} el ${ev.fecha} por el evento institucional "${ev.nombre}" (${ev.impacto}).`
+      );
+    });
+
+    return res.json({ ...detalle, eventos, observaciones });
   } catch (error) {
     console.error('Error en getDetalleBloqueHorario:', error);
     return res.status(500).json({ mensaje: 'Error al recuperar el detalle del bloque horario' });

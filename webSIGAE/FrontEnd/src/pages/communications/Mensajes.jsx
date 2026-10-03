@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
+import { useAuth } from '../context/AuthContext';
 import {
   getConversaciones,
   getMensajesConversacion,
   enviarMensaje,
-  marcarMensajesLeidos
+  marcarMensajesLeidos,
+  getContactosMensajeria,
+  iniciarConversacion
 } from '../../services/api';
 
+// CU73 / RF47: mensajería interna entre docentes y apoderados
 function Mensajes() {
+  const { usuario, rolActivo } = useAuth();
+  const rol = rolActivo || usuario?.roles?.[0];
+
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionSeleccionada, setConversacionSeleccionada] = useState(null);
   const [mensajes, setMensajes] = useState([]);
@@ -21,31 +28,37 @@ function Mensajes() {
   const [error, setError] = useState('');
   const [errorMensaje, setErrorMensaje] = useState('');
 
+  // Nueva conversación (selección de contacto válido)
+  const [mostrarContactos, setMostrarContactos] = useState(false);
+  const [contactos, setContactos] = useState([]);
+  const [cargandoContactos, setCargandoContactos] = useState(false);
+  const [errorContactos, setErrorContactos] = useState('');
+  const [iniciando, setIniciando] = useState(null);
+
   // ─────────────────────────────────────────
   // Cargar conversaciones
   // ─────────────────────────────────────────
 
-  const cargarConversaciones = async () => {
+  const cargarConversaciones = useCallback(async () => {
     try {
       setCargandoConversaciones(true);
       setError('');
 
-      const data = await getConversaciones();
+      const data = await getConversaciones(rol);
+      const lista = Array.isArray(data) ? data : [];
 
-      console.log('Conversaciones:', data);
-
-      setConversaciones(data || []);
+      setConversaciones(lista);
+      return lista;
 
     } catch (err) {
-      console.error('Error al cargar conversaciones:', err);
-
       setError(
         err.message || 'No se pudieron cargar las conversaciones'
       );
+      return [];
     } finally {
       setCargandoConversaciones(false);
     }
-  };
+  }, [rol]);
 
   // ─────────────────────────────────────────
   // Cargar mensajes de una conversación
@@ -54,6 +67,7 @@ function Mensajes() {
   const seleccionarConversacion = async (conversacion) => {
     try {
       setConversacionSeleccionada(conversacion);
+      setMostrarContactos(false);
       setMensajes([]);
       setErrorMensaje('');
       setCargandoMensajes(true);
@@ -62,35 +76,74 @@ function Mensajes() {
         conversacion.Conversacion_Id
       );
 
-      console.log('Mensajes:', data);
-
       setMensajes(data?.mensajes || []);
 
-      // Marcar como leídos
-      await marcarMensajesLeidos(
-        conversacion.Conversacion_Id
-      );
+      // Marcar como leídos los mensajes recibidos
+      if (conversacion.No_Leidos > 0) {
+        await marcarMensajesLeidos(conversacion.Conversacion_Id);
 
-      // Actualizar estado visual del último mensaje
-      setConversaciones((prev) =>
-        prev.map((item) =>
-          item.Conversacion_Id === conversacion.Conversacion_Id
-            ? {
-                ...item,
-                Estado_Ultimo_Mensaje: 'Leído'
-              }
-            : item
-        )
-      );
+        setConversaciones((prev) =>
+          prev.map((item) =>
+            item.Conversacion_Id === conversacion.Conversacion_Id
+              ? { ...item, No_Leidos: 0 }
+              : item
+          )
+        );
+      }
 
     } catch (err) {
-      console.error('Error al cargar mensajes:', err);
-
       setErrorMensaje(
         err.message || 'No se pudieron cargar los mensajes'
       );
     } finally {
       setCargandoMensajes(false);
+    }
+  };
+
+  // ─────────────────────────────────────────
+  // Nueva conversación
+  // ─────────────────────────────────────────
+
+  const abrirContactos = async () => {
+    setMostrarContactos(true);
+    setConversacionSeleccionada(null);
+    setErrorContactos('');
+    setCargandoContactos(true);
+
+    try {
+      const data = await getContactosMensajeria(rol);
+      setContactos(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setErrorContactos(
+        err.message || 'No se pudieron cargar los contactos'
+      );
+    } finally {
+      setCargandoContactos(false);
+    }
+  };
+
+  const handleIniciarConversacion = async (contacto) => {
+    try {
+      setIniciando(contacto.Contacto_Id);
+      setErrorContactos('');
+
+      const data = await iniciarConversacion(contacto.Contacto_Id, rol);
+      const lista = await cargarConversaciones();
+
+      const conversacion = lista.find(
+        (c) => c.Conversacion_Id === data?.conversacionId
+      );
+
+      if (conversacion) {
+        await seleccionarConversacion(conversacion);
+      }
+
+    } catch (err) {
+      setErrorContactos(
+        err.message || 'No se pudo iniciar la conversación'
+      );
+    } finally {
+      setIniciando(null);
     }
   };
 
@@ -129,23 +182,18 @@ function Mensajes() {
 
       setMensajes(data?.mensajes || []);
 
-      // Actualizar la última conversación
+      // Actualizar la vista previa de la conversación
       setConversaciones((prev) =>
         prev.map((item) =>
           item.Conversacion_Id ===
           conversacionSeleccionada.Conversacion_Id
-            ? {
-                ...item,
-                Ultimo_Mensaje: contenido,
-                Estado_Ultimo_Mensaje: 'No leído'
-              }
+            ? { ...item, Ultimo_Mensaje: contenido }
             : item
         )
       );
 
     } catch (err) {
-      console.error('Error al enviar mensaje:', err);
-
+      // Excepción 2: error al enviar o guardar el mensaje
       setErrorMensaje(
         err.message || 'No se pudo enviar el mensaje'
       );
@@ -159,8 +207,14 @@ function Mensajes() {
   // ─────────────────────────────────────────
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarConversaciones();
-  }, []);
+  }, [cargarConversaciones]);
+
+  const miRol = conversacionSeleccionada?.Mi_Rol || rol;
+  const conversacionCerrada =
+    conversacionSeleccionada &&
+    !conversacionSeleccionada.Conversacion_Estado;
 
   // ─────────────────────────────────────────
   // Render
@@ -196,7 +250,7 @@ function Mensajes() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '320px 1fr',
+          gridTemplateColumns: 'minmax(260px, 320px) 1fr',
           gap: '20px',
           height: 'calc(100% - 70px)'
         }}
@@ -217,12 +271,25 @@ function Mensajes() {
 
           <div
             style={{
-              padding: '15px',
+              padding: '12px 15px',
               borderBottom: '1px solid #ddd',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '10px'
             }}
           >
             Conversaciones
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={abrirContactos}
+              style={{ padding: '6px 12px', fontSize: '13px' }}
+            >
+              + Nueva
+            </button>
           </div>
 
           <div
@@ -239,9 +306,10 @@ function Mensajes() {
             )}
 
             {!cargandoConversaciones &&
+              !error &&
               conversaciones.length === 0 && (
                 <p style={{ padding: '15px' }}>
-                  No hay conversaciones disponibles.
+                  No hay conversaciones. Usa "+ Nueva" para iniciar una.
                 </p>
               )}
 
@@ -275,11 +343,31 @@ function Mensajes() {
                     <div
                       style={{
                         fontWeight: 'bold',
-                        marginBottom: '6px'
+                        marginBottom: '6px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: '8px'
                       }}
                     >
-                      {conversacion.Docente_Nombre ||
-                        'Docente sin nombre'}
+                      <span>
+                        {conversacion.Contacto_Nombre || 'Sin nombre'}
+                      </span>
+
+                      {conversacion.No_Leidos > 0 && (
+                        <span
+                          style={{
+                            background: '#2563eb',
+                            color: '#fff',
+                            borderRadius: '999px',
+                            padding: '0 8px',
+                            fontSize: '12px',
+                            lineHeight: '20px'
+                          }}
+                          title="Mensajes sin leer"
+                        >
+                          {conversacion.No_Leidos}
+                        </span>
+                      )}
                     </div>
 
                     <div
@@ -289,9 +377,10 @@ function Mensajes() {
                         marginBottom: '6px'
                       }}
                     >
-                      Apoderado:{' '}
-                      {conversacion.Apoderado_Nombre ||
-                        'Sin nombre'}
+                      {conversacion.Mi_Rol === 'Docente'
+                        ? 'Apoderado'
+                        : 'Docente'}
+                      {!conversacion.Conversacion_Estado && ' · Cerrada'}
                     </div>
 
                     <div
@@ -307,19 +396,6 @@ function Mensajes() {
                         'Sin mensajes'}
                     </div>
 
-                    {conversacion.Estado_Ultimo_Mensaje ===
-                      'No leído' && (
-                      <div
-                        style={{
-                          marginTop: '7px',
-                          fontSize: '12px',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        Nuevo mensaje
-                      </div>
-                    )}
-
                   </button>
                 );
               })}
@@ -328,7 +404,7 @@ function Mensajes() {
         </div>
 
         {/* ─────────────────────────────── */}
-        {/* CHAT */}
+        {/* CHAT / CONTACTOS */}
         {/* ─────────────────────────────── */}
 
         <div
@@ -342,7 +418,102 @@ function Mensajes() {
           }}
         >
 
-          {!conversacionSeleccionada ? (
+          {mostrarContactos ? (
+
+            <>
+              <div
+                style={{
+                  padding: '15px',
+                  borderBottom: '1px solid #ddd',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '18px' }}>
+                    Nueva conversación
+                  </div>
+                  <div style={{ fontSize: '14px', color: '#666' }}>
+                    {rol === 'Docente'
+                      ? 'Apoderados de los estudiantes de tus cursos'
+                      : 'Docentes que hacen clases a tus estudiantes'}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setMostrarContactos(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }}>
+
+                {cargandoContactos && <p>Cargando contactos...</p>}
+
+                {errorContactos && (
+                  <div
+                    style={{
+                      padding: '10px',
+                      marginBottom: '10px',
+                      borderRadius: '8px',
+                      background: '#fee2e2',
+                      color: '#991b1b'
+                    }}
+                  >
+                    {errorContactos}
+                  </div>
+                )}
+
+                {!cargandoContactos &&
+                  !errorContactos &&
+                  contactos.length === 0 && (
+                    <p style={{ color: '#777' }}>
+                      No existen contactos con una relación docente-apoderado válida.
+                    </p>
+                  )}
+
+                {!cargandoContactos &&
+                  contactos.map((contacto) => (
+                    <div
+                      key={contacto.Contacto_Id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '12px',
+                        borderBottom: '1px solid #eee'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 'bold' }}>
+                          {contacto.Contacto_Nombre}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#666' }}>
+                          {contacto.Contacto_Rol} · {contacto.Estudiantes.join(', ')}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={iniciando !== null}
+                        onClick={() => handleIniciarConversacion(contacto)}
+                      >
+                        {iniciando === contacto.Contacto_Id
+                          ? 'Abriendo...'
+                          : 'Escribir'}
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </>
+
+          ) : !conversacionSeleccionada ? (
 
             <div
               style={{
@@ -374,7 +545,7 @@ function Mensajes() {
                     fontSize: '18px'
                   }}
                 >
-                  {conversacionSeleccionada.Docente_Nombre}
+                  {conversacionSeleccionada.Contacto_Nombre}
                 </div>
 
                 <div
@@ -383,8 +554,7 @@ function Mensajes() {
                     color: '#666'
                   }}
                 >
-                  Apoderado:{' '}
-                  {conversacionSeleccionada.Apoderado_Nombre}
+                  {miRol === 'Docente' ? 'Apoderado' : 'Docente'}
                 </div>
 
               </div>
@@ -429,24 +599,24 @@ function Mensajes() {
                         color: '#777'
                       }}
                     >
-                      No hay mensajes todavía.
+                      No hay mensajes todavía. Escribe el primero.
                     </p>
                   )}
 
                 {mensajes.map((mensaje) => {
 
-                  const esDocente =
-                    mensaje.Mensaje_Remitente_Rol ===
-                    'Docente';
+                  // Los mensajes propios van a la derecha
+                  const esPropio =
+                    mensaje.Mensaje_Remitente_Rol === miRol;
 
                   return (
                     <div
                       key={mensaje.Mensaje_Id}
                       style={{
                         display: 'flex',
-                        justifyContent: esDocente
-                          ? 'flex-start'
-                          : 'flex-end',
+                        justifyContent: esPropio
+                          ? 'flex-end'
+                          : 'flex-start',
                         marginBottom: '12px'
                       }}
                     >
@@ -456,9 +626,9 @@ function Mensajes() {
                           maxWidth: '70%',
                           padding: '10px 14px',
                           borderRadius: '12px',
-                          background: esDocente
-                            ? '#e5e7eb'
-                            : '#dbeafe'
+                          background: esPropio
+                            ? '#dbeafe'
+                            : '#e5e7eb'
                         }}
                       >
 
@@ -469,10 +639,10 @@ function Mensajes() {
                             marginBottom: '4px'
                           }}
                         >
-                          {mensaje.Mensaje_Remitente_Rol}
+                          {esPropio ? 'Tú' : mensaje.Mensaje_Remitente_Rol}
                         </div>
 
-                        <div>
+                        <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {mensaje.Mensaje_Contenido}
                         </div>
 
@@ -485,7 +655,8 @@ function Mensajes() {
                           }}
                         >
                           {mensaje.Mensaje_Fecha_Envio}{' '}
-                          {mensaje.Mensaje_Hora_Envio}
+                          {String(mensaje.Mensaje_Hora_Envio || '').slice(0, 5)}
+                          {esPropio && ` · ${mensaje.Mensaje_Estado}`}
                         </div>
 
                       </div>
@@ -498,54 +669,67 @@ function Mensajes() {
 
               {/* FORMULARIO */}
 
-              <form
-                onSubmit={handleEnviarMensaje}
-                style={{
-                  padding: '15px',
-                  borderTop: '1px solid #ddd',
-                  display: 'flex',
-                  gap: '10px'
-                }}
-              >
-
-                <input
-                  type="text"
-                  value={nuevoMensaje}
-                  onChange={(e) =>
-                    setNuevoMensaje(e.target.value)
-                  }
-                  placeholder="Escribe un mensaje..."
-                  maxLength={5000}
-                  disabled={enviando}
+              {conversacionCerrada ? (
+                <div
                   style={{
-                    flex: 1,
-                    padding: '12px',
-                    border: '1px solid #ccc',
-                    borderRadius: '8px'
-                  }}
-                />
-
-                <button
-                  type="submit"
-                  disabled={
-                    enviando ||
-                    !nuevoMensaje.trim()
-                  }
-                  style={{
-                    padding: '12px 20px',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor:
-                      enviando ||
-                      !nuevoMensaje.trim()
-                        ? 'not-allowed'
-                        : 'pointer'
+                    padding: '15px',
+                    borderTop: '1px solid #ddd',
+                    color: '#777',
+                    textAlign: 'center'
                   }}
                 >
-                  {enviando ? 'Enviando...' : 'Enviar'}
-                </button>
+                  Esta conversación está cerrada; no se pueden enviar mensajes.
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleEnviarMensaje}
+                  style={{
+                    padding: '15px',
+                    borderTop: '1px solid #ddd',
+                    display: 'flex',
+                    gap: '10px'
+                  }}
+                >
 
-              </form>
+                  <input
+                    type="text"
+                    value={nuevoMensaje}
+                    onChange={(e) =>
+                      setNuevoMensaje(e.target.value)
+                    }
+                    placeholder="Escribe un mensaje..."
+                    maxLength={5000}
+                    disabled={enviando}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      border: '1px solid #ccc',
+                      borderRadius: '8px'
+                    }}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={
+                      enviando ||
+                      !nuevoMensaje.trim()
+                    }
+                    style={{
+                      padding: '12px 20px',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor:
+                        enviando ||
+                        !nuevoMensaje.trim()
+                          ? 'not-allowed'
+                          : 'pointer'
+                    }}
+                  >
+                    {enviando ? 'Enviando...' : 'Enviar'}
+                  </button>
+
+                </form>
+              )}
 
             </>
           )}

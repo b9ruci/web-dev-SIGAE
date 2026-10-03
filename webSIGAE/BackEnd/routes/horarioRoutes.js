@@ -49,8 +49,8 @@ router.get('/docentes-disponibles',  getDocentesDisponibles);
 // CU68 / RF44: Filtrar grilla horaria reactivamente
 router.get('/filtrar', filtrarHorarios);
 
-// CU67 / RF43: Consultar bloques horarios libres
-router.get('/bloques-libres', getBloquesLibres);
+// CU67 / RF43: Consultar bloques horarios libres — Super Admin/Admin
+router.get('/bloques-libres', verifyAdmin, getBloquesLibres);
 
 // CU69, CU71 / RF45: Detalle informativo de un bloque horario
 router.get('/bloque-detalle/:id', getDetalleBloqueHorario);

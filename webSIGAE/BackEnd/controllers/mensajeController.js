@@ -1,42 +1,188 @@
+// Módulo de mensajería interna docente-apoderado (CU73 / RF47).
 const pool = require('../config/db');
 
+const ROLES_MENSAJERIA = ['Docente', 'Apoderado'];
+
 /**
- * Obtiene las conversaciones del usuario autenticado.
- *
- * Un usuario puede participar como:
- * - Docente
- * - Apoderado
- *
- * Un Administrador puede visualizar todas las conversaciones.
+ * Rol con el que el usuario usa la mensajería: el rol activo enviado por el
+ * frontend (?rol=), siempre que lo tenga; si no, el primero de sus roles que
+ * participe en la mensajería. Los administradores no son actores de CU73.
  */
-const obtenerConversaciones = async (req, res) => {
-  const usuarioId = req.user.id;
-  const roles = req.user.roles || [];
+function resolverRol(user, rolSolicitado) {
+  const roles = user?.roles || [];
 
-  try {
-    let where = '';
-    let parametros = [];
+  if (ROLES_MENSAJERIA.includes(rolSolicitado) && roles.includes(rolSolicitado)) {
+    return rolSolicitado;
+  }
 
-    if (roles.includes('Administrador')) {
-      // El administrador puede visualizar todas las conversaciones.
-      where = '';
-    } else if (roles.includes('Docente')) {
-      where = 'WHERE c.Docente_Usuario_Id = ?';
-      parametros = [usuarioId];
-    } else if (roles.includes('Apoderado')) {
-      where = 'WHERE c.Apoderado_Usuario_Id = ?';
-      parametros = [usuarioId];
-    } else {
-      return res.status(403).json({
-        mensaje: 'No tienes permisos para acceder a los mensajes'
+  return ROLES_MENSAJERIA.find((r) => roles.includes(r)) || null;
+}
+
+/**
+ * Rol que cumple el usuario dentro de una conversación (Docente o Apoderado),
+ * o null si no participa en ella con un rol que efectivamente tenga.
+ */
+function rolEnConversacion(conversacion, user) {
+  const roles = user?.roles || [];
+  const usuarioId = Number(user?.id);
+
+  if (Number(conversacion.Docente_Usuario_Id) === usuarioId && roles.includes('Docente')) {
+    return 'Docente';
+  }
+
+  if (Number(conversacion.Apoderado_Usuario_Id) === usuarioId && roles.includes('Apoderado')) {
+    return 'Apoderado';
+  }
+
+  return null;
+}
+
+/**
+ * Busca una conversación en la que participe el usuario autenticado.
+ * Devuelve { conversacion, rol } o null si no existe o no le pertenece.
+ */
+async function buscarConversacionDelUsuario(conversacionId, user) {
+  const [conversaciones] = await pool.query(
+    `
+    SELECT
+      Conversacion_Id,
+      Docente_Usuario_Id,
+      Apoderado_Usuario_Id,
+      Conversacion_Estado
+    FROM conversacion
+    WHERE Conversacion_Id = ?
+      AND (
+        Docente_Usuario_Id = ?
+        OR Apoderado_Usuario_Id = ?
+      )
+    LIMIT 1
+    `,
+    [conversacionId, user.id, user.id]
+  );
+
+  if (conversaciones.length === 0) {
+    return null;
+  }
+
+  const rol = rolEnConversacion(conversaciones[0], user);
+
+  return rol ? { conversacion: conversaciones[0], rol } : null;
+}
+
+/**
+ * Contactos válidos según la relación docente-apoderado (precondición de CU73):
+ * - Docente: apoderados de los estudiantes de los cursos en que hace clases.
+ * - Apoderado: docentes que hacen clases en los cursos de sus estudiantes.
+ * Con contactoId se limita la búsqueda a ese usuario (validación de la relación).
+ */
+async function buscarContactos(usuarioId, rol, contactoId = null) {
+  let rows;
+
+  if (rol === 'Docente') {
+    [rows] = await pool.query(
+      `
+      SELECT DISTINCT
+        u.Usuario_Id              AS Contacto_Id,
+        u.Usuario_Nombre_Completo AS Contacto_Nombre,
+        e.Estudiante_Nombre_Completo,
+        cu.Curso_Nombre
+      FROM estudiante e
+      INNER JOIN usuario u
+        ON u.Usuario_Id = e.Apoderado_Usuario_Id
+      LEFT JOIN curso cu
+        ON cu.Curso_Id = e.Curso_Id
+      WHERE e.Estudiante_Fecha_Eliminacion IS NULL
+        AND u.Usuario_Estado_Cuenta = 1
+        AND u.Usuario_Id <> ?
+        AND e.Curso_Id IN (
+          SELECT DISTINCT Curso_Id
+          FROM horario_asignatura
+          WHERE Usuario_Id = ?
+        )
+        ${contactoId ? 'AND u.Usuario_Id = ?' : ''}
+      ORDER BY u.Usuario_Nombre_Completo, e.Estudiante_Nombre_Completo
+      `,
+      contactoId ? [usuarioId, usuarioId, contactoId] : [usuarioId, usuarioId]
+    );
+  } else {
+    [rows] = await pool.query(
+      `
+      SELECT DISTINCT
+        u.Usuario_Id              AS Contacto_Id,
+        u.Usuario_Nombre_Completo AS Contacto_Nombre,
+        e.Estudiante_Nombre_Completo,
+        cu.Curso_Nombre
+      FROM estudiante e
+      INNER JOIN horario_asignatura ha
+        ON ha.Curso_Id = e.Curso_Id
+      INNER JOIN usuario u
+        ON u.Usuario_Id = ha.Usuario_Id
+      LEFT JOIN curso cu
+        ON cu.Curso_Id = e.Curso_Id
+      WHERE e.Apoderado_Usuario_Id = ?
+        AND e.Estudiante_Fecha_Eliminacion IS NULL
+        AND u.Es_Docente = 1
+        AND u.Usuario_Estado_Cuenta = 1
+        AND u.Usuario_Id <> ?
+        ${contactoId ? 'AND u.Usuario_Id = ?' : ''}
+      ORDER BY u.Usuario_Nombre_Completo, e.Estudiante_Nombre_Completo
+      `,
+      contactoId ? [usuarioId, usuarioId, contactoId] : [usuarioId, usuarioId]
+    );
+  }
+
+  // Una fila por estudiante: se agrupan por contacto
+  const contactos = new Map();
+
+  for (const fila of rows) {
+    if (!contactos.has(fila.Contacto_Id)) {
+      contactos.set(fila.Contacto_Id, {
+        Contacto_Id: fila.Contacto_Id,
+        Contacto_Nombre: fila.Contacto_Nombre,
+        Contacto_Rol: rol === 'Docente' ? 'Apoderado' : 'Docente',
+        Estudiantes: []
       });
     }
 
+    const detalle = fila.Curso_Nombre
+      ? `${fila.Estudiante_Nombre_Completo} (${fila.Curso_Nombre})`
+      : fila.Estudiante_Nombre_Completo;
+
+    const contacto = contactos.get(fila.Contacto_Id);
+
+    if (!contacto.Estudiantes.includes(detalle)) {
+      contacto.Estudiantes.push(detalle);
+    }
+  }
+
+  return [...contactos.values()];
+}
+
+
+/**
+ * Obtiene las conversaciones del usuario autenticado según su rol activo
+ * (?rol=Docente|Apoderado).
+ */
+const obtenerConversaciones = async (req, res) => {
+  const usuarioId = req.user.id;
+  const rol = resolverRol(req.user, req.query.rol);
+
+  if (!rol) {
+    return res.status(403).json({
+      mensaje: 'Solo docentes y apoderados pueden acceder a los mensajes'
+    });
+  }
+
+  const columna = rol === 'Docente'
+    ? 'c.Docente_Usuario_Id'
+    : 'c.Apoderado_Usuario_Id';
+
+  try {
     const [rows] = await pool.query(
       `
       SELECT
         c.Conversacion_Id,
-        c.Conversacion_Fecha_Inicio,
+        DATE_FORMAT(c.Conversacion_Fecha_Inicio, '%Y-%m-%d') AS Conversacion_Fecha_Inicio,
         c.Conversacion_Estado,
 
         c.Docente_Usuario_Id,
@@ -44,6 +190,8 @@ const obtenerConversaciones = async (req, res) => {
 
         c.Apoderado_Usuario_Id,
         apoderado.Usuario_Nombre_Completo AS Apoderado_Nombre,
+
+        ? AS Mi_Rol,
 
         (
           SELECT m.Mensaje_Contenido
@@ -63,7 +211,24 @@ const obtenerConversaciones = async (req, res) => {
                    m.Mensaje_Hora_Envio DESC,
                    m.Mensaje_Id DESC
           LIMIT 1
-        ) AS Estado_Ultimo_Mensaje
+        ) AS Estado_Ultimo_Mensaje,
+
+        (
+          SELECT COUNT(*)
+          FROM mensaje m
+          WHERE m.Conversacion_Id = c.Conversacion_Id
+            AND m.Mensaje_Remitente_Rol <> ?
+            AND m.Mensaje_Estado = 'No leído'
+        ) AS No_Leidos,
+
+        COALESCE(
+          (
+            SELECT MAX(TIMESTAMP(m.Mensaje_Fecha_Envio, m.Mensaje_Hora_Envio))
+            FROM mensaje m
+            WHERE m.Conversacion_Id = c.Conversacion_Id
+          ),
+          c.Conversacion_Fecha_Inicio
+        ) AS Ultima_Actividad
 
       FROM conversacion c
 
@@ -73,14 +238,23 @@ const obtenerConversaciones = async (req, res) => {
       INNER JOIN usuario apoderado
         ON apoderado.Usuario_Id = c.Apoderado_Usuario_Id
 
-      ${where}
+      WHERE ${columna} = ?
 
-      ORDER BY c.Conversacion_Id DESC
+      ORDER BY Ultima_Actividad DESC, c.Conversacion_Id DESC
       `,
-      parametros
+      [rol, rol, usuarioId]
     );
 
-    return res.json(rows);
+    // La contraparte es quien se muestra como título de la conversación
+    const conversaciones = rows.map((fila) => ({
+      ...fila,
+      No_Leidos: Number(fila.No_Leidos) || 0,
+      Contacto_Nombre: rol === 'Docente'
+        ? fila.Apoderado_Nombre
+        : fila.Docente_Nombre
+    }));
+
+    return res.json(conversaciones);
 
   } catch (error) {
     console.error('Error al obtener conversaciones:', error);
@@ -93,13 +267,9 @@ const obtenerConversaciones = async (req, res) => {
 
 
 /**
- * Obtiene los mensajes de una conversación.
+ * Obtiene los mensajes de una conversación en la que participa el usuario.
  */
 const obtenerMensajes = async (req, res) => {
-  const usuarioId = req.user.id;
-  const roles = req.user.roles || [];
-  const esAdministrador = roles.includes('Administrador');
-
   const conversacionId = Number(req.params.id);
 
   if (!Number.isInteger(conversacionId) || conversacionId <= 0) {
@@ -109,40 +279,9 @@ const obtenerMensajes = async (req, res) => {
   }
 
   try {
-    let whereAcceso = `
-      AND (
-        Docente_Usuario_Id = ?
-        OR Apoderado_Usuario_Id = ?
-      )
-    `;
+    const acceso = await buscarConversacionDelUsuario(conversacionId, req.user);
 
-    let parametros = [
-      conversacionId,
-      usuarioId,
-      usuarioId
-    ];
-
-    if (esAdministrador) {
-      whereAcceso = '';
-      parametros = [conversacionId];
-    }
-
-    const [conversaciones] = await pool.query(
-      `
-      SELECT
-        Conversacion_Id,
-        Docente_Usuario_Id,
-        Apoderado_Usuario_Id,
-        Conversacion_Estado
-      FROM conversacion
-      WHERE Conversacion_Id = ?
-      ${whereAcceso}
-      LIMIT 1
-      `,
-      parametros
-    );
-
-    if (conversaciones.length === 0) {
+    if (!acceso) {
       return res.status(404).json({
         mensaje: 'Conversación no encontrada o no tienes acceso'
       });
@@ -153,7 +292,7 @@ const obtenerMensajes = async (req, res) => {
       SELECT
         m.Mensaje_Id,
         m.Mensaje_Contenido,
-        m.Mensaje_Fecha_Envio,
+        DATE_FORMAT(m.Mensaje_Fecha_Envio, '%Y-%m-%d') AS Mensaje_Fecha_Envio,
         m.Mensaje_Hora_Envio,
         m.Mensaje_Estado,
         m.Mensaje_Remitente_Rol,
@@ -183,7 +322,7 @@ const obtenerMensajes = async (req, res) => {
     );
 
     return res.json({
-      conversacion: conversaciones[0],
+      conversacion: { ...acceso.conversacion, Mi_Rol: acceso.rol },
       mensajes
     });
 
@@ -200,15 +339,14 @@ const obtenerMensajes = async (req, res) => {
 /**
  * Envía un mensaje dentro de una conversación.
  *
- * Solo Docentes y Apoderados pueden enviar mensajes.
+ * El rol del remitente se toma de la conversación (no del primer rol del
+ * usuario), para que un usuario Docente y Apoderado a la vez pueda responder
+ * en ambos tipos de conversación.
  */
 const enviarMensaje = async (req, res) => {
-  const usuarioId = req.user.id;
-  const roles = req.user.roles || [];
-
   const conversacionId = Number(req.params.id);
 
-  const contenido = typeof req.body.contenido === 'string'
+  const contenido = typeof req.body?.contenido === 'string'
     ? req.body.contenido.trim()
     : '';
 
@@ -230,74 +368,22 @@ const enviarMensaje = async (req, res) => {
     });
   }
 
-  let rolRemitente;
-
-  if (roles.includes('Docente')) {
-    rolRemitente = 'Docente';
-  } else if (roles.includes('Apoderado')) {
-    rolRemitente = 'Apoderado';
-  } else {
-    return res.status(403).json({
-      mensaje: 'Solo docentes y apoderados pueden enviar mensajes'
-    });
-  }
-
   try {
-    const [conversaciones] = await pool.query(
-      `
-      SELECT
-        Conversacion_Id,
-        Docente_Usuario_Id,
-        Apoderado_Usuario_Id,
-        Conversacion_Estado
-      FROM conversacion
-      WHERE Conversacion_Id = ?
-        AND (
-          Docente_Usuario_Id = ?
-          OR Apoderado_Usuario_Id = ?
-        )
-      LIMIT 1
-      `,
-      [conversacionId, usuarioId, usuarioId]
-    );
+    const acceso = await buscarConversacionDelUsuario(conversacionId, req.user);
 
-    if (conversaciones.length === 0) {
+    if (!acceso) {
       return res.status(404).json({
         mensaje: 'Conversación no encontrada o no tienes acceso'
       });
     }
 
-    const conversacion = conversaciones[0];
-
-    if (
-      rolRemitente === 'Docente' &&
-      conversacion.Docente_Usuario_Id !== usuarioId
-    ) {
-      return res.status(403).json({
-        mensaje: 'No puedes enviar mensajes como docente en esta conversación'
-      });
-    }
-
-    if (
-      rolRemitente === 'Apoderado' &&
-      conversacion.Apoderado_Usuario_Id !== usuarioId
-    ) {
-      return res.status(403).json({
-        mensaje: 'No puedes enviar mensajes como apoderado en esta conversación'
-      });
-    }
-
-    if (!conversacion.Conversacion_Estado) {
+    if (!acceso.conversacion.Conversacion_Estado) {
       return res.status(409).json({
         mensaje: 'La conversación está cerrada'
       });
     }
 
-    const ahora = new Date();
-
-    const fecha = ahora.toISOString().slice(0, 10);
-    const hora = ahora.toTimeString().slice(0, 8);
-
+    // Fecha y hora las asigna MySQL: evita mezclar fecha UTC con hora local
     const [resultado] = await pool.query(
       `
       INSERT INTO mensaje (
@@ -308,15 +394,9 @@ const enviarMensaje = async (req, res) => {
         Mensaje_Remitente_Rol,
         Conversacion_Id
       )
-      VALUES (?, ?, ?, 'No leído', ?, ?)
+      VALUES (?, CURDATE(), CURTIME(), 'No leído', ?, ?)
       `,
-      [
-        contenido,
-        fecha,
-        hora,
-        rolRemitente,
-        conversacionId
-      ]
+      [contenido, acceso.rol, conversacionId]
     );
 
     return res.status(201).json({
@@ -327,6 +407,7 @@ const enviarMensaje = async (req, res) => {
   } catch (error) {
     console.error('Error al enviar mensaje:', error);
 
+    // Excepción 2: error al enviar o guardar el mensaje
     return res.status(500).json({
       mensaje: 'Error interno al enviar el mensaje'
     });
@@ -335,14 +416,9 @@ const enviarMensaje = async (req, res) => {
 
 
 /**
- * Marca como leídos los mensajes recibidos
- * dentro de una conversación.
+ * Marca como leídos los mensajes recibidos dentro de una conversación.
  */
 const marcarMensajesLeidos = async (req, res) => {
-  const usuarioId = req.user.id;
-  const roles = req.user.roles || [];
-  const esAdministrador = roles.includes('Administrador');
-
   const conversacionId = Number(req.params.id);
 
   if (!Number.isInteger(conversacionId) || conversacionId <= 0) {
@@ -352,61 +428,12 @@ const marcarMensajesLeidos = async (req, res) => {
   }
 
   try {
-    let whereAcceso = `
-      AND (
-        Docente_Usuario_Id = ?
-        OR Apoderado_Usuario_Id = ?
-      )
-    `;
+    const acceso = await buscarConversacionDelUsuario(conversacionId, req.user);
 
-    let parametros = [
-      conversacionId,
-      usuarioId,
-      usuarioId
-    ];
-
-    if (esAdministrador) {
-      whereAcceso = '';
-      parametros = [conversacionId];
-    }
-
-    const [conversaciones] = await pool.query(
-      `
-      SELECT
-        Conversacion_Id,
-        Docente_Usuario_Id,
-        Apoderado_Usuario_Id
-      FROM conversacion
-      WHERE Conversacion_Id = ?
-      ${whereAcceso}
-      LIMIT 1
-      `,
-      parametros
-    );
-
-    if (conversaciones.length === 0) {
+    if (!acceso) {
       return res.status(404).json({
         mensaje: 'Conversación no encontrada o no tienes acceso'
       });
-    }
-
-    const conversacion = conversaciones[0];
-
-    // Un administrador puede visualizar conversaciones,
-    // pero no tiene un rol de remitente dentro de ellas.
-    if (esAdministrador) {
-      return res.json({
-        mensaje: 'Los mensajes pueden ser visualizados por el administrador',
-        actualizados: 0
-      });
-    }
-
-    let rolUsuario;
-
-    if (conversacion.Docente_Usuario_Id === usuarioId) {
-      rolUsuario = 'Docente';
-    } else {
-      rolUsuario = 'Apoderado';
     }
 
     const [resultado] = await pool.query(
@@ -417,7 +444,7 @@ const marcarMensajesLeidos = async (req, res) => {
         AND Mensaje_Remitente_Rol <> ?
         AND Mensaje_Estado = 'No leído'
       `,
-      [conversacionId, rolUsuario]
+      [conversacionId, acceso.rol]
     );
 
     return res.json({
@@ -435,9 +462,125 @@ const marcarMensajesLeidos = async (req, res) => {
 };
 
 
+/**
+ * CU73 paso 1: contactos válidos con los que el usuario puede conversar
+ * según su rol activo (?rol=Docente|Apoderado).
+ */
+const obtenerContactos = async (req, res) => {
+  const rol = resolverRol(req.user, req.query.rol);
+
+  if (!rol) {
+    return res.status(403).json({
+      mensaje: 'Solo docentes y apoderados pueden acceder a los mensajes'
+    });
+  }
+
+  try {
+    const contactos = await buscarContactos(req.user.id, rol);
+
+    return res.json(contactos);
+
+  } catch (error) {
+    console.error('Error al obtener contactos:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al obtener los contactos'
+    });
+  }
+};
+
+
+/**
+ * CU73 Excepción 1: si no existe historial con el contacto, se inicia una
+ * nueva conversación. Si ya existe una conversación abierta, se reutiliza.
+ *
+ * Body: { contactoId, rol }
+ */
+const iniciarConversacion = async (req, res) => {
+  const usuarioId = req.user.id;
+  const rol = resolverRol(req.user, req.body?.rol);
+  const contactoId = Number(req.body?.contactoId);
+
+  if (!rol) {
+    return res.status(403).json({
+      mensaje: 'Solo docentes y apoderados pueden iniciar conversaciones'
+    });
+  }
+
+  if (!Number.isInteger(contactoId) || contactoId <= 0) {
+    return res.status(400).json({
+      mensaje: 'Debes seleccionar un contacto válido'
+    });
+  }
+
+  try {
+    // Precondición: debe existir una relación válida entre docente y apoderado
+    const contactos = await buscarContactos(usuarioId, rol, contactoId);
+
+    if (contactos.length === 0) {
+      return res.status(403).json({
+        mensaje: 'No existe una relación válida entre docente y apoderado con este contacto'
+      });
+    }
+
+    const docenteId = rol === 'Docente' ? usuarioId : contactoId;
+    const apoderadoId = rol === 'Docente' ? contactoId : usuarioId;
+
+    const [existentes] = await pool.query(
+      `
+      SELECT Conversacion_Id
+      FROM conversacion
+      WHERE Docente_Usuario_Id = ?
+        AND Apoderado_Usuario_Id = ?
+        AND Conversacion_Estado = 1
+      ORDER BY Conversacion_Id DESC
+      LIMIT 1
+      `,
+      [docenteId, apoderadoId]
+    );
+
+    if (existentes.length > 0) {
+      return res.json({
+        mensaje: 'Ya existe una conversación con este contacto',
+        conversacionId: existentes[0].Conversacion_Id,
+        nueva: false
+      });
+    }
+
+    const [resultado] = await pool.query(
+      `
+      INSERT INTO conversacion (
+        Conversacion_Fecha_Inicio,
+        Conversacion_Estado,
+        Docente_Usuario_Id,
+        Apoderado_Usuario_Id
+      )
+      VALUES (CURDATE(), 1, ?, ?)
+      `,
+      [docenteId, apoderadoId]
+    );
+
+    return res.status(201).json({
+      mensaje: 'Conversación iniciada correctamente',
+      conversacionId: resultado.insertId,
+      nueva: true
+    });
+
+  } catch (error) {
+    console.error('Error al iniciar conversación:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al iniciar la conversación'
+    });
+  }
+};
+
+
 module.exports = {
   obtenerConversaciones,
   obtenerMensajes,
   enviarMensaje,
-  marcarMensajesLeidos
+  marcarMensajesLeidos,
+  obtenerContactos,
+  iniciarConversacion
 };

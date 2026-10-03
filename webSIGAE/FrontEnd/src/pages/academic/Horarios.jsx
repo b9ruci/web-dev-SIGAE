@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import ExportMenu from "../../components/ExportMenu";
+import DetalleBloqueModal from "../../components/horarios/DetalleBloqueModal";
 
 const API = "/api";
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -212,6 +213,8 @@ export default function Horarios() {
   const [modoSeleccion, setModoSeleccion] = useState(false);
   const [seleccionados, setSeleccionados] = useState([]);
   const [modalMasivo, setModalMasivo] = useState(null); // "reasignar" | "editar" | null
+  // CU69: Horario_Asignatura_Id del bloque cuyo detalle se está viendo
+  const [detalleBloqueId, setDetalleBloqueId] = useState(null);
   const [exito, setExito] = useState("");
 
   // Listado sidebar
@@ -402,7 +405,7 @@ export default function Horarios() {
     setSuspendiendo(true);
     try {
       const activos = horarios.filter((h) => h.estado === "Activo");
-      await Promise.all(
+      const resultados = await Promise.allSettled(
         activos.map((h) =>
           fetch(`${API}/horarios/${h.Horario_Asignatura_Id}/estado`, {
             method: "PATCH",
@@ -411,6 +414,10 @@ export default function Horarios() {
           })
         )
       );
+      const fallidos = resultados.filter((r) => r.status === "rejected" || !r.value.ok).length;
+      if (fallidos > 0) {
+        setError(`No se pudieron suspender ${fallidos} de ${activos.length} bloque(s). Revisa el horario e intenta nuevamente.`);
+      }
       cargarHorarios(cursoSeleccionado);
       cargarAsignaturas(cursoSeleccionado);
     } catch {
@@ -740,6 +747,7 @@ export default function Horarios() {
               modoSeleccion={esAdmin && modoSeleccion}
               seleccionados={seleccionados}
               onToggleSeleccion={toggleSeleccionado}
+              onVerDetalle={(h) => setDetalleBloqueId(h.Horario_Asignatura_Id)}
             />
           </div>
         </div>
@@ -779,6 +787,11 @@ export default function Horarios() {
         />
       )}
 
+      {/* CU69 — Visualizando detalle de bloque horario */}
+      {detalleBloqueId && (
+        <DetalleBloqueModal horarioId={detalleBloqueId} onClose={() => setDetalleBloqueId(null)} />
+      )}
+
       {/* Listado de cursos (left overlay sidebar) */}
       {esAdmin && listadoAbierto && (
         <ListadoCursosSidebar
@@ -808,6 +821,7 @@ function VistaBloqueGrid({
   modoSeleccion = false,
   seleccionados = [],
   onToggleSeleccion,
+  onVerDetalle,
 }) {
   const [hoveredCell, setHoveredCell] = useState(null); // { bloqueId, dia }
 
@@ -961,6 +975,8 @@ function VistaBloqueGrid({
                       return;
                     }
                     if (h && esAdmin && onEditar) { onEditar(h); return; }
+                    // CU69: quien no edita (docente) abre el detalle del bloque
+                    if (h && !esAdmin && onVerDetalle) { onVerDetalle(h); return; }
                     if (canClick) onCelda(bloque.Bloque_Horario_Id, dia);
                   }}
                   style={{
@@ -968,7 +984,7 @@ function VistaBloqueGrid({
                     borderLeft: "1px solid " + (di === 0 ? "#e5e7eb" : "#f0f0f0"),
                     padding: "4px",
                     position: "relative",
-                    cursor: h && esAdmin ? "pointer" : canClick ? "cell" : "default",
+                    cursor: h && (esAdmin || onVerDetalle) ? "pointer" : canClick ? "cell" : "default",
                     background: isPreview
                       ? "rgba(251,146,60,0.10)"
                       : h
@@ -1112,6 +1128,15 @@ function VistaBloqueGrid({
                           }}
                           onMouseLeave={(e) => e.stopPropagation()}
                         >
+                          {onVerDetalle && (
+                            <button
+                              title="Ver detalle"
+                              onClick={(e) => { e.stopPropagation(); onVerDetalle(h); }}
+                              style={{ ...s.cellBtn, background: "#475569" }}
+                            >
+                              ℹ
+                            </button>
+                          )}
                           <button
                             title="Editar"
                             onClick={(e) => { e.stopPropagation(); onEditar(h); }}

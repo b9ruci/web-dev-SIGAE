@@ -245,6 +245,9 @@ function MainLayout() {
                       <Link to="/horario-maestro">
                         Horario Maestro
                       </Link>
+                      <Link to="/consulta-horarios">
+                        Consulta de Horarios
+                      </Link>
 
                       <Link to="/bloques-horarios">
                         Bloques Horarios
@@ -261,11 +264,6 @@ function MainLayout() {
 
                 <Link to="/citaciones/historial">
                   Historial de Citaciones
-                </Link>
-
-                {/* MENSAJES */}
-                <Link to="/mensajes">
-                  Mensajes
                 </Link>
 
                 <Link to="/reportes">
@@ -294,6 +292,10 @@ function MainLayout() {
 
                 <Link to="/mi-horario">
                   Mi Horario
+                </Link>
+
+                <Link to="/consulta-horarios">
+                  Consulta de Horarios
                 </Link>
 
                 <Link to="/citaciones">

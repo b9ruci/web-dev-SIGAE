@@ -45,6 +45,7 @@ import Horarios from "../pages/academic/Horarios";
 import MiHorario from "../pages/academic/MiHorario";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import HorarioMaestro from "../pages/academic/HorarioMaestro";
+import ConsultaHorarios from "../pages/academic/ConsultaHorarios";
 import PlanEducativo from "../pages/academic/PlanEducativo";
 import Asignaturas from "../pages/academic/Asignaturas";
 
@@ -119,7 +120,24 @@ function AppRouter() {
               </RoleRoute>
             }
           />
-          <Route path="/mensajes"   element={<Mensajes />} />
+          {/* CU73: mensajería interna — actores Docente y Apoderado */}
+          <Route
+            path="/mensajes"
+            element={
+              <RoleRoute roles={["Docente", "Apoderado"]}>
+                <Mensajes />
+              </RoleRoute>
+            }
+          />
+          {/* CU67, CU68, CU69: consultas y filtros de horario (bloques libres solo Admin) */}
+          <Route
+            path="/consulta-horarios"
+            element={
+              <RoleRoute roles={["Docente", "Administrador"]}>
+                <ConsultaHorarios />
+              </RoleRoute>
+            }
+          />
 
           {/* Accesibles por Docente */}
           <Route
