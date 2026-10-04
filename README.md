@@ -17,29 +17,52 @@ SIGAE es una plataforma web para la gestión académica y escolar, con módulos 
 
 ---
 
-## 🚀 Primeros pasos (GitHub Codespaces)
+## 🚀 Primeros pasos
 
-### 1. Setup automático
+Hay un script de setup por sistema. Ambos hacen lo mismo: crean la base de datos y el usuario `sigae`, importan `SIGAE.sql`, instalan las dependencias del backend y del frontend, crean `webSIGAE/BackEnd/.env` a partir de `.env.example` y hashean las contraseñas de prueba. Se pueden correr cuantas veces quieras; también sirven para **dejar todo al día** cuando algo deja de funcionar.
 
-Al abrir el codespace por primera vez, se ejecutará automáticamente `.devcontainer/setup.sh`. Este script instala MariaDB, las dependencias del backend y del frontend, crea el archivo `.env` y prepara la base de datos.
+| Dónde trabajas | Script |
+| --- | --- |
+| GitHub Codespaces, Linux o macOS | `bash .devcontainer/setup.sh` |
+| Windows | `bash win_setup.sh` (desde **Git Bash**) |
+
+### 🐧 GitHub Codespaces / Linux / macOS
+
+En un codespace, `setup.sh` se ejecuta **solo** al abrirlo por primera vez.
 
 > **El proceso tarda entre 2 y 5 minutos.** Si presionas F5 antes de que termine, el proyecto no arrancará correctamente.
 
-Si no esperaste el tiempo suficiente o hubo un error, puedes correr el setup manualmente:
+Si no esperaste lo suficiente, hubo un error o estás en tu propio Linux/macOS, córrelo a mano desde la raíz del repo:
 
 ```bash
 bash .devcontainer/setup.sh
 ```
 
-### 2. Verificar que todo esté listo (opcional)
+Si MariaDB no está instalado, el script lo instala (con `apt`, `dnf` o `brew`). Si tu usuario root de MariaDB/MySQL tiene contraseña: `DB_ROOT_PASSWORD=tu_clave bash .devcontainer/setup.sh`.
+
+### 🪟 Windows
+
+**1. Instala esto una sola vez** (si ya lo tienes, sáltatelo):
+
+- [Git para Windows](https://git-scm.com/download/win) (trae **Git Bash**).
+- [Node.js LTS](https://nodejs.org).
+- [MySQL Server 8](https://dev.mysql.com/downloads/installer/). Anota la contraseña de root que eliges al instalarlo.
+
+Después de instalar, **cierra y vuelve a abrir VS Code**.
+
+**2. Abre una terminal de Git Bash en VS Code** (`` Ctrl+` ``). El repo ya configura Git Bash como terminal por defecto en Windows. Si igual se abre PowerShell, haz clic en la flecha **˅** al lado del **+** y elige **Git Bash**.
+
+> 🚫 **No uses PowerShell ni CMD** para correr los scripts: no son Bash y fallan.
+
+**3. Corre el setup desde la raíz del repo** y escribe la contraseña de root de MySQL cuando te la pida:
 
 ```bash
-ls webSIGAE/BackEnd/node_modules/dotenv # debe listar archivos
-ls webSIGAE/FrontEnd/node_modules/vite # debe listar archivos
-sudo service mariadb status # debe mostrar "Uptime"
+bash win_setup.sh
 ```
 
-### 3. Iniciar el proyecto
+Si algo falla, el script dice qué pasó (contraseña incorrecta, MySQL apagado, no encontró MySQL, etc.).
+
+### ▶️ Iniciar el proyecto
 
 Presiona **F5** o ve al bicho triángulo _Run › Start Debugging_ (`Run All`). Esto levanta el backend y el frontend al mismo tiempo.
 
@@ -73,70 +96,107 @@ Presiona **F5** o ve al bicho triángulo _Run › Start Debugging_ (`Run All`). 
 
 ```
 web-dev-SIGAE/
+├── .devcontainer/
+│   └── setup.sh       # Setup para Codespaces / Linux / macOS
+├── win_setup.sh       # Setup para Windows (correr desde Git Bash)
+├── docs/              # Documentación del proyecto (ver abajo)
 └── webSIGAE/
-├── BackEnd/ # API Node.js + Express
-├── FrontEnd/ # App Vite + React
-└── Database/ # SIGAE.sql (dump inicial)
+    ├── BackEnd/       # API Node.js + Express
+    ├── FrontEnd/      # App Vite + React
+    └── Database/      # SIGAE.sql (único dump de la base de datos)
 ```
+
+### 📚 Documentación
+
+Toda la documentación, salvo este README, está en `docs/`. No agregues archivos `.md` dentro de `webSIGAE/`.
+
+| Archivo | Para qué sirve |
+| --- | --- |
+| [`docs/api-citaciones.md`](docs/api-citaciones.md) | Contrato entre frontend y backend del módulo de citaciones (CU74–CU79): endpoints, formato de respuestas y permisos. |
+| [`docs/navegacion-sidebar.md`](docs/navegacion-sidebar.md) | Cómo funciona el sidebar (`MainLayout.jsx`), reglas para agregar enlaces y pendientes conocidos. |
+| [`docs/tabla-historial.md`](docs/tabla-historial.md) | Estado de la tabla de auditoría `historial` y qué hacer al llegar a la fase alfa. |
 
 ---
 
 ## 🔧 Variables de entorno
 
-El archivo `.env` se crea automáticamente en `webSIGAE/BackEnd/` durante el setup. Si necesitas recrearlo manualmente:
+El backend lee su configuración de `webSIGAE/BackEnd/.env`. Ese archivo **no se sube a git**: cada uno tiene el suyo. Lo que sí está en el repo es la plantilla, `webSIGAE/BackEnd/.env.example`.
 
-```env
-JWT_SECRET=un_secreto_muy_largo_y_seguro
-PORT=3000
-DB_HOST=127.0.0.1
-DB_USER=sigae
-DB_PASSWORD=sigae123
-DB_NAME=sigae
-FRONTEND_URL=http://localhost:5173
+- **No tienes que crearlo a mano:** los scripts de setup copian `.env.example` a `.env`. Si ya tenías un `.env` distinto, lo guardan en `.env.bak` antes de reemplazarlo.
+- **No hace falta editarlo**, tampoco en Windows: el setup crea en tu base de datos el usuario `sigae` que usa la plantilla.
+- **Si agregas una variable nueva** al backend, agrégala también en `.env.example` con un valor de ejemplo, para que le llegue al resto del equipo. Nunca pongas claves reales en la plantilla.
+
+Si necesitas crearlo sin correr el setup, copia la plantilla:
+
+```bash
+cp webSIGAE/BackEnd/.env.example webSIGAE/BackEnd/.env
 ```
 
 ---
 
 ## 🗄️ Base de datos
 
-La base de datos se importa automáticamente desde `Database/SIGAE.sql` durante el setup. Si necesitas reimportarla manualmente:
+> 📌 **Hay un solo archivo de base de datos: `webSIGAE/Database/SIGAE.sql`.** No existen migraciones ni scripts aparte. Ese archivo siempre trae el esquema más reciente **y** los usuarios de prueba.
+
+Importar `SIGAE.sql` borra y vuelve a crear todas las tablas de `sigae` (crea la base si no existe). Por eso sirve tanto para instalar desde cero como para **ponerse al día**: si tu base es antigua (por ejemplo, te falta una columna o el backend tira `Unknown column ...`), basta con volver a importarlo.
+
+**¿Cuándo reimportar?** Cada vez que hagas `git pull` y `SIGAE.sql` haya cambiado. Si tienes dudas, reimpórtalo: no pierdes nada del proyecto.
+
+> ⚠️ Lo único que se pierde son los datos que hayas agregado **a mano** en tu base local (usuarios, estudiantes, horarios de prueba, etc.).
+
+### Cómo reimportar
+
+**La forma fácil:** vuelve a correr el setup de tu sistema (`bash .devcontainer/setup.sh` o, en Windows, `bash win_setup.sh` desde Git Bash). Reimporta la base y hashea las contraseñas.
+
+**A mano**, si solo quieres la base de datos. Después de importar, **siempre** corre el script de hasheo: el dump trae las contraseñas en texto plano y el login no funciona hasta hashearlas.
+
+Codespaces / Linux / macOS:
 
 ```bash
-sudo mariadb -u root -e "DROP DATABASE IF EXISTS sigae; CREATE DATABASE sigae;"
-sudo mariadb -u root sigae < webSIGAE/Database/SIGAE.sql
+sudo mariadb -u root < webSIGAE/Database/SIGAE.sql
 node webSIGAE/BackEnd/hashPasswords.js
 ```
 
-> ⚠️ El dump trae contraseñas en texto plano. Siempre corre el script de hasheo después de importar antes de levantar el servidor.
+Windows, **desde Git Bash** (PowerShell no entiende el `<` y falla con _"El operador '<' está reservado para uso futuro"_):
 
-### ¿Qué es una migración y cuándo la necesito?
+```bash
+mysql -u root -p"TU_CONTRASEÑA_DE_ROOT" < webSIGAE/Database/SIGAE.sql
+node webSIGAE/BackEnd/hashPasswords.js
+```
 
-Una **migración** es un script SQL que modifica la estructura de una base de datos que ya existe (por ejemplo, agregar o renombrar columnas con `ALTER TABLE`) **sin borrar los datos que contiene**.
+- Va **sin espacio** entre `-p` y la contraseña. Si la escribes aparte (solo `-p`), Git Bash a veces se queda pegado sin pedirla.
+- Si sale `mysql: command not found`, usa la ruta completa, por ejemplo:
+  `"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe" -u root -p"TU_CONTRASEÑA_DE_ROOT" < webSIGAE/Database/SIGAE.sql`
+- `hashPasswords.js` usa el usuario `sigae` del `.env`, que crea `win_setup.sh`. Si nunca lo corriste, córrelo primero.
 
-Normalmente **no la necesitas**: `setup.sh` (y la reimportación manual de arriba) cargan `SIGAE.sql`, que borra y vuelve a crear cada tabla con el esquema más reciente. Los usuarios de prueba de este README vienen incluidos en el dump, así que siempre quedan disponibles.
+<details>
+<summary>¿No tienes Git Bash? Otras opciones en Windows</summary>
 
-Lo que **sí se pierde** al correr `setup.sh` son los datos que hayas agregado a mano en tu codespace (usuarios, estudiantes, horarios de prueba, etc.). Si quieres conservarlos cuando cambia el esquema:
+- **CMD (Símbolo del sistema)**: el mismo comando `mysql ... < webSIGAE\Database\SIGAE.sql` funciona tal cual.
+- **PowerShell**: usa `source` en vez de `<`:
+  ```powershell
+  mysql -u root -p -e "source webSIGAE/Database/SIGAE.sql"
+  ```
+  No uses `Get-Content SIGAE.sql | mysql ...`: rompe las tildes y las ñ.
+- **MySQL Workbench**: _File › Open SQL Script…_ → `SIGAE.sql` → ejecutar (⚡).
 
-1. **Respalda tu base actual** antes de tocar nada:
+En todos los casos, después corre `node webSIGAE/BackEnd/hashPasswords.js`.
 
-   ```bash
-   sudo mariadb-dump -u root sigae > ~/respaldo_sigae.sql
-   ```
+</details>
 
-2. **No corras `setup.sh`**. En su lugar, aplica solo el cambio de estructura con un `ALTER TABLE` equivalente al cambio hecho en `SIGAE.sql` (revisa el diff del PR que lo introdujo para ver qué columnas cambiaron), por ejemplo:
+### Respaldar tus datos locales (opcional)
 
-   ```bash
-   sudo mariadb -u root sigae -e "ALTER TABLE usuario ADD COLUMN Nueva_Columna varchar(50) DEFAULT NULL;"
-   ```
+Si quieres conservar los datos que agregaste a mano, respáldalos **antes** de reimportar (en Windows, desde Git Bash con `mysqldump` en vez de `sudo mariadb-dump`):
 
-3. Si algo sale mal, **restaura el respaldo**:
+```bash
+sudo mariadb-dump -u root sigae > ~/respaldo_sigae.sql
+```
 
-   ```bash
-   sudo mariadb -u root -e "DROP DATABASE IF EXISTS sigae; CREATE DATABASE sigae;"
-   sudo mariadb -u root sigae < ~/respaldo_sigae.sql
-   ```
+Para restaurarlo, impórtalo igual que `SIGAE.sql` pero con `~/respaldo_sigae.sql` (ya trae las contraseñas hasheadas, no hace falta el script de hasheo). Ojo: si el esquema cambió entre medio, el respaldo trae el esquema **viejo**.
 
-> 💡 El respaldo ya trae las contraseñas hasheadas, así que al restaurarlo **no** hace falta volver a correr el script de hasheo.
+### Para quien modifique el esquema
+
+Cualquier cambio de tablas o columnas se hace **directamente en `SIGAE.sql`** (manteniendo los usuarios de prueba). No agregues archivos de migración aparte: el equipo trabaja con un solo archivo.
 
 ---
 

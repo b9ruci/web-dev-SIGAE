@@ -7,7 +7,13 @@ fecha/hora del cambio y el usuario responsable, con referencias opcionales a
 
 ## Estado actual
 
-**Ningún controlador del backend escribe en esta tabla todavía.** Varios casos de uso
+**Solo el módulo de citaciones escribe en esta tabla.** `citacionController.js`
+(función `registrarHistorial`) inserta un registro al confirmar (CU75), cancelar (CU76)
+y reprogramar (CU77) una citación, y el historial de citaciones (CU79) lo lee. Eso es
+parte del caso de uso, no auditoría general, y queda fuera de la postergación descrita
+abajo.
+
+**El resto del backend todavía no escribe en `historial`.** Varios casos de uso
 del Incremento 2 (CU9, CU10, CU39, entre otros) mencionan en su descripción o
 poscondición que el sistema "registra trazabilidad" o "mantiene la integridad
 histórica" de los cambios, pero esas operaciones hoy solo actualizan la tabla

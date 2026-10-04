@@ -1,10 +1,10 @@
 # Contrato API — Módulo de Citaciones (CU74–CU79 / RF48–RF53)
 
-El frontend (`src/pages/communications/Citaciones.jsx`, `HistorialCitaciones.jsx` y
-`src/components/citaciones/`) consume estos endpoints desde `src/services/api.js`.
+El frontend (`webSIGAE/FrontEnd/src/pages/communications/Citaciones.jsx`, `HistorialCitaciones.jsx` y
+`webSIGAE/FrontEnd/src/components/citaciones/`) consume estos endpoints desde `webSIGAE/FrontEnd/src/services/api.js`.
 Los nombres de las funciones siguen los mensajes de los diagramas de secuencia.
-Implementación en el backend: `BackEnd/controllers/citacionController.js` y `BackEnd/routes/citacionRoutes.js`
-(pruebas en `BackEnd/tests/citaciones.test.js`).
+Implementación en el backend: `webSIGAE/BackEnd/controllers/citacionController.js` y `webSIGAE/BackEnd/routes/citacionRoutes.js`
+(pruebas en `webSIGAE/BackEnd/tests/citaciones.test.js`).
 
 Todas las respuestas de error usan `{ "mensaje": "..." }`; el frontend muestra ese texto tal cual.
 

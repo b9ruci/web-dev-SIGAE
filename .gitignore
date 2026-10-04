@@ -485,3 +485,7 @@ $RECYCLE.BIN/
 *.swp
 .azure
 backups/
+
+# Variables de entorno locales (la plantilla es webSIGAE/BackEnd/.env.example)
+.env
+.env.bak
