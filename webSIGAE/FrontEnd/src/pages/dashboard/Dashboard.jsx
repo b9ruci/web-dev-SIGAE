@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { apiFetch } from "../../services/api";
+import { apiFetch, getCitaciones, getConversaciones } from "../../services/api";
+import EstadoCitacionBadge from "../../components/citaciones/EstadoCitacionBadge";
+import { esCancelada, fechaISO, formatearFecha, hoyISO } from "../../utils/citaciones";
 
 /* ── Grupo de navegación ───────────────────────────── */
 function NavGroup({ titulo, icono, color, links }) {
@@ -120,6 +122,89 @@ function DashboardAdmin({ esSuperAdmin }) {
   );
 }
 
+/* ── Resumen de citaciones y mensajes (Docente / Apoderado) ── */
+// Fig. 4.5.2: citaciones próximas (fecha, tramo y estado) y mensajes sin leer
+const MAX_PROXIMAS = 5;
+
+function ResumenComunicaciones({ rol }) {
+  const [proximas, setProximas] = useState([]);
+  const [noLeidos, setNoLeidos] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let activo = true;
+    Promise.allSettled([getCitaciones(rol), getConversaciones(rol)])
+      .then(([cit, conv]) => {
+        if (!activo) return;
+        if (cit.status === "fulfilled") {
+          const lista = Array.isArray(cit.value) ? cit.value : cit.value?.citaciones || [];
+          const hoy = hoyISO();
+          setProximas(
+            lista
+              .filter((c) => fechaISO(c.Citacion_Fecha) >= hoy && !esCancelada(c))
+              .slice(0, MAX_PROXIMAS)
+          );
+        }
+        if (conv.status === "fulfilled" && Array.isArray(conv.value)) {
+          setNoLeidos(conv.value.reduce((total, c) => total + (Number(c.No_Leidos) || 0), 0));
+        }
+        if (cit.status === "rejected" || conv.status === "rejected") {
+          setError("No fue posible cargar parte del resumen");
+        }
+      })
+      .finally(() => activo && setLoading(false));
+    return () => { activo = false; };
+  }, [rol]);
+
+  return (
+    <div className="quick-actions">
+      <h2>Citaciones y mensajes</h2>
+      {loading ? (
+        <p>Cargando resumen...</p>
+      ) : (
+        <>
+          {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+          <div className="dashboard-cards">
+            <Link to="/mensajes" className="card" style={{ textDecoration: "none", color: "inherit" }}>
+              <h3>Mensajes sin leer</h3>
+              <p>{noLeidos}</p>
+            </Link>
+            <Link to="/citaciones" className="card" style={{ textDecoration: "none", color: "inherit" }}>
+              <h3>Citaciones próximas</h3>
+              <p>{proximas.length}</p>
+            </Link>
+          </div>
+          {proximas.length === 0 ? (
+            <p>No tienes citaciones próximas.</p>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0, margin: "0.75rem 0 0", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              {proximas.map((c) => (
+                <li
+                  key={c.Citacion_Id}
+                  style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem",
+                    padding: "0.6rem 0.8rem", border: "1px solid #e5e7eb", borderRadius: 8, background: "#fff" }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600 }}>
+                      {formatearFecha(c.Citacion_Fecha, { corta: true })} · {c.Citacion_Tramo_Horario}
+                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                      {c.Estudiante_Nombre_Completo}
+                      {rol === "Apoderado" ? ` — ${c.Docente_Nombre}` : ` — ${c.Apoderado_Nombre}`}
+                    </div>
+                  </div>
+                  <EstadoCitacionBadge citacion={c} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ── Dashboard de Docente ──────────────────────────── */
 function DashboardDocente({ nombre }) {
   return (
@@ -137,6 +222,8 @@ function DashboardDocente({ nombre }) {
           <Link to="/perfil">Mi Perfil</Link>
         </div>
       </div>
+
+      <ResumenComunicaciones rol="Docente" />
     </div>
   );
 }
@@ -156,6 +243,8 @@ function DashboardApoderado({ nombre }) {
           <Link to="/perfil">Mi Perfil</Link>
         </div>
       </div>
+
+      <ResumenComunicaciones rol="Apoderado" />
     </div>
   );
 }

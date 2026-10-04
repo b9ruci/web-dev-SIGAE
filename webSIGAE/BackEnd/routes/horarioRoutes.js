@@ -23,6 +23,8 @@ const {
   reasignarDocente,
   validarCambiosMultiples,
   modificarMultiplesBloques,
+  suspenderBloques,
+  suspenderJornadaCompleta,
 } = require('../controllers/horarioController');
 
 // CU 60-62 — Exportación de horarios (maestro / por docente / por curso)
@@ -79,6 +81,10 @@ router.put('/reasignar-docente',          verifyAdmin, reasignarDocente);
 router.get('/opciones-edicion',           verifyAdmin, getOpcionesEdicion);
 router.post('/multiples/validar',         verifyAdmin, validarCambiosMultiples);
 router.put('/multiples',                  verifyAdmin, modificarMultiplesBloques);
+
+// CU65 / CU66 — Suspensión de bloques y de jornada por evento institucional
+router.post('/suspender-bloques', verifyAdmin, suspenderBloques);
+router.post('/suspender-jornada', verifyAdmin, suspenderJornadaCompleta);
 
 // CRUD horario — solo admin puede crear/editar (CU54); la lectura permite
 // el filtrado por rol ya implementado dentro de getHorarios.

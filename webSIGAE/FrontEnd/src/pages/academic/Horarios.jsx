@@ -212,7 +212,7 @@ export default function Horarios() {
   // Selección múltiple de bloques (CU63 / CU64)
   const [modoSeleccion, setModoSeleccion] = useState(false);
   const [seleccionados, setSeleccionados] = useState([]);
-  const [modalMasivo, setModalMasivo] = useState(null); // "reasignar" | "editar" | null
+  const [modalMasivo, setModalMasivo] = useState(null); // "reasignar" | "editar" | "suspender" | null
   // CU69: Horario_Asignatura_Id del bloque cuyo detalle se está viendo
   const [detalleBloqueId, setDetalleBloqueId] = useState(null);
   const [exito, setExito] = useState("");
@@ -712,6 +712,13 @@ export default function Horarios() {
                   >
                     ✏ Editar seleccionados
                   </button>
+                  <button
+                    style={s.btnAccionSeleccion}
+                    disabled={seleccionados.length === 0}
+                    onClick={() => setModalMasivo("suspender")}
+                  >
+                    ⏸ Suspender por evento
+                  </button>
                   <button style={s.btnCancelar} onClick={toggleModoSeleccion}>
                     Cancelar
                   </button>
@@ -781,6 +788,15 @@ export default function Horarios() {
       {/* CU64 — Modificando múltiples bloques horarios */}
       {esAdmin && modalMasivo === "editar" && (
         <EditarMultiplesModal
+          seleccion={horarios.filter((h) => seleccionados.includes(h.Horario_Asignatura_Id))}
+          onClose={() => setModalMasivo(null)}
+          onExito={handleExitoMasivo}
+        />
+      )}
+
+      {/* CU65 — Suspendiendo bloques horarios por evento institucional */}
+      {esAdmin && modalMasivo === "suspender" && (
+        <SuspenderBloquesModal
           seleccion={horarios.filter((h) => seleccionados.includes(h.Horario_Asignatura_Id))}
           onClose={() => setModalMasivo(null)}
           onExito={handleExitoMasivo}
@@ -1114,6 +1130,15 @@ function VistaBloqueGrid({
                       {h.estado === "Suspendido" && (
                         <div style={{ fontSize: "0.6rem", color: "#dc2626", fontWeight: 700 }}>
                           Suspendido
+                        </div>
+                      )}
+                      {/* RF42 — suspensión por evento institucional (CU65 / CU66) */}
+                      {h.suspension_evento && (
+                        <div
+                          title={`Suspendido el ${h.suspension_evento.fecha} por "${h.suspension_evento.nombre}"`}
+                          style={{ fontSize: "0.6rem", color: "#7c2d12", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                        >
+                          ⏸ Suspendido {h.suspension_evento.fecha.slice(8, 10)}/{h.suspension_evento.fecha.slice(5, 7)}
                         </div>
                       )}
                       {/* Hover action buttons */}
@@ -1825,6 +1850,105 @@ function ReasignarDocenteModal({ seleccion, onClose, onExito }) {
         onConfirmar={() => flujo.confirmar(body())}
         onClose={onClose}
       />
+    </ModalMasivo>
+  );
+}
+
+/* CU65 — Suspendiendo bloques horarios por evento institucional */
+function SuspenderBloquesModal({ seleccion, onClose, onExito }) {
+  const [eventos, setEventos] = useState([]);
+  const [modo, setModo] = useState("existente"); // "existente" | "nuevo"
+  const [eventoId, setEventoId] = useState("");
+  const [nuevo, setNuevo] = useState({ nombre: "", fecha: "", descripcion: "" });
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState("");
+  const [detalle, setDetalle] = useState("");
+
+  // La suspensión se registra por bloque horario (tabla afecta)
+  const bloquesId = [...new Set(seleccion.map((h) => h.Bloque_Horario_Id))];
+
+  useEffect(() => {
+    fetch(`${API}/bloques/eventos`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((data) => setEventos(Array.isArray(data) ? data : []))
+      .catch(() => setEventos([]));
+  }, []);
+
+  const confirmar = async () => {
+    setError("");
+    setDetalle("");
+    const body = { bloques_id: bloquesId };
+    if (modo === "existente") body.evento_id = eventoId ? Number(eventoId) : null;
+    else body.evento = nuevo;
+
+    setEnviando(true);
+    try {
+      const res = await fetch(`${API}/horarios/suspender-bloques`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "No fue posible suspender los bloques");
+        setDetalle(data.detalle || "");
+        return;
+      }
+      onExito(data.mensaje || "Bloques suspendidos por evento institucional");
+    } catch {
+      setError("No fue posible conectar con el servidor");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <ModalMasivo
+      titulo="Suspender por evento institucional"
+      subtitulo={`${seleccion.length} bloque(s) seleccionado(s)`}
+      onClose={onClose}
+    >
+      <ListaSeleccion seleccion={seleccion} />
+      <p className="modal-subtitulo" style={{ marginTop: "0.75rem" }}>
+        Los bloques horarios seleccionados quedarán suspendidos en la fecha del evento para toda la institución.
+      </p>
+
+      <div style={{ display: "flex", gap: "1rem", margin: "0.75rem 0" }}>
+        <label><input type="radio" checked={modo === "existente"} onChange={() => setModo("existente")} /> Evento registrado</label>
+        <label><input type="radio" checked={modo === "nuevo"} onChange={() => setModo("nuevo")} /> Registrar evento nuevo</label>
+      </div>
+
+      {modo === "existente" ? (
+        <>
+          <label style={s.label}>Evento institucional *</label>
+          <select value={eventoId} onChange={(e) => setEventoId(e.target.value)} style={s.input}>
+            <option value="">— Selecciona un evento —</option>
+            {eventos.map((ev) => (
+              <option key={ev.Evento_Institucional_Id} value={ev.Evento_Institucional_Id}>
+                {String(ev.Evento_Institucional_Fecha).slice(0, 10)} — {ev.Evento_Institucional_Nombre}
+              </option>
+            ))}
+          </select>
+        </>
+      ) : (
+        <>
+          <label style={s.label}>Nombre del evento *</label>
+          <input style={s.input} value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} />
+          <label style={s.label}>Fecha *</label>
+          <input type="date" style={s.input} value={nuevo.fecha} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} />
+          <label style={s.label}>Descripción *</label>
+          <textarea style={{ ...s.input, minHeight: 70 }} value={nuevo.descripcion} onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} />
+        </>
+      )}
+
+      <ErrorMasivo error={error} conflictos={detalle ? [detalle] : []} />
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
+        <button type="button" style={s.btnCancelar} onClick={onClose} disabled={enviando}>Cancelar</button>
+        <button type="button" className="btn-primary" onClick={confirmar} disabled={enviando}>
+          {enviando ? "Suspendiendo..." : "Confirmar suspensión"}
+        </button>
+      </div>
     </ModalMasivo>
   );
 }

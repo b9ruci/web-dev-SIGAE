@@ -306,17 +306,28 @@ const deleteMultiplesBloques = async (req, res) => {
 //   - "Salida anticipada" → se afectan los bloques tipo 'Clase' de la
 //                           jornada 'Tarde'.
 //   - "Suspensión total"  → se afectan TODOS los bloques tipo 'Clase'.
+//   - "Suspensión jornada mañana" → se afectan los bloques tipo 'Clase'
+//                           de la jornada 'Mañana' (CU66).
+//   - "Suspensión parcial" → los bloques se eligen manualmente (CU65),
+//                           por lo que aquí no se calcula ninguno.
 //
 // Si tu equipo definió una regla distinta en el informe, ajusten la
 // función registrarBloquesAfectados() más abajo — es el único lugar
 // donde vive esta decisión.
 
+// Impactos que el formulario de eventos (CU70/CU71) puede registrar directamente.
+const IMPACTOS_EVENTO = ['Sin impacto', 'Salida anticipada', 'Suspensión total', 'Suspensión jornada mañana'];
+// 'Suspensión parcial' solo nace desde CU65 (bloques elegidos a mano); CU71 puede conservarlo.
+const IMPACTOS_EDITABLES = [...IMPACTOS_EVENTO, 'Suspensión parcial'];
+
 async function registrarBloquesAfectados(conn, eventoId, impacto) {
-  if (impacto === 'Sin impacto') return [];
+  if (impacto === 'Sin impacto' || impacto === 'Suspensión parcial') return [];
 
   let query = `SELECT Bloque_Horario_Id FROM bloque_horario WHERE Bloque_Horario_Tipo = 'Clase'`;
   if (impacto === 'Salida anticipada') {
     query += ` AND Bloque_Horario_Jornada = 'Tarde'`;
+  } else if (impacto === 'Suspensión jornada mañana') {
+    query += ` AND Bloque_Horario_Jornada = 'Mañana'`;
   }
   // 'Suspensión total' → todos los bloques de tipo Clase, sin filtro adicional
 
@@ -377,7 +388,7 @@ const getBloquesAfectadosPorEvento = async (req, res) => {
 const createEvento = async (req, res) => {
   const { Evento_Institucional_Nombre, Evento_Institucional_Fecha, Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases } = req.body;
 
-  const impactosValidos = ['Sin impacto', 'Salida anticipada', 'Suspensión total'];
+  const impactosValidos = IMPACTOS_EVENTO;
 
   // CU70 - Excepción "Datos incompletos o inválidos"
   if (!Evento_Institucional_Nombre || !Evento_Institucional_Fecha || !Evento_Institucional_Descripcion ||
@@ -435,7 +446,7 @@ const updateEvento = async (req, res) => {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
 
-  const impactosValidos = ['Sin impacto', 'Salida anticipada', 'Suspensión total'];
+  const impactosValidos = IMPACTOS_EDITABLES;
   if (!impactosValidos.includes(Evento_Institucional_Impacto_Clases)) {
     return res.status(400).json({ error: 'Impacto en clases inválido' });
   }
@@ -475,8 +486,17 @@ const updateEvento = async (req, res) => {
 
     // Excepción (CU71): el impacto pudo haber cambiado → se recalculan
     // los bloques afectados desde cero (se descartan los previos).
-    await conn.execute(`DELETE FROM afecta WHERE Evento_Institucional_Id = ?`, [id]);
-    const bloquesAfectados = await registrarBloquesAfectados(conn, id, Evento_Institucional_Impacto_Clases);
+    // Una "Suspensión parcial" (CU65) conserva los bloques elegidos a mano.
+    let bloquesAfectados = [];
+    if (Evento_Institucional_Impacto_Clases === 'Suspensión parcial') {
+      const [actuales] = await conn.execute(
+        `SELECT Bloque_Horario_Id FROM afecta WHERE Evento_Institucional_Id = ?`, [id]
+      );
+      bloquesAfectados = actuales.map((a) => a.Bloque_Horario_Id);
+    } else {
+      await conn.execute(`DELETE FROM afecta WHERE Evento_Institucional_Id = ?`, [id]);
+      bloquesAfectados = await registrarBloquesAfectados(conn, id, Evento_Institucional_Impacto_Clases);
+    }
 
     await conn.commit();
     res.json({ mensaje: 'Evento actualizado correctamente', bloques_afectados: bloquesAfectados });
@@ -514,4 +534,5 @@ module.exports = {
   getBloques, createBloque, updateBloque, deleteBloque, deleteMultiplesBloques,
   getEventos, createEvento, updateEvento, deleteEvento,
   getBloquesAfectadosPorEvento,
+  registrarBloquesAfectados, // reutilizado por CU66 (horarioController)
 };
