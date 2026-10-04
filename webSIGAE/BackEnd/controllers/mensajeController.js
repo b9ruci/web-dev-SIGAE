@@ -463,6 +463,155 @@ const marcarMensajesLeidos = async (req, res) => {
 
 
 /**
+ * Ficha de la contraparte de una conversación, para el panel lateral del chat.
+ * Solo datos de contacto no invasivos: nunca RUT ni dirección.
+ * - Docente ve al apoderado: nombre, teléfono, correo y sus estudiantes asociados.
+ * - Apoderado ve al docente: nombre, especialidad, correo institucional y las
+ *   asignaturas que dicta a sus estudiantes.
+ */
+const obtenerDetalleContacto = async (req, res) => {
+  const conversacionId = Number(req.params.id);
+
+  if (!Number.isInteger(conversacionId) || conversacionId <= 0) {
+    return res.status(400).json({
+      mensaje: 'ID de conversación inválido'
+    });
+  }
+
+  try {
+    const acceso = await buscarConversacionDelUsuario(conversacionId, req.user);
+
+    if (!acceso) {
+      return res.status(404).json({
+        mensaje: 'Conversación no encontrada o no tienes acceso'
+      });
+    }
+
+    const { conversacion, rol } = acceso;
+
+    if (rol === 'Docente') {
+      const apoderadoId = conversacion.Apoderado_Usuario_Id;
+
+      const [usuarios] = await pool.query(
+        `
+        SELECT
+          Usuario_Id,
+          Usuario_Nombre_Completo,
+          Usuario_Telefono,
+          Apoderado_Correo_Natural,
+          Usuario_Foto_Perfil
+        FROM usuario
+        WHERE Usuario_Id = ?
+        LIMIT 1
+        `,
+        [apoderadoId]
+      );
+
+      if (usuarios.length === 0) {
+        return res.status(404).json({ mensaje: 'Contacto no encontrado' });
+      }
+
+      const [estudiantes] = await pool.query(
+        `
+        SELECT
+          e.Estudiante_Id,
+          e.Estudiante_Nombre_Completo,
+          cu.Curso_Nombre
+        FROM estudiante e
+        LEFT JOIN curso cu
+          ON cu.Curso_Id = e.Curso_Id
+        WHERE e.Apoderado_Usuario_Id = ?
+          AND e.Estudiante_Fecha_Eliminacion IS NULL
+        ORDER BY e.Estudiante_Nombre_Completo
+        `,
+        [apoderadoId]
+      );
+
+      const u = usuarios[0];
+
+      return res.json({
+        Rol: 'Apoderado',
+        Nombre: u.Usuario_Nombre_Completo,
+        Telefono: u.Usuario_Telefono,
+        Correo: u.Apoderado_Correo_Natural,
+        Foto: u.Usuario_Foto_Perfil,
+        Estudiantes: estudiantes.map((e) => ({
+          Estudiante_Id: e.Estudiante_Id,
+          Nombre: e.Estudiante_Nombre_Completo,
+          Curso: e.Curso_Nombre
+        }))
+      });
+    }
+
+    // rol === 'Apoderado': la contraparte es el docente
+    const docenteId = conversacion.Docente_Usuario_Id;
+
+    const [usuarios] = await pool.query(
+      `
+      SELECT
+        Usuario_Id,
+        Usuario_Nombre_Completo,
+        Docente_Especialidad,
+        Docente_Correo_Institucional,
+        Usuario_Foto_Perfil
+      FROM usuario
+      WHERE Usuario_Id = ?
+      LIMIT 1
+      `,
+      [docenteId]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ mensaje: 'Contacto no encontrado' });
+    }
+
+    const [asignaturas] = await pool.query(
+      `
+      SELECT DISTINCT
+        a.Asignatura_Nombre,
+        cu.Curso_Nombre
+      FROM horario_asignatura ha
+      INNER JOIN asignatura a
+        ON a.Asignatura_Id = ha.Asignatura_Id
+      INNER JOIN curso cu
+        ON cu.Curso_Id = ha.Curso_Id
+      WHERE ha.Usuario_Id = ?
+        AND ha.Curso_Id IN (
+          SELECT Curso_Id
+          FROM estudiante
+          WHERE Apoderado_Usuario_Id = ?
+            AND Estudiante_Fecha_Eliminacion IS NULL
+        )
+      ORDER BY cu.Curso_Nombre, a.Asignatura_Nombre
+      `,
+      [docenteId, req.user.id]
+    );
+
+    const u = usuarios[0];
+
+    return res.json({
+      Rol: 'Docente',
+      Nombre: u.Usuario_Nombre_Completo,
+      Especialidad: u.Docente_Especialidad,
+      Correo: u.Docente_Correo_Institucional,
+      Foto: u.Usuario_Foto_Perfil,
+      Asignaturas: asignaturas.map((a) => ({
+        Nombre: a.Asignatura_Nombre,
+        Curso: a.Curso_Nombre
+      }))
+    });
+
+  } catch (error) {
+    console.error('Error al obtener detalle del contacto:', error);
+
+    return res.status(500).json({
+      mensaje: 'Error interno al obtener los datos del contacto'
+    });
+  }
+};
+
+
+/**
  * CU73 paso 1: contactos válidos con los que el usuario puede conversar
  * según su rol activo (?rol=Docente|Apoderado).
  */
@@ -582,5 +731,6 @@ module.exports = {
   enviarMensaje,
   marcarMensajesLeidos,
   obtenerContactos,
-  iniciarConversacion
+  iniciarConversacion,
+  obtenerDetalleContacto
 };

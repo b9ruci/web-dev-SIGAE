@@ -542,6 +542,17 @@ export async function getMensajesConversacion(conversacionId) {
   return handleResponse(res);
 }
 
+// Datos no invasivos de la contraparte de una conversación (panel lateral)
+export async function getDetalleContactoConversacion(conversacionId) {
+  const res = await apiFetch(
+    `${BASE_URL}/mensajes/conversaciones/${conversacionId}/contacto`
+  );
+
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
 export async function enviarMensaje(conversacionId, contenido) {
   const res = await apiFetch(
     `${BASE_URL}/mensajes/conversaciones/${conversacionId}/mensajes`,
