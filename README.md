@@ -76,7 +76,7 @@ web-dev-SIGAE/
 └── webSIGAE/
 ├── BackEnd/ # API Node.js + Express
 ├── FrontEnd/ # App Vite + React
-└── Database/ # SIGAE.sql (dump inicial)
+└── Database/ # SIGAE.sql (único dump de la base de datos)
 ```
 
 ---
@@ -99,44 +99,70 @@ FRONTEND_URL=http://localhost:5173
 
 ## 🗄️ Base de datos
 
-La base de datos se importa automáticamente desde `Database/SIGAE.sql` durante el setup. Si necesitas reimportarla manualmente:
+> 📌 **Hay un solo archivo de base de datos: `webSIGAE/Database/SIGAE.sql`.** No existen migraciones ni scripts aparte. Ese archivo siempre trae el esquema más reciente **y** los usuarios de prueba.
+
+Importar `SIGAE.sql` borra y vuelve a crear todas las tablas de `sigae` (crea la base si no existe). Por eso sirve tanto para instalar desde cero como para **ponerse al día**: si tu base es antigua (por ejemplo, te falta una columna o el backend tira `Unknown column ...`), basta con volver a importarlo.
+
+**¿Cuándo reimportar?** Cada vez que hagas `git pull` y `SIGAE.sql` haya cambiado. Si tienes dudas, reimpórtalo: no pierdes nada del proyecto.
+
+> ⚠️ Lo único que se pierde son los datos que hayas agregado **a mano** en tu base local (usuarios, estudiantes, horarios de prueba, etc.).
+
+Después de importar, **siempre** corre el script de hasheo: el dump trae las contraseñas en texto plano y el login no funciona hasta hashearlas.
+
+### 🐧 Codespaces / Linux / macOS
+
+La base se importa automáticamente durante `setup.sh`. Para reimportarla a mano:
 
 ```bash
-sudo mariadb -u root -e "DROP DATABASE IF EXISTS sigae; CREATE DATABASE sigae;"
-sudo mariadb -u root sigae < webSIGAE/Database/SIGAE.sql
+sudo mariadb -u root < webSIGAE/Database/SIGAE.sql
 node webSIGAE/BackEnd/hashPasswords.js
 ```
 
-> ⚠️ El dump trae contraseñas en texto plano. Siempre corre el script de hasheo después de importar antes de levantar el servidor.
+### 🪟 Windows (Visual Studio Code)
 
-### ¿Qué es una migración y cuándo la necesito?
+> 🚫 **No uses PowerShell** (la terminal que abre VS Code por defecto) para estos comandos: PowerShell no entiende el `<` y falla con _"El operador '<' está reservado para uso futuro"_. Tampoco existe `sudo` en Windows.
 
-Una **migración** es un script SQL que modifica la estructura de una base de datos que ya existe (por ejemplo, agregar o renombrar columnas con `ALTER TABLE`) **sin borrar los datos que contiene**.
+Usa **Git Bash**, que viene incluido con Git para Windows. En VS Code: abre la terminal (`` Ctrl+` ``), haz clic en la flecha **˅** al lado del **+** y elige **Git Bash**. Desde la raíz del repo:
 
-Normalmente **no la necesitas**: `setup.sh` (y la reimportación manual de arriba) cargan `SIGAE.sql`, que borra y vuelve a crear cada tabla con el esquema más reciente. Los usuarios de prueba de este README vienen incluidos en el dump, así que siempre quedan disponibles.
+```bash
+mysql -u root -p"TU_CONTRASEÑA_DE_ROOT" < webSIGAE/Database/SIGAE.sql
+node webSIGAE/BackEnd/hashPasswords.js
+```
 
-Lo que **sí se pierde** al correr `setup.sh` son los datos que hayas agregado a mano en tu codespace (usuarios, estudiantes, horarios de prueba, etc.). Si quieres conservarlos cuando cambia el esquema:
+- Va **sin espacio** entre `-p` y la contraseña. Si la escribes aparte (solo `-p`), Git Bash a veces se queda pegado sin pedirla.
+- Si instalaste MariaDB en vez de MySQL, cambia `mysql` por `mariadb`.
+- Si sale `mysql: command not found`, el programa no está en el PATH. Usa la ruta completa, por ejemplo:
+  `"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe" -u root -p"TU_CONTRASEÑA_DE_ROOT" < webSIGAE/Database/SIGAE.sql`
+- `hashPasswords.js` se conecta con los datos de `webSIGAE/BackEnd/.env`. En Windows ese archivo no se crea solo: créalo como en [Variables de entorno](#-variables-de-entorno), con el usuario y la contraseña de **tu** MySQL local.
 
-1. **Respalda tu base actual** antes de tocar nada:
+<details>
+<summary>¿No tienes Git Bash? Otras opciones</summary>
 
-   ```bash
-   sudo mariadb-dump -u root sigae > ~/respaldo_sigae.sql
-   ```
+- **CMD (Símbolo del sistema)**: el mismo comando `mysql ... < webSIGAE\Database\SIGAE.sql` funciona tal cual.
+- **PowerShell**: usa `source` en vez de `<`:
+  ```powershell
+  mysql -u root -p -e "source webSIGAE/Database/SIGAE.sql"
+  ```
+  No uses `Get-Content SIGAE.sql | mysql ...`: rompe las tildes y las ñ.
+- **MySQL Workbench**: _File › Open SQL Script…_ → `SIGAE.sql` → ejecutar (⚡).
 
-2. **No corras `setup.sh`**. En su lugar, aplica solo el cambio de estructura con un `ALTER TABLE` equivalente al cambio hecho en `SIGAE.sql` (revisa el diff del PR que lo introdujo para ver qué columnas cambiaron), por ejemplo:
+En todos los casos, después corre `node webSIGAE/BackEnd/hashPasswords.js`.
 
-   ```bash
-   sudo mariadb -u root sigae -e "ALTER TABLE usuario ADD COLUMN Nueva_Columna varchar(50) DEFAULT NULL;"
-   ```
+</details>
 
-3. Si algo sale mal, **restaura el respaldo**:
+### Respaldar tus datos locales (opcional)
 
-   ```bash
-   sudo mariadb -u root -e "DROP DATABASE IF EXISTS sigae; CREATE DATABASE sigae;"
-   sudo mariadb -u root sigae < ~/respaldo_sigae.sql
-   ```
+Si quieres conservar los datos que agregaste a mano, respáldalos **antes** de reimportar (en Windows, desde Git Bash con `mysqldump` en vez de `sudo mariadb-dump`):
 
-> 💡 El respaldo ya trae las contraseñas hasheadas, así que al restaurarlo **no** hace falta volver a correr el script de hasheo.
+```bash
+sudo mariadb-dump -u root sigae > ~/respaldo_sigae.sql
+```
+
+Para restaurarlo, impórtalo igual que `SIGAE.sql` pero con `~/respaldo_sigae.sql` (ya trae las contraseñas hasheadas, no hace falta el script de hasheo). Ojo: si el esquema cambió entre medio, el respaldo trae el esquema **viejo**.
+
+### Para quien modifique el esquema
+
+Cualquier cambio de tablas o columnas se hace **directamente en `SIGAE.sql`** (manteniendo los usuarios de prueba). No agregues archivos de migración aparte: el equipo trabaja con un solo archivo.
 
 ---
 
