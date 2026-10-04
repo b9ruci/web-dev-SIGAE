@@ -214,4 +214,87 @@ describe('Pruebas Unitarias - CU73: Mensajería docente-apoderado', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(pool.query).not.toHaveBeenCalled();
   });
+  test('Docente: el título de cada conversación es el apoderado, no su propio nombre', async () => {
+    req.user = { id: 3, roles: ['Docente'] };
+    req.query.rol = 'Docente';
+    pool.query.mockResolvedValueOnce([[
+      { Conversacion_Id: 1111, Docente_Nombre: 'María Morales', Apoderado_Nombre: 'Pedro Fernandez', No_Leidos: 0 },
+      { Conversacion_Id: 1113, Docente_Nombre: 'María Morales', Apoderado_Nombre: 'Luis Ramos', No_Leidos: 0 },
+    ]]);
+
+    await mensajeController.obtenerConversaciones(req, res);
+
+    expect(pool.query.mock.calls[0][0]).toContain('WHERE c.Docente_Usuario_Id = ?');
+    const nombres = res.json.mock.calls[0][0].map((c) => c.Contacto_Nombre);
+    expect(nombres).toEqual(['Pedro Fernandez', 'Luis Ramos']);
+  });
+
+  // ── Ficha del contacto (panel lateral) ──
+  test('Contacto: el docente ve los datos no invasivos del apoderado y sus estudiantes', async () => {
+    req.user = { id: 5, roles: ['Docente'] };
+    req.params.id = '1112';
+    pool.query
+      .mockResolvedValueOnce([[conversacion()]])
+      .mockResolvedValueOnce([[{
+        Usuario_Id: 4,
+        Usuario_Nombre_Completo: 'Pedro Fernandez',
+        Usuario_Telefono: '944706559',
+        Apoderado_Correo_Natural: 'pedro@gmail.com',
+        Usuario_Foto_Perfil: null,
+      }]])
+      .mockResolvedValueOnce([[{ Estudiante_Id: 1, Estudiante_Nombre_Completo: 'Diego Perez', Curso_Nombre: '1° Básico A' }]]);
+
+    await mensajeController.obtenerDetalleContacto(req, res);
+
+    const [sqlUsuario, paramsUsuario] = pool.query.mock.calls[1];
+    expect(paramsUsuario).toEqual([4]);
+    expect(sqlUsuario).not.toMatch(/RUT|Direccion/i);
+
+    const ficha = res.json.mock.calls[0][0];
+    expect(ficha).toEqual(expect.objectContaining({
+      Rol: 'Apoderado',
+      Nombre: 'Pedro Fernandez',
+      Telefono: '944706559',
+      Correo: 'pedro@gmail.com',
+      Estudiantes: [{ Estudiante_Id: 1, Nombre: 'Diego Perez', Curso: '1° Básico A' }],
+    }));
+    expect(ficha).not.toHaveProperty('Usuario_RUT');
+  });
+
+  test('Contacto: el apoderado ve al docente y las asignaturas que dicta a sus estudiantes', async () => {
+    req.user = { id: 4, roles: ['Apoderado'] };
+    req.params.id = '1112';
+    pool.query
+      .mockResolvedValueOnce([[conversacion()]])
+      .mockResolvedValueOnce([[{
+        Usuario_Id: 5,
+        Usuario_Nombre_Completo: 'Ana Torres',
+        Docente_Especialidad: 'Lenguaje',
+        Docente_Correo_Institucional: 'an.torres@colegio.edu',
+        Usuario_Foto_Perfil: null,
+      }]])
+      .mockResolvedValueOnce([[{ Asignatura_Nombre: 'Lenguaje y Comunicación', Curso_Nombre: '1° Básico A' }]]);
+
+    await mensajeController.obtenerDetalleContacto(req, res);
+
+    expect(pool.query.mock.calls[2][1]).toEqual([5, 4]);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      Rol: 'Docente',
+      Nombre: 'Ana Torres',
+      Especialidad: 'Lenguaje',
+      Correo: 'an.torres@colegio.edu',
+      Asignaturas: [{ Nombre: 'Lenguaje y Comunicación', Curso: '1° Básico A' }],
+    }));
+  });
+
+  test('Contacto: quien no participa en la conversación recibe 404', async () => {
+    req.user = { id: 9, roles: ['Docente'] };
+    req.params.id = '1112';
+    pool.query.mockResolvedValueOnce([[]]);
+
+    await mensajeController.obtenerDetalleContacto(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
 });

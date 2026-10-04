@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../pages/context/AuthContext";
+import { MOSTRAR_MIS_CURSOS } from "../config/funcionalidades";
 
 function MainLayout() {
   const { usuario, rolActivo, logout } = useAuth();
@@ -278,13 +279,11 @@ function MainLayout() {
                   Docente
                 </span>
 
-                <Link to="/plan-educativo">
-                  Plan Educativo
-                </Link>
-
-                <Link to="/cursos">
-                  Mis Cursos
-                </Link>
+                {MOSTRAR_MIS_CURSOS && (
+                  <Link to="/mis-cursos">
+                    Mis Cursos
+                  </Link>
+                )}
 
                 <Link to="/estudiantes">
                   Estudiantes
@@ -292,10 +291,6 @@ function MainLayout() {
 
                 <Link to="/mi-horario">
                   Mi Horario
-                </Link>
-
-                <Link to="/consulta-horarios">
-                  Consulta de Horarios
                 </Link>
 
                 <Link to="/citaciones">
@@ -317,6 +312,10 @@ function MainLayout() {
                 <span className="menu-section">
                   Apoderado
                 </span>
+
+                <Link to="/horario-alumno">
+                  Horario del Alumno
+                </Link>
 
                 <Link to="/citaciones">
                   Citaciones

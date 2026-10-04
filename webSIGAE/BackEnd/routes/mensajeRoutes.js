@@ -8,7 +8,8 @@ const {
   enviarMensaje,
   marcarMensajesLeidos,
   obtenerContactos,
-  iniciarConversacion
+  iniciarConversacion,
+  obtenerDetalleContacto
 } = require('../controllers/mensajeController');
 
 const { verifyToken } = require('../middleware/authMiddleware');
@@ -32,6 +33,10 @@ router.post('/conversaciones', iniciarConversacion);
 
 // Obtener los mensajes de una conversación
 router.get('/conversaciones/:id/mensajes', obtenerMensajes);
+
+
+// Datos no invasivos de la contraparte (panel lateral del chat)
+router.get('/conversaciones/:id/contacto', obtenerDetalleContacto);
 
 
 // Enviar un mensaje

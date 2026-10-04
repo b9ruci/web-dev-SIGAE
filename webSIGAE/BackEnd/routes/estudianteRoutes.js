@@ -9,6 +9,8 @@ router.get('/',               verifyToken,             estudianteController.getE
 router.get('/buscar',        verifyToken,             estudianteController.buscarEstudiantes);
 router.get('/verificar-rut', verifyToken, verifyAdmin, estudianteController.verificarRut);
 router.get('/sin-apoderado', verifyToken, verifyAdmin, estudianteController.getEstudiantesSinApoderado);
+// "Mis Cursos" del docente: estudiantes de un curso donde hace clases (sin datos sensibles)
+router.get('/curso/:cursoId/mis-estudiantes', verifyToken, estudianteController.getEstudiantesCursoDocente);
 router.get('/:id',           verifyToken,             estudianteController.getEstudianteById);
 router.post('/',   verifyToken, verifyAdmin, estudianteController.createEstudiante);
 router.post('/asignar-apoderado', verifyToken, verifyAdmin, estudianteController.asignarApoderado);

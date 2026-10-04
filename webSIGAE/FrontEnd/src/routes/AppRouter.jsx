@@ -43,6 +43,8 @@ import Cursos from "../pages/academic/Cursos";
 import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
 import MiHorario from "../pages/academic/MiHorario";
+import HorarioEstudiante from "../pages/academic/HorarioEstudiante";
+import MisCursos from "../pages/academic/MisCursos";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import HorarioMaestro from "../pages/academic/HorarioMaestro";
 import ConsultaHorarios from "../pages/academic/ConsultaHorarios";
@@ -129,11 +131,11 @@ function AppRouter() {
               </RoleRoute>
             }
           />
-          {/* CU67, CU68, CU69: consultas y filtros de horario (bloques libres solo Admin) */}
+          {/* CU67, CU68, CU69: consultas y filtros de horario — solo Super Admin/Admin */}
           <Route
             path="/consulta-horarios"
             element={
-              <RoleRoute roles={["Docente", "Administrador"]}>
+              <RoleRoute roles={["Administrador"]}>
                 <ConsultaHorarios />
               </RoleRoute>
             }
@@ -155,6 +157,26 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Docente", "Administrador"]}>
                 <MiHorario />
+              </RoleRoute>
+            }
+          />
+
+          {/* Mis Cursos: clases que imparte el docente y sus estudiantes */}
+          <Route
+            path="/mis-cursos"
+            element={
+              <RoleRoute roles={["Docente"]}>
+                <MisCursos />
+              </RoleRoute>
+            }
+          />
+
+          {/* Horario semanal del curso de los estudiantes asociados (Apoderado) */}
+          <Route
+            path="/horario-alumno"
+            element={
+              <RoleRoute roles={["Apoderado"]}>
+                <HorarioEstudiante />
               </RoleRoute>
             }
           />
@@ -323,7 +345,7 @@ function AppRouter() {
           <Route
             path="/plan-educativo"
             element={
-              <RoleRoute roles={["Administrador", "Docente"]}>
+              <RoleRoute roles={["Administrador"]}>
                 <PlanEducativo />
               </RoleRoute>
             }

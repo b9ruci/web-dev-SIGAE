@@ -172,4 +172,38 @@ describe('Pruebas Unitarias - CU67, CU68, CU69: Consultas y filtros de horario',
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
+  // ── Control de acceso a las consultas de horario ──
+  test('CU69: un docente puede ver el detalle de su propia clase', async () => {
+    req.user = { id: 10, roles: ['Docente'] };
+    req.params.id = '222227';
+    pool.execute
+      .mockResolvedValueOnce([[{ horarioId: 222227, dia: 'Lunes', estado: 'Activo', bloqueId: 11111112, docenteId: 10 }]])
+      .mockResolvedValueOnce([[]]);
+
+    await horarioController.getDetalleBloqueHorario(req, res);
+
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ horarioId: 222227 }));
+  });
+
+  test('CU69: un docente no puede ver el detalle de la clase de otro docente', async () => {
+    req.user = { id: 3, roles: ['Docente'] };
+    req.params.id = '222227';
+    pool.execute.mockResolvedValueOnce([[{ horarioId: 222227, dia: 'Lunes', bloqueId: 11111112, docenteId: 10 }]]);
+
+    await horarioController.getDetalleBloqueHorario(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(pool.execute).toHaveBeenCalledTimes(1);
+  });
+
+  test('CU69: un apoderado no puede consultar el detalle de bloques', async () => {
+    req.user = { id: 4, roles: ['Apoderado'] };
+    req.params.id = '222227';
+
+    await horarioController.getDetalleBloqueHorario(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(pool.execute).not.toHaveBeenCalled();
+  });
 });

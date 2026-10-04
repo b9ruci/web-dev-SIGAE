@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import PanelConflictos from "../../components/horarios/PanelConflictos";
 
 const API = "/api/bloques";
 
@@ -104,6 +105,22 @@ export default function BloquesHorarios() {
 
   const [tab, setTab] = useState("parametros");
 
+  // Panel de clases por reubicar (compartido por las pestañas)
+  const [senalConflictos, setSenalConflictos] = useState(0);
+  const [bloqueAEliminar, setBloqueAEliminar] = useState(null);
+  const [versionBloques, setVersionBloques] = useState(0);
+  const abrirConflictos = () => setSenalConflictos((n) => n + 1);
+  const recargarBloques = () => setVersionBloques((n) => n + 1);
+
+  // Si falla (ej. el bloque está asociado a un evento), el panel muestra el error
+  const eliminarBloquePendiente = async (id) => {
+    const res  = await fetch(`${API}/${id}`, { method: "DELETE", headers: authHeaders() });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "No fue posible eliminar el bloque");
+    setBloqueAEliminar(null);
+    recargarBloques();
+  };
+
   if (!esAdmin) {
     return (
       <div style={s.page}>
@@ -152,10 +169,24 @@ export default function BloquesHorarios() {
 
       {/* Contenido */}
       <div style={s.tabContent}>
-        {tab === "parametros" && <TabParametros />}
-        {tab === "bloques"    && <TabBloques />}
+        {tab === "parametros" && <TabParametros onJornadaCambiada={() => { abrirConflictos(); recargarBloques(); }} />}
+        {tab === "bloques"    && (
+          <TabBloques
+            version={versionBloques}
+            onConflictos={abrirConflictos}
+            onQuitarBloqueConClases={setBloqueAEliminar}
+          />
+        )}
         {tab === "eventos"    && <TabEventos />}
       </div>
+
+      <PanelConflictos
+        abrirSenal={senalConflictos}
+        bloqueAEliminar={bloqueAEliminar}
+        onEliminarBloque={eliminarBloquePendiente}
+        onCancelarEliminarBloque={() => setBloqueAEliminar(null)}
+        onCambio={recargarBloques}
+      />
     </div>
   );
 }
@@ -163,8 +194,9 @@ export default function BloquesHorarios() {
 /* ══════════════════════════════════════════════════════════════════
    PESTAÑA 1 — Parámetros institucionales (CU52)
 ══════════════════════════════════════════════════════════════════ */
-function TabParametros() {
+function TabParametros({ onJornadaCambiada }) {
   const [form, setForm]           = useState(null);
+  const [impacto, setImpacto]     = useState(null); // clases que quedarían fuera de la nueva jornada
   const [original, setOriginal]   = useState(null);
   const [loading, setLoading]     = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -194,17 +226,39 @@ function TabParametros() {
     })();
   }, []);
 
-  const handleChange = (e) =>
+  const handleChange = (e) => {
+    setImpacto(null);
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
   const hayCambios = form && original && JSON.stringify(form) !== JSON.stringify(original);
 
-  const handleGuardar = async (e) => {
-    e.preventDefault();
+  const cambiaJornada = form && original && (
+    form.Parametro_Institucional_Inicio_Jornada !== original.Parametro_Institucional_Inicio_Jornada ||
+    form.Parametro_Institucional_Fin_Jornada    !== original.Parametro_Institucional_Fin_Jornada
+  );
+
+  const handleGuardar = async (e, confirmado = false) => {
+    e?.preventDefault();
     setGuardando(true);
     setError("");
     setExito("");
     try {
+      // Si la nueva jornada deja bloques fuera, se avisa antes de guardar
+      if (cambiaJornada && !confirmado) {
+        const resImp  = await fetch(`${API}/parametros/impacto`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(form),
+        });
+        const dataImp = await resImp.json();
+        if (!resImp.ok) throw new Error(dataImp.error);
+        if (dataImp.bloques.length > 0) {
+          setImpacto(dataImp);
+          return;
+        }
+      }
+
       const res  = await fetch(`${API}/parametros`, {
         method: "PUT",
         headers: authHeaders(),
@@ -213,8 +267,14 @@ function TabParametros() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setOriginal(form);
-      setExito("Parámetros guardados correctamente.");
-      setTimeout(() => setExito(""), 3500);
+      setImpacto(null);
+      setExito(
+        impacto?.clases > 0
+          ? `Parámetros guardados. ${impacto.clases} clase(s) quedaron pendientes de reubicar en el panel de avisos.`
+          : "Parámetros guardados correctamente."
+      );
+      setTimeout(() => setExito(""), 5000);
+      if (cambiaJornada) onJornadaCambiada?.();
     } catch (e) {
       setError(e.message || "Error al guardar");
     } finally {
@@ -300,13 +360,41 @@ function TabParametros() {
           </div>
         )}
 
+        {impacto && (
+          <div style={{ background: "#fefce8", border: "1px solid #fde047", borderLeft: "5px solid #eab308",
+            borderRadius: 8, padding: "0.8rem 1rem", marginTop: "1rem", color: "#713f12" }}>
+            <strong>⚠ La nueva jornada deja {impacto.bloques.length} bloque(s) fuera de horario</strong>
+            <ul style={{ margin: "0.4rem 0 0.4rem 1rem", padding: 0, fontSize: "0.85rem" }}>
+              {impacto.bloques.map((b) => (
+                <li key={b.Bloque_Horario_Id}>
+                  {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)} · {b.Bloque_Horario_Jornada} · {b.Bloque_Horario_Tipo}
+                  {" — "}{b.Clases > 0 ? `${b.Clases} clase(s)` : "sin clases"}
+                </li>
+              ))}
+            </ul>
+            <p style={{ margin: "0 0 0.6rem", fontSize: "0.85rem" }}>
+              {impacto.clases > 0
+                ? `Las ${impacto.clases} clase(s) quedarán pendientes en el panel de avisos para migrarlas a otro bloque, eliminarlas o decidir más tarde.`
+                : "Esos bloques no tienen clases; quedarán marcados como fuera de la jornada."}
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button type="button" className="btn-primary" disabled={guardando} onClick={() => handleGuardar(null, true)}>
+                {guardando ? "Guardando..." : "Guardar de todos modos"}
+              </button>
+              <button type="button" onClick={() => setImpacto(null)} style={s.btnSecundario}>
+                Revisar cambios
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
-          <button type="submit" className="btn-primary" disabled={guardando || !hayCambios}
+          <button type="submit" className="btn-primary" disabled={guardando || !hayCambios || !!impacto}
             style={{ opacity: !hayCambios ? 0.5 : 1 }}>
             {guardando ? "Guardando..." : "Guardar parámetros"}
           </button>
           {hayCambios && (
-            <button type="button" onClick={() => setForm(original)} style={s.btnSecundario}>
+            <button type="button" onClick={() => { setForm(original); setImpacto(null); }} style={s.btnSecundario}>
               Descartar cambios
             </button>
           )}
@@ -327,8 +415,10 @@ const EMPTY_BLOQUE = {
   Bloque_Horario_Tipo:        "Clase",
 };
 
-function TabBloques() {
+function TabBloques({ version = 0, onConflictos, onQuitarBloqueConClases }) {
   const [bloques,      setBloques]      = useState([]);
+  // Bloques vigentes con los que se superpone el nuevo bloque (redefinir la jornada)
+  const [superposicion, setSuperposicion] = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
   const [exito,        setExito]        = useState("");
@@ -373,7 +463,7 @@ function TabBloques() {
     }
   }, []);
 
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { cargar(); }, [cargar, version]);
 
   /* Duración estándar según tipo (solo Clase y Recreo) */
   const duracionSugerida = (tipo) => {
@@ -400,10 +490,11 @@ function TabBloques() {
     setPanelAbierto(true);
   };
 
-  const cerrarPanel = () => { setPanelAbierto(false); setErrorPanel(""); };
+  const cerrarPanel = () => { setPanelAbierto(false); setErrorPanel(""); setSuperposicion(null); };
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
+    setSuperposicion(null);
     setForm((prev) => {
       const next = { ...prev, [name]: value };
       if (name === "Bloque_Horario_Tipo" && prev.Bloque_Horario_Hora_Inicio) {
@@ -423,18 +514,25 @@ function TabBloques() {
     if (horaFinCalc) setForm((p) => ({ ...p, Bloque_Horario_Hora_Fin: horaFinCalc }));
   };
 
-  const handleGuardar = async (e) => {
-    e.preventDefault();
+  const handleGuardar = async (e, reemplazar = false) => {
+    e?.preventDefault();
     setGuardando(true);
     setErrorPanel("");
     try {
       const url    = editando ? `${API}/${editando}` : API;
       const method = editando ? "PUT" : "POST";
-      const res    = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(form) });
+      const body   = editando ? form : { ...form, reemplazar };
+      const res    = await fetch(url, { method, headers: authHeaders(), body: JSON.stringify(body) });
       const data   = await res.json();
+      // Redefinir: el nuevo bloque se superpone con otros; se pide confirmar el reemplazo
+      if (!res.ok && data.codigo === "SUPERPOSICION") {
+        setSuperposicion(data.bloques);
+        return;
+      }
       if (!res.ok) throw new Error(data.error);
       cerrarPanel();
       cargar();
+      if (data.clasesPendientes > 0) onConflictos?.();
       // CU49: confirmar al usuario que el bloque quedó actualizado
       setExito(data.mensaje || "Bloque actualizado correctamente");
       setTimeout(() => setExito(""), 3500);
@@ -451,6 +549,15 @@ function TabBloques() {
     try {
       const res  = await fetch(`${API}/${id}`, { method: "DELETE", headers: authHeaders() });
       const data = await res.json();
+      // Quitar un bloque con clases: el panel de avisos permite reubicarlas primero
+      if (!res.ok && data.codigo === "TIENE_CLASES") {
+        const b = bloques.find((x) => x.Bloque_Horario_Id === id);
+        onQuitarBloqueConClases?.({
+          id,
+          etiqueta: b ? `${hhmm(b.Bloque_Horario_Hora_Inicio)}–${hhmm(b.Bloque_Horario_Hora_Fin)}` : "",
+        });
+        return;
+      }
       if (!res.ok) throw new Error(data.error);
       cargar();
       // CU50: confirmar al usuario que el bloque fue eliminado
@@ -518,6 +625,7 @@ function TabBloques() {
 
   const bloquesClase  = bloques.filter((b) => b.Bloque_Horario_Tipo === "Clase");
   const bloquesRecreo = bloques.filter((b) => b.Bloque_Horario_Tipo === "Recreo");
+  const bloquesDesajustados = bloques.filter((b) => Number(b.desajustado) === 1).length;
 
   const durSugerida     = duracionSugerida(form.Bloque_Horario_Tipo);
   const horaFinSugerida = sumarMinutos(form.Bloque_Horario_Hora_Inicio, durSugerida);
@@ -575,6 +683,9 @@ function TabBloques() {
             <StatMini label="Clases"  value={bloquesClase.length}  color="#1e40af" bg="#dbeafe" />
             <StatMini label="Recreos" value={bloquesRecreo.length} color="#166534" bg="#dcfce7" />
             <StatMini label="Total"   value={bloques.length}       color="#374151" bg="#f3f4f6" />
+            {bloquesDesajustados > 0 && (
+              <StatMini label="⚠ Desajustados" value={bloquesDesajustados} color="#854d0e" bg="#fefce8" />
+            )}
           </div>
 
           {vista === "calendario" ? (
@@ -619,9 +730,11 @@ function TabBloques() {
                   <tbody>
                     {bloques.map((b, idx) => {
                       const durMin = calcDuracion(b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin);
+                      const desajustado = Number(b.desajustado) === 1;
                       return (
                         <tr key={b.Bloque_Horario_Id}
-                          style={{ background: idx % 2 === 0 ? "#f9fafb" : "#fff", borderBottom: "1px solid #e5e7eb" }}>
+                          title={desajustado ? `⚠ ${b.motivo_desajuste} · ${b.clases} clase(s) por reubicar` : undefined}
+                          style={{ background: desajustado ? "#fefce8" : idx % 2 === 0 ? "#f9fafb" : "#fff", borderBottom: "1px solid #e5e7eb" }}>
                           {modoSeleccion && (
                             <td style={s.td}>
                               <input
@@ -635,7 +748,14 @@ function TabBloques() {
                           <td style={{ ...s.td, fontWeight: 700 }}>{hhmm(b.Bloque_Horario_Hora_Fin)}</td>
                           <td style={{ ...s.td, color: "#6b7280" }}>{durMin} min</td>
                           <td style={s.td}>{b.Bloque_Horario_Jornada}</td>
-                          <td style={s.td}><TipoChip tipo={b.Bloque_Horario_Tipo} /></td>
+                          <td style={s.td}>
+                            <TipoChip tipo={b.Bloque_Horario_Tipo} />
+                            {desajustado && (
+                              <span style={{ marginLeft: 6, fontSize: "0.72rem", fontWeight: 700, color: "#854d0e" }}>
+                                ⚠ {b.motivo_desajuste}
+                              </span>
+                            )}
+                          </td>
                           <td style={{ ...s.td, whiteSpace: "nowrap" }}>
                             <button onClick={() => abrirEditar(b)} style={s.btnAccion}>✏ Editar</button>
                             <button
@@ -775,6 +895,34 @@ function TabBloques() {
                     {errorPanel}
                   </p>
                 )}
+
+                {superposicion && (() => {
+                  const clases = superposicion.reduce((t, b) => t + b.clases, 0);
+                  return (
+                    <div style={{ marginTop: "0.75rem", background: "#fefce8", border: "1px solid #fde047",
+                      borderLeft: "5px solid #eab308", borderRadius: 8, padding: "0.7rem 0.8rem", color: "#713f12", fontSize: "0.85rem" }}>
+                      <strong>⚠ Este bloque se superpone con:</strong>
+                      <ul style={{ margin: "0.3rem 0 0.4rem 1rem", padding: 0 }}>
+                        {superposicion.map((b) => (
+                          <li key={b.Bloque_Horario_Id}>
+                            {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)} · {b.Bloque_Horario_Tipo}
+                            {" — "}{b.clases > 0 ? `${b.clases} clase(s)` : "sin clases"}
+                          </li>
+                        ))}
+                      </ul>
+                      <p style={{ margin: "0 0 0.5rem" }}>
+                        Si lo creas, reemplazará a esos bloques.
+                        {clases > 0
+                          ? ` Sus ${clases} clase(s) quedarán pendientes en el panel de avisos para migrarlas, eliminarlas o decidir más tarde.`
+                          : " Como no tienen clases, se eliminarán."}
+                      </p>
+                      <button type="button" className="btn-primary" disabled={guardando}
+                        onClick={() => handleGuardar(null, true)}>
+                        {guardando ? "Creando..." : "Reemplazar y crear bloque"}
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 <div style={{ display: "flex", gap: "0.75rem", marginTop: "1.5rem" }}>
                   <button type="button" onClick={cerrarPanel}
@@ -1431,6 +1579,9 @@ const TIPO_COLORES = {
   "Recreo": { bg: "#f0fdf4", borde: "#22c55e", acento: "#166534", icono: "⛹" },
 };
 
+// Bloque reemplazado o fuera de la jornada, con clases pendientes de reubicar
+const COLOR_DESAJUSTADO = { bg: "#fefce8", borde: "#facc15", acento: "#854d0e", icono: "⚠" };
+
 function toMin(t) {
   if (!t) return 0;
   const [h, m] = String(t).split(":").map(Number);
@@ -1519,7 +1670,8 @@ function VistaCalendarioBloques({ bloques, onEditar, onEliminar, eliminando, pre
               const eMin   = toMin(b.Bloque_Horario_Hora_Fin);
               const top    = (sMin - rangoMin) * PX_POR_MIN;
               const h      = Math.max((eMin - sMin) * PX_POR_MIN - 3, 22);
-              const col    = TIPO_COLORES[b.Bloque_Horario_Tipo] || TIPO_COLORES["Clase"];
+              const desajustado = Number(b.desajustado) === 1;
+              const col    = desajustado ? COLOR_DESAJUSTADO : TIPO_COLORES[b.Bloque_Horario_Tipo] || TIPO_COLORES["Clase"];
               const dur    = eMin - sMin;
               const hovKey = `${b.Bloque_Horario_Id}-${di}`;
               const isHov  = hovered === hovKey;
@@ -1528,8 +1680,9 @@ function VistaCalendarioBloques({ bloques, onEditar, onEliminar, eliminando, pre
                 <div key={b.Bloque_Horario_Id}
                   onMouseEnter={() => setHovered(hovKey)}
                   onMouseLeave={() => setHovered(null)}
+                  title={desajustado ? `⚠ ${b.motivo_desajuste} · ${b.clases} clase(s) por reubicar` : undefined}
                   style={{
-                    position: "absolute", top, left: 5, right: 5, height: h,
+                    position: "absolute", top, left: desajustado ? "50%" : 5, right: 5, height: h,
                     background: col.bg, border: `1px solid ${col.borde}`,
                     borderLeft: `3px solid ${col.acento}`,
                     borderRadius: 6, padding: "2px 5px 2px 6px",
@@ -1546,7 +1699,9 @@ function VistaCalendarioBloques({ bloques, onEditar, onEliminar, eliminando, pre
                       </div>
                       {h > 32 && (
                         <div style={{ fontSize: "0.65rem", color: col.acento, opacity: 0.8 }}>
-                          {col.icono} {b.Bloque_Horario_Tipo} · {dur} min
+                          {desajustado
+                            ? `⚠ ${b.clases} clase(s) por reubicar`
+                            : `${col.icono} ${b.Bloque_Horario_Tipo} · ${dur} min`}
                         </div>
                       )}
                     </div>

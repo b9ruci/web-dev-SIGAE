@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import ExportMenu from "../../components/ExportMenu";
 import DetalleBloqueModal from "../../components/horarios/DetalleBloqueModal";
+import PanelConflictos from "../../components/horarios/PanelConflictos";
+import { COLOR_PENDIENTE } from "../../utils/horarios";
 
 const API = "/api";
 const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
@@ -242,6 +244,13 @@ export default function Horarios() {
       .catch(() => setError("Error al cargar datos de configuración."));
   }, [esApoderado]);
 
+  const recargarBloques = useCallback(() => {
+    fetch(`${API}/horarios/bloques`, { headers: authHeaders() })
+      .then((r) => r.json())
+      .then((b) => { if (Array.isArray(b)) setBloques(b); })
+      .catch(() => {});
+  }, []);
+
   const cargarHorarios = useCallback(async (cursoId) => {
     setLoading(true);
     setError("");
@@ -288,6 +297,14 @@ export default function Horarios() {
   useEffect(() => {
     if (listadoAbierto) cargarResumenCursos();
   }, [listadoAbierto, cargarResumenCursos]);
+
+  const alResolverConflicto = () => {
+    recargarBloques();
+    if (cursoSeleccionado) {
+      cargarHorarios(cursoSeleccionado);
+      cargarAsignaturas(cursoSeleccionado);
+    }
+  };
 
   const handleCursoChange = (id) => {
     setCursoSeleccionado(id);
@@ -808,6 +825,9 @@ export default function Horarios() {
         <DetalleBloqueModal horarioId={detalleBloqueId} onClose={() => setDetalleBloqueId(null)} />
       )}
 
+      {/* Clases pendientes de reubicar tras redefinir la jornada o los bloques */}
+      {esAdmin && <PanelConflictos onCambio={alResolverConflicto} />}
+
       {/* Listado de cursos (left overlay sidebar) */}
       {esAdmin && listadoAbierto && (
         <ListadoCursosSidebar
@@ -859,6 +879,14 @@ function VistaBloqueGrid({
     cellMap[`${h.Bloque_Horario_Id}_${h.dia}`] = h;
   });
 
+  // Bloques reemplazados o fuera de la jornada: solo se muestran si este curso
+  // aún tiene clases en ellos (pendientes de reubicar); no admiten clases nuevas.
+  const esDesajustado = (b) => Number(b.desajustado) === 1;
+  const bloquesVisibles = bloques.filter(
+    (b) => !esDesajustado(b) || horarios.some((h) => h.Bloque_Horario_Id === b.Bloque_Horario_Id)
+  );
+  const hayPendientes = bloquesVisibles.some(esDesajustado);
+
   return (
     <div
       style={{
@@ -906,9 +934,10 @@ function VistaBloqueGrid({
       </div>
 
       {/* Block rows */}
-      {bloques.map((bloque, bi) => {
+      {bloquesVisibles.map((bloque, bi) => {
         const esRecreo = bloque.Bloque_Horario_Tipo === "Recreo";
         const esEvento = bloque.Bloque_Horario_Tipo === "Evento Académico";
+        const desajustado = esDesajustado(bloque);
 
         return (
           <div
@@ -929,7 +958,9 @@ function VistaBloqueGrid({
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
-                background: esRecreo
+                background: desajustado
+                  ? COLOR_PENDIENTE.bg
+                  : esRecreo
                   ? "#f0fdf4"
                   : esEvento
                   ? "#f5f3ff"
@@ -937,6 +968,7 @@ function VistaBloqueGrid({
                   ? "#f8fafc"
                   : "#fff",
               }}
+              title={desajustado ? `⚠ ${bloque.motivo_desajuste}: reubica sus clases desde el panel de avisos` : undefined}
             >
               <span
                 style={{
@@ -962,6 +994,11 @@ function VistaBloqueGrid({
                 {tipoIcon(bloque.Bloque_Horario_Tipo)}{" "}
                 {esRecreo ? "Recreo" : esEvento ? "Evento" : bloque.Bloque_Horario_Jornada}
               </span>
+              {desajustado && (
+                <span style={{ fontSize: "0.62rem", fontWeight: 700, color: COLOR_PENDIENTE.text, marginTop: 2 }}>
+                  ⚠ {bloque.motivo_desajuste}
+                </span>
+              )}
             </div>
 
             {/* Day cells */}
@@ -974,7 +1011,7 @@ function VistaBloqueGrid({
               const isHovered =
                 hoveredCell?.bloqueId === bloque.Bloque_Horario_Id &&
                 hoveredCell?.dia === dia;
-              const canClick = esAdmin && !esRecreo && !h && !!onCelda && !modoSeleccion;
+              const canClick = esAdmin && !esRecreo && !desajustado && !h && !!onCelda && !modoSeleccion;
               const seleccionado = !!h && seleccionados.includes(h.Horario_Asignatura_Id);
               const asigColor = h ? colorMap[h.Asignatura_Id] || ASIG_COLORS[0] : null;
 
@@ -1004,7 +1041,9 @@ function VistaBloqueGrid({
                     background: isPreview
                       ? "rgba(251,146,60,0.10)"
                       : h
-                      ? h.estado === "Suspendido"
+                      ? desajustado
+                        ? COLOR_PENDIENTE.bg
+                        : h.estado === "Suspendido"
                         ? "#fef9f9"
                         : asigColor?.bg || "#eff6ff"
                       : esRecreo
@@ -1071,15 +1110,16 @@ function VistaBloqueGrid({
                   {h && !isPreview && (
                     <div
                       style={{
-                        background:
-                          h.estado === "Suspendido"
-                            ? "rgba(254,226,226,0.4)"
-                            : asigColor?.bg,
+                        background: desajustado
+                          ? COLOR_PENDIENTE.bg
+                          : h.estado === "Suspendido"
+                          ? "rgba(254,226,226,0.4)"
+                          : asigColor?.bg,
                         border: `1px solid ${
-                          h.estado === "Suspendido" ? "#fca5a5" : asigColor?.border || "#93c5fd"
+                          desajustado ? COLOR_PENDIENTE.border : h.estado === "Suspendido" ? "#fca5a5" : asigColor?.border || "#93c5fd"
                         }`,
                         borderLeft: `3px solid ${
-                          h.estado === "Suspendido" ? "#ef4444" : asigColor?.text || "#1e40af"
+                          desajustado ? "#eab308" : h.estado === "Suspendido" ? "#ef4444" : asigColor?.text || "#1e40af"
                         }`,
                         borderRadius: 5,
                         padding: modoSeleccion ? "3px 5px 3px 22px" : "3px 5px",
@@ -1103,15 +1143,16 @@ function VistaBloqueGrid({
                         style={{
                           fontSize: "0.72rem",
                           fontWeight: 700,
-                          color:
-                            h.estado === "Suspendido" ? "#9b1c1c" : asigColor?.text || "#1e40af",
+                          color: desajustado
+                            ? COLOR_PENDIENTE.text
+                            : h.estado === "Suspendido" ? "#9b1c1c" : asigColor?.text || "#1e40af",
                           lineHeight: 1.3,
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
                         }}
                       >
-                        {h.asignatura}
+                        {desajustado && "⚠ "}{h.asignatura}
                       </div>
                       {h.docente && (
                         <div
@@ -1229,6 +1270,9 @@ function VistaBloqueGrid({
         <LegendItem color="#dbeafe" border="#93c5fd" label="Clase programada" />
         <LegendItem color="#f0fdf4" border="#86efac" label="Recreo" />
         <LegendItem color="rgba(251,146,60,0.10)" border="#f97316" dashed label="Vista previa" />
+        {hayPendientes && (
+          <LegendItem color={COLOR_PENDIENTE.bg} border={COLOR_PENDIENTE.border} label="⚠ Pendiente de reubicar" />
+        )}
         {esAdmin && (
           <span style={{ fontSize: "0.7rem", color: "#6b7280", marginLeft: "auto" }}>
             {modoSeleccion

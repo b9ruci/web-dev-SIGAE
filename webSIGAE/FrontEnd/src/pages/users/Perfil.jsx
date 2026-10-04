@@ -375,113 +375,108 @@ function Perfil() {
   })();
 
   return (
-    <div className="perfil-container">
+    <div className="perfil-container perfil-container--amplio">
       <div className="perfil-header">
         <h1>{esPerfilPropio ? "Mi Perfil" : `Perfil de ${datos?.Usuario_Nombre_Completo || "Usuario"}`}</h1>
         <p>{esPerfilPropio ? "Información de tu cuenta en SIGAE" : "Vista de perfil (solo lectura)"}</p>
       </div>
 
-      <div className="perfil-card">
-        <h2>Información Personal</h2>
-        <div className="perfil-grid">
-          <div className="perfil-campo">
-            <label>Nombre Completo</label>
-            <span>{datos?.Usuario_Nombre_Completo || "Sin nombre registrado"}</span>
-          </div>
-          <div className="perfil-campo">
-            <label>RUT</label>
-            <span>{datos?.Usuario_RUT || "Sin RUT registrado"}</span>
-          </div>
-          <div className="perfil-campo">
-            <label>Teléfono</label>
-            <span>{datos?.Usuario_Telefono || "Sin teléfono registrado"}</span>
-          </div>
-          <div className="perfil-campo">
-            <label>Estado de Cuenta</label>
-            <span>
-              {datos?.Usuario_Estado_Cuenta
-                ? <span className="badge-activo">Activo</span>
-                : <span className="badge-inactivo">Inactivo</span>}
-            </span>
-          </div>
-          <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
-            <label>Correo(s)</label>
-            <span>{correos.length > 0 ? correos.join(" · ") : "Sin correos registrados"}</span>
-          </div>
-          <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
-            <label>Roles</label>
-            <div className="perfil-roles">
-              {roles.length > 0
-                ? roles.map((r) => getBadgeRol(r))
-                : <span>Sin roles asignados</span>}
+      {/* Grilla en bloques: identidad alta a la izquierda, cursos y estudiantes
+          anchos y las tarjetas de la cuenta rellenan los huecos */}
+      <div className="perfil-bento">
+        <div className="perfil-card perfil-card--identidad">
+          <div className="perfil-identidad">
+            <img
+              src={previewFoto || datos?.Usuario_Foto_Perfil || FOTO_PERFIL_PLACEHOLDER}
+              alt="Fotografía de perfil"
+              className="perfil-identidad-foto"
+            />
+            <div style={{ minWidth: 0 }}>
+              <div className="perfil-identidad-nombre">{datos?.Usuario_Nombre_Completo || "Sin nombre registrado"}</div>
+              <div className="perfil-roles">
+                {roles.length > 0
+                  ? roles.map((r) => getBadgeRol(r))
+                  : <span>Sin roles asignados</span>}
+              </div>
             </div>
           </div>
-          {/* CU17 - Excepción "Sin información complementaria": el usuario no tiene ningún rol con datos adicionales */}
-          {roles.length === 0 && (
-            <div className="usuarios-empty" style={{ gridColumn: "1 / -1" }}>
-              No existe información complementaria disponible
+          <h2>Información Personal</h2>
+          <div className="perfil-grid">
+            <div className="perfil-campo">
+              <label>RUT</label>
+              <span>{datos?.Usuario_RUT || "Sin RUT registrado"}</span>
             </div>
-          )}
-          {datos?.Es_Docente ? (
-            <>
-              <div className="perfil-campo">
-                <label>Especialidad</label>
-                <span>{datos.Docente_Especialidad || "Sin especialidad registrada"}</span>
+            <div className="perfil-campo">
+              <label>Teléfono</label>
+              <span>{datos?.Usuario_Telefono || "Sin teléfono registrado"}</span>
+            </div>
+            <div className="perfil-campo">
+              <label>Estado de Cuenta</label>
+              <span>
+                {datos?.Usuario_Estado_Cuenta
+                  ? <span className="badge-activo">Activo</span>
+                  : <span className="badge-inactivo">Inactivo</span>}
+              </span>
+            </div>
+            <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
+              <label>Correo(s)</label>
+              <span>{correos.length > 0 ? correos.join(" · ") : "Sin correos registrados"}</span>
+            </div>
+            {/* CU17 - Excepción "Sin información complementaria": el usuario no tiene ningún rol con datos adicionales */}
+            {roles.length === 0 && (
+              <div className="usuarios-empty" style={{ gridColumn: "1 / -1" }}>
+                No existe información complementaria disponible
               </div>
-              <div className="perfil-campo">
-                <label>Carga Horaria Máxima</label>
-                <span>{datos.Docente_Carga_Horaria_Maxima || "Sin carga horaria registrada"} hrs</span>
-              </div>
-            </>
-          ) : null}
-          <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
-            <label>Dirección</label>
-            <span>{formatearDireccion(datos) || "Sin dirección registrada"}</span>
+            )}
+            {datos?.Es_Docente ? (
+              <>
+                <div className="perfil-campo">
+                  <label>Especialidad</label>
+                  <span>{datos.Docente_Especialidad || "Sin especialidad registrada"}</span>
+                </div>
+                <div className="perfil-campo">
+                  <label>Carga Horaria Máxima</label>
+                  <span>{datos.Docente_Carga_Horaria_Maxima || "Sin carga horaria registrada"} hrs</span>
+                </div>
+              </>
+            ) : null}
+            <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
+              <label>Dirección</label>
+              <span>{formatearDireccion(datos) || "Sin dirección registrada"}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {!!datos?.Es_Docente && (
-        <div className="perfil-card">
-          <h2>{esPerfilPropio ? "Mis cursos y asignaturas" : "Cursos y asignaturas"}</h2>
+        {!!datos?.Es_Docente && (
+          <div className="perfil-card perfil-card--ancha">
+            <h2>{esPerfilPropio ? "Mis cursos y asignaturas" : "Cursos y asignaturas"}</h2>
 
-          {cargandoAsignaciones && <p>Cargando asignaciones académicas...</p>}
+            {cargandoAsignaciones && <p>Cargando asignaciones académicas...</p>}
 
-          {!cargandoAsignaciones && errorAsignaciones && (
-            <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorAsignaciones}</div>
-          )}
+            {!cargandoAsignaciones && errorAsignaciones && (
+              <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorAsignaciones}</div>
+            )}
 
-          {!cargandoAsignaciones && !errorAsignaciones && mensajeAsignaciones && (
-            <div className="usuarios-empty">{mensajeAsignaciones}</div>
-          )}
+            {!cargandoAsignaciones && !errorAsignaciones && mensajeAsignaciones && (
+              <div className="usuarios-empty">{mensajeAsignaciones}</div>
+            )}
 
-          {!cargandoAsignaciones && !errorAsignaciones && !mensajeAsignaciones && (
-            <>
-              <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
-                <select
-                  className="usuarios-select"
-                  value={ordenAsignaciones}
-                  onChange={(e) => setOrdenAsignaciones(e.target.value)}
-                >
-                  <option value="curso">Ordenar por curso</option>
-                  <option value="asignatura">Ordenar por asignatura</option>
-                  <option value="horas">Ordenar por carga horaria</option>
-                  <option value="estado">Ordenar por estado de vigencia</option>
-                </select>
-              </div>
+            {!cargandoAsignaciones && !errorAsignaciones && !mensajeAsignaciones && (
+              <>
+                <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
+                  <select
+                    className="usuarios-select"
+                    value={ordenAsignaciones}
+                    onChange={(e) => setOrdenAsignaciones(e.target.value)}
+                  >
+                    <option value="curso">Ordenar por curso</option>
+                    <option value="asignatura">Ordenar por asignatura</option>
+                    <option value="horas">Ordenar por carga horaria</option>
+                    <option value="estado">Ordenar por estado de vigencia</option>
+                  </select>
+                </div>
 
-              <table className="tabla-usuarios">
-                <thead>
-                  <tr>
-                    <th>Nivel Educativo</th>
-                    <th>Curso</th>
-                    <th>Asignatura</th>
-                    <th>Bloques Programados</th>
-                    <th>Horas Semanales</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
+                <div className="perfil-bloques">
                   {[...asignaciones]
                     .sort((a, b) => {
                       if (ordenAsignaciones === "asignatura") return a.asignatura.localeCompare(b.asignatura);
@@ -490,80 +485,70 @@ function Perfil() {
                       return a.curso.localeCompare(b.curso);
                     })
                     .map((asig) => (
-                      <tr key={`${asig.cursoId}-${asig.asignaturaId}`}>
-                        <td>{asig.nivelEducativo}</td>
-                        <td>{asig.curso}</td>
-                        <td>{asig.asignatura}</td>
-                        <td>{asig.bloques.length}</td>
-                        <td>{asig.horasSemanales}</td>
-                        <td>
+                      <div key={`${asig.cursoId}-${asig.asignaturaId}`} className="perfil-bloque perfil-bloque--docente">
+                        <div className="perfil-bloque-cabecera">
+                          <strong>{asig.asignatura}</strong>
                           {asig.estadoVigencia === "Activo" ? (
                             <span className="badge-activo">Activo</span>
                           ) : (
                             <span className="badge-inactivo">Suspendido</span>
                           )}
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="perfil-bloque-detalle">{asig.curso} · {asig.nivelEducativo}</div>
+                        <div className="perfil-bloque-metricas">
+                          <span><b>{asig.bloques.length}</b> {asig.bloques.length === 1 ? "bloque" : "bloques"}</span>
+                          <span><b>{asig.horasSemanales}</b> h/sem</span>
+                        </div>
+                      </div>
                     ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </div>
-      )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
-      {!!datos?.Es_Apoderado && (
-        <div className="perfil-card">
-          <h2>{esPerfilPropio ? "Mis estudiantes asociados" : "Estudiantes asociados"}</h2>
+        {!!datos?.Es_Apoderado && (
+          <div className="perfil-card perfil-card--ancha">
+            <h2>{esPerfilPropio ? "Mis estudiantes asociados" : "Estudiantes asociados"}</h2>
 
-          {cargandoEstudiantes && <p>Cargando estudiantes asociados...</p>}
+            {cargandoEstudiantes && <p>Cargando estudiantes asociados...</p>}
 
-          {!cargandoEstudiantes && errorEstudiantes && (
-            <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorEstudiantes}</div>
-          )}
+            {!cargandoEstudiantes && errorEstudiantes && (
+              <div className="usuarios-empty" style={{ color: "#dc2626" }}>{errorEstudiantes}</div>
+            )}
 
-          {avisoLista && (
-            <div className="usuarios-empty" style={{ marginBottom: "12px" }}>
-              {avisoLista}
-              <button
-                type="button"
-                className="btn-roles"
-                style={{ marginLeft: "10px", fontSize: "0.8rem", padding: "2px 8px" }}
-                onClick={() => setAvisoLista("")}
-              >
-                Cerrar
-              </button>
-            </div>
-          )}
-
-          {!cargandoEstudiantes && !errorEstudiantes && mensajeEstudiantes && (
-            <div className="usuarios-empty">{mensajeEstudiantes}</div>
-          )}
-
-          {!cargandoEstudiantes && !errorEstudiantes && !mensajeEstudiantes && (
-            <>
-              <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
-                <select
-                  className="usuarios-select"
-                  value={ordenEstudiantes}
-                  onChange={(e) => setOrdenEstudiantes(e.target.value)}
+            {avisoLista && (
+              <div className="usuarios-empty" style={{ marginBottom: "12px" }}>
+                {avisoLista}
+                <button
+                  type="button"
+                  className="btn-roles"
+                  style={{ marginLeft: "10px", fontSize: "0.8rem", padding: "2px 8px" }}
+                  onClick={() => setAvisoLista("")}
                 >
-                  <option value="nombre">Ordenar por nombre</option>
-                  <option value="curso">Ordenar por curso</option>
-                </select>
+                  Cerrar
+                </button>
               </div>
+            )}
 
-              <table className="tabla-usuarios">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>RUT</th>
-                    <th>Curso</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
+            {!cargandoEstudiantes && !errorEstudiantes && mensajeEstudiantes && (
+              <div className="usuarios-empty">{mensajeEstudiantes}</div>
+            )}
+
+            {!cargandoEstudiantes && !errorEstudiantes && !mensajeEstudiantes && (
+              <>
+                <div className="usuarios-filtros" style={{ marginBottom: "12px" }}>
+                  <select
+                    className="usuarios-select"
+                    value={ordenEstudiantes}
+                    onChange={(e) => setOrdenEstudiantes(e.target.value)}
+                  >
+                    <option value="nombre">Ordenar por nombre</option>
+                    <option value="curso">Ordenar por curso</option>
+                  </select>
+                </div>
+
+                <div className="perfil-bloques">
                   {[...estudiantesAsociados]
                     .sort((a, b) =>
                       ordenEstudiantes === "curso"
@@ -571,190 +556,187 @@ function Perfil() {
                         : a.Estudiante_Nombre_Completo.localeCompare(b.Estudiante_Nombre_Completo)
                     )
                     .map((est) => (
-                      <tr key={est.Estudiante_Id}>
-                        <td>{est.Estudiante_Nombre_Completo}</td>
-                        <td>{est.Estudiante_RUT}</td>
-                        <td>{est.Curso_Nombre}</td>
-                        <td>
+                      <div key={est.Estudiante_Id} className="perfil-bloque perfil-bloque--apoderado">
+                        <div className="perfil-bloque-cabecera">
+                          <strong>{est.Estudiante_Nombre_Completo}</strong>
                           {est.Estudiante_Estado_Academico === "Regular" ? (
                             <span className="badge-activo">Regular</span>
                           ) : (
                             <span className="badge-inactivo">{est.Estudiante_Estado_Academico}</span>
                           )}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn-roles"
-                            onClick={() => abrirDetalleEstudiante(est.Estudiante_Id)}
-                          >
-                            Ver detalle
-                          </button>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="perfil-bloque-detalle">{est.Curso_Nombre} · RUT {est.Estudiante_RUT}</div>
+                        <button
+                          type="button"
+                          className="btn-roles perfil-bloque-accion"
+                          onClick={() => abrirDetalleEstudiante(est.Estudiante_Id)}
+                        >
+                          Ver detalle
+                        </button>
+                      </div>
                     ))}
-                </tbody>
-              </table>
-            </>
-          )}
-        </div>
-      )}
-
-      {esPerfilPropio && (
-        <div className="perfil-card">
-          <h2>Cambiar Contraseña</h2>
-          <form className="cambiar-pwd-form" onSubmit={handleCambiarContrasena}>
-            <div className="campo-pwd">
-              <label htmlFor="contrasenaActual">Contraseña Actual</label>
-              <input
-                id="contrasenaActual"
-                type="password"
-                value={contrasenaActual}
-                onChange={(e) => setContrasenaActual(e.target.value)}
-                required
-              />
-            </div>
-            <div className="campo-pwd">
-              <label htmlFor="nuevaContrasena">Nueva Contraseña</label>
-              <input
-                id="nuevaContrasena"
-                type="password"
-                value={nuevaContrasena}
-                onChange={(e) => setNuevaContrasena(e.target.value)}
-                required
-              />
-              <span className="pwd-error" style={{ display: nuevaContrasena && nuevaContrasena.length < 8 ? "block" : "none" }}>
-                Mínimo 8 caracteres, una mayúscula y un número
-              </span>
-            </div>
-            <div className="campo-pwd">
-              <label htmlFor="confirmarContrasena">Confirmar Nueva Contraseña</label>
-              <input
-                id="confirmarContrasena"
-                type="password"
-                value={confirmarContrasena}
-                onChange={(e) => setConfirmarContrasena(e.target.value)}
-                className={confirmarContrasena && confirmarContrasena !== nuevaContrasena ? "input-invalid" : ""}
-                required
-              />
-            </div>
-            {msgExito && <div className="msg-exito">{msgExito}</div>}
-            {msgError && <div className="msg-error-form">{msgError}</div>}
-            <button type="submit" className="btn-primario" disabled={enviando}>
-              {enviando ? "Actualizando..." : "Actualizar contraseña"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección) */}
-      {esPerfilPropio && (
-        <div className="perfil-card">
-          <h2>Editar Perfil</h2>
-          {!editandoPerfil ? (
-            <button className="btn-roles" onClick={abrirEdicionPerfil}>Editar perfil</button>
-          ) : (
-            <form className="cambiar-pwd-form" onSubmit={handleGuardarPerfil}>
-              <div className="campo-pwd">
-                <label>Nombre Completo</label>
-                <input value={datos?.Usuario_Nombre_Completo || ""} readOnly disabled />
-              </div>
-              <div className="campo-pwd">
-                <label>RUT</label>
-                <input value={datos?.Usuario_RUT || ""} readOnly disabled />
-              </div>
-              {!!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado) && (
-                <div className="campo-pwd">
-                  <label htmlFor="correoPerfil">Correo</label>
-                  <input
-                    id="correoPerfil"
-                    value={formPerfil.correo}
-                    onChange={(e) => setFormPerfil((f) => ({ ...f, correo: e.target.value }))}
-                  />
                 </div>
-              )}
-              <div className="campo-pwd">
-                <label htmlFor="telefonoPerfil">Teléfono</label>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* CU20: editar fotografía de perfil mediante carga de archivo */}
+        {esPerfilPropio && (
+          <div className="perfil-card">
+            <h2>Fotografía de Perfil</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+              <img
+                src={previewFoto || datos?.Usuario_Foto_Perfil || FOTO_PERFIL_PLACEHOLDER}
+                alt="Vista previa de la fotografía"
+                style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
+              />
+              <form style={{ display: "flex", flexDirection: "column", gap: "10px" }} onSubmit={handleSubirFoto}>
                 <input
-                  id="telefonoPerfil"
-                  type="tel"
-                  placeholder="912345678 o +56912345678"
-                  value={formPerfil.telefono}
-                  onChange={(e) => setFormPerfil((f) => ({ ...f, telefono: e.target.value }))}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleSeleccionArchivo}
                 />
-              </div>
-              {[
-                { name: "calle",  label: "Calle",                  maxLength: 100 },
-                { name: "numero", label: "Número",                 maxLength: 7 },
-                { name: "depto",  label: "Depto./Casa (opcional)", maxLength: 20 },
-                { name: "comuna", label: "Comuna",                 maxLength: 60 },
-              ].map((campo) => (
-                <div className="campo-pwd" key={campo.name}>
-                  <label htmlFor={`${campo.name}Perfil`}>{campo.label}</label>
+                {msgExitoFoto && <div className="msg-exito">{msgExitoFoto}</div>}
+                {msgErrorFoto && <div className="msg-error-form">{msgErrorFoto}</div>}
+                {archivoFoto && (
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button type="submit" className="btn-primario" disabled={subiendoFoto}>
+                      {subiendoFoto ? "Guardando..." : "Guardar fotografía"}
+                    </button>
+                    <button type="button" className="btn-desactivar" onClick={cancelarSeleccionFoto} disabled={subiendoFoto}>
+                      Cancelar
+                    </button>
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* CU19: editar datos personales del propio perfil (correo, teléfono y/o dirección) */}
+        {esPerfilPropio && (
+          <div className="perfil-card">
+            <h2>Editar Perfil</h2>
+            {!editandoPerfil ? (
+              <button className="btn-roles" onClick={abrirEdicionPerfil}>Editar perfil</button>
+            ) : (
+              <form className="cambiar-pwd-form" onSubmit={handleGuardarPerfil}>
+                <div className="campo-pwd">
+                  <label>Nombre Completo</label>
+                  <input value={datos?.Usuario_Nombre_Completo || ""} readOnly disabled />
+                </div>
+                <div className="campo-pwd">
+                  <label>RUT</label>
+                  <input value={datos?.Usuario_RUT || ""} readOnly disabled />
+                </div>
+                {!!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado) && (
+                  <div className="campo-pwd">
+                    <label htmlFor="correoPerfil">Correo</label>
+                    <input
+                      id="correoPerfil"
+                      value={formPerfil.correo}
+                      onChange={(e) => setFormPerfil((f) => ({ ...f, correo: e.target.value }))}
+                    />
+                  </div>
+                )}
+                <div className="campo-pwd">
+                  <label htmlFor="telefonoPerfil">Teléfono</label>
                   <input
-                    id={`${campo.name}Perfil`}
-                    maxLength={campo.maxLength}
-                    value={formPerfil[campo.name]}
-                    onChange={(e) => setFormPerfil((f) => ({ ...f, [campo.name]: e.target.value }))}
+                    id="telefonoPerfil"
+                    type="tel"
+                    placeholder="912345678 o +56912345678"
+                    value={formPerfil.telefono}
+                    onChange={(e) => setFormPerfil((f) => ({ ...f, telefono: e.target.value }))}
                   />
                 </div>
-              ))}
+                {[
+                  { name: "calle",  label: "Calle",                  maxLength: 100 },
+                  { name: "numero", label: "Número",                 maxLength: 7 },
+                  { name: "depto",  label: "Depto./Casa (opcional)", maxLength: 20 },
+                  { name: "comuna", label: "Comuna",                 maxLength: 60 },
+                ].map((campo) => (
+                  <div className="campo-pwd" key={campo.name}>
+                    <label htmlFor={`${campo.name}Perfil`}>{campo.label}</label>
+                    <input
+                      id={`${campo.name}Perfil`}
+                      maxLength={campo.maxLength}
+                      value={formPerfil[campo.name]}
+                      onChange={(e) => setFormPerfil((f) => ({ ...f, [campo.name]: e.target.value }))}
+                    />
+                  </div>
+                ))}
 
-              {msgExitoPerfil && <div className="msg-exito">{msgExitoPerfil}</div>}
-              {msgErrorPerfil && <div className="msg-error-form">{msgErrorPerfil}</div>}
+                {msgExitoPerfil && <div className="msg-exito">{msgExitoPerfil}</div>}
+                {msgErrorPerfil && <div className="msg-error-form">{msgErrorPerfil}</div>}
 
-              <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                <button type="submit" className="btn-primario" disabled={guardandoPerfil}>
-                  {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
-                </button>
-                <button type="button" className="btn-desactivar" onClick={cancelarEdicionPerfil} disabled={guardandoPerfil}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      )}
-
-      {/* CU20: editar fotografía de perfil mediante carga de archivo */}
-      {esPerfilPropio && (
-        <div className="perfil-card">
-          <h2>Fotografía de Perfil</h2>
-          <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
-            <img
-              src={previewFoto || datos?.Usuario_Foto_Perfil || FOTO_PERFIL_PLACEHOLDER}
-              alt="Fotografía de perfil"
-              style={{ width: "96px", height: "96px", borderRadius: "50%", objectFit: "cover", border: "1px solid #e2e8f0" }}
-            />
-            <form style={{ display: "flex", flexDirection: "column", gap: "10px" }} onSubmit={handleSubirFoto}>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                onChange={handleSeleccionArchivo}
-              />
-              {msgExitoFoto && <div className="msg-exito">{msgExitoFoto}</div>}
-              {msgErrorFoto && <div className="msg-error-form">{msgErrorFoto}</div>}
-              {archivoFoto && (
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button type="submit" className="btn-primario" disabled={subiendoFoto}>
-                    {subiendoFoto ? "Guardando..." : "Guardar fotografía"}
+                <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                  <button type="submit" className="btn-primario" disabled={guardandoPerfil}>
+                    {guardandoPerfil ? "Guardando..." : "Guardar cambios"}
                   </button>
-                  <button type="button" className="btn-desactivar" onClick={cancelarSeleccionFoto} disabled={subiendoFoto}>
+                  <button type="button" className="btn-desactivar" onClick={cancelarEdicionPerfil} disabled={guardandoPerfil}>
                     Cancelar
                   </button>
                 </div>
-              )}
+              </form>
+            )}
+          </div>
+        )}
+
+        {esPerfilPropio && (
+          <div className="perfil-card">
+            <h2>Cambiar Contraseña</h2>
+            <form className="cambiar-pwd-form" onSubmit={handleCambiarContrasena}>
+              <div className="campo-pwd">
+                <label htmlFor="contrasenaActual">Contraseña Actual</label>
+                <input
+                  id="contrasenaActual"
+                  type="password"
+                  value={contrasenaActual}
+                  onChange={(e) => setContrasenaActual(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="campo-pwd">
+                <label htmlFor="nuevaContrasena">Nueva Contraseña</label>
+                <input
+                  id="nuevaContrasena"
+                  type="password"
+                  value={nuevaContrasena}
+                  onChange={(e) => setNuevaContrasena(e.target.value)}
+                  required
+                />
+                <span className="pwd-error" style={{ display: nuevaContrasena && nuevaContrasena.length < 8 ? "block" : "none" }}>
+                  Mínimo 8 caracteres, una mayúscula y un número
+                </span>
+              </div>
+              <div className="campo-pwd">
+                <label htmlFor="confirmarContrasena">Confirmar Nueva Contraseña</label>
+                <input
+                  id="confirmarContrasena"
+                  type="password"
+                  value={confirmarContrasena}
+                  onChange={(e) => setConfirmarContrasena(e.target.value)}
+                  className={confirmarContrasena && confirmarContrasena !== nuevaContrasena ? "input-invalid" : ""}
+                  required
+                />
+              </div>
+              {msgExito && <div className="msg-exito">{msgExito}</div>}
+              {msgError && <div className="msg-error-form">{msgError}</div>}
+              <button type="submit" className="btn-primario" disabled={enviando}>
+                {enviando ? "Actualizando..." : "Actualizar contraseña"}
+              </button>
             </form>
           </div>
-        </div>
-      )}
+        )}
 
-      {puedeEditar && (
-        <div className="perfil-card">
-          <h2>Editar Datos</h2>
-          <FormEditarUsuario datos={datos} onGuardado={recargarDatos} />
-        </div>
-      )}
+        {puedeEditar && (
+          <div className="perfil-card perfil-card--ancha">
+            <h2>Editar Datos</h2>
+            <FormEditarUsuario datos={datos} onGuardado={recargarDatos} />
+          </div>
+        )}
+      </div>
 
       {/* CU41: Detalle de estudiante desde la lista de asociados — modal de solo lectura */}
       {(cargandoDetalle || errorDetalle || detalleEstudiante) && (

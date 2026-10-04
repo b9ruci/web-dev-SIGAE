@@ -36,6 +36,44 @@ function TablaAsignaturas({ asignaturas }) {
   );
 }
 
+/* Catálogo de asignaturas disponibles: siempre visible; el buscador solo filtra */
+function SelectorAsignaturas({ disponibles, busqueda, onBuscar, onAgregar, maxHeight }) {
+  return (
+    <>
+      <input
+        type="text"
+        placeholder="Filtrar asignaturas..."
+        value={busqueda}
+        onChange={(e) => onBuscar(e.target.value)}
+        style={{ display: "block", width: "100%", marginTop: "0.25rem", boxSizing: "border-box" }}
+      />
+      {disponibles.length === 0 ? (
+        <p className="empty-state-text" style={{ marginTop: "0.25rem" }}>
+          {busqueda
+            ? `No hay asignaturas que coincidan con "${busqueda}".`
+            : "Todas las asignaturas ya fueron agregadas al plan."}
+        </p>
+      ) : (
+        <div className="asignaturas-lista" style={{ maxHeight, overflowY: "auto", marginTop: "0.25rem" }}>
+          {disponibles.map((a) => (
+            <div
+              key={a.Asignatura_Id}
+              className="asignatura-item"
+              onClick={() => onAgregar(a)}
+              style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "0.5rem" }}
+              title="Agregar al plan"
+            >
+              <span className="asig-nombre">{a.Asignatura_Nombre}</span>
+              <span className="asig-tipo">{a.Asignatura_Prioridad_Academica}</span>
+              <span style={{ color: "#6366f1", fontWeight: 600 }}>＋</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function FilaAsignatura({ asig, onChange, onRemove }) {
   return (
     <div className="asignatura-item" style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
@@ -124,7 +162,8 @@ function FormCrearPlan({ onExito, onCancelar, periodoPropuesto }) {
           fetch(`/api/planes/asignaturas`, { headers: { Authorization: `Bearer ${TOKEN()}` } }),
         ]);
         setNiveles(await rNiveles.json());
-        setTodasAsig(await rAsig.json());
+        const asig = await rAsig.json();
+        setTodasAsig(Array.isArray(asig) ? asig : []);
       } catch {
         setError("Error al cargar datos");
       }
@@ -217,26 +256,17 @@ function FormCrearPlan({ onExito, onCancelar, periodoPropuesto }) {
       </div>
 
       <label style={{ marginTop: "1rem" }}>Agregar asignatura al plan</label>
-      <input
-        type="text"
-        placeholder="Buscar asignatura..."
-        value={asigBuscada}
-        onChange={(e) => setAsigBuscada(e.target.value)}
+      <SelectorAsignaturas
+        disponibles={asigNoSeleccionadas}
+        busqueda={asigBuscada}
+        onBuscar={setAsigBuscada}
+        onAgregar={agregarAsig}
+        maxHeight="220px"
       />
-      {asigBuscada && asigNoSeleccionadas.length > 0 && (
-        <div className="asignaturas-lista" style={{ maxHeight: "160px", overflowY: "auto", marginTop: "0.25rem" }}>
-          {asigNoSeleccionadas.map((a) => (
-            <div key={a.Asignatura_Id} className="asignatura-item" onClick={() => agregarAsig(a)} style={{ cursor: "pointer" }}>
-              <span className="asig-nombre">{a.Asignatura_Nombre}</span>
-              <span className="asig-tipo">{a.Asignatura_Prioridad_Academica}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       <label style={{ marginTop: "1rem" }}>Asignaturas incluidas ({seleccionadas.length})</label>
       {seleccionadas.length === 0 ? (
-        <p className="empty-state-text">Aún no has agregado asignaturas. Busca arriba para agregarlas.</p>
+        <p className="empty-state-text">Aún no has agregado asignaturas. Haz clic en una de la lista de arriba para agregarla.</p>
       ) : (
         <div className="asignaturas-lista">
           {seleccionadas.map((a) => (
@@ -275,7 +305,8 @@ function FormClonarPlan({ planesExistentes, onExito, onCancelar }) {
           fetch("/api/planes/asignaturas", { headers: { Authorization: `Bearer ${TOKEN()}` } }),
         ]);
         setNiveles(await rNiveles.json());
-        setTodasAsig(await rAsig.json());
+        const asig = await rAsig.json();
+        setTodasAsig(Array.isArray(asig) ? asig : []);
       } catch {
         setError("Error al cargar datos");
       }
@@ -409,22 +440,13 @@ function FormClonarPlan({ planesExistentes, onExito, onCancelar }) {
       {!cargandoAsig && planOrigenId && (
         <>
           <label style={{ marginTop: "1rem" }}>Agregar asignatura adicional</label>
-          <input
-            type="text"
-            placeholder="Buscar asignatura..."
-            value={asigBuscada}
-            onChange={(e) => setAsigBuscada(e.target.value)}
+          <SelectorAsignaturas
+            disponibles={asigNoSeleccionadas}
+            busqueda={asigBuscada}
+            onBuscar={setAsigBuscada}
+            onAgregar={agregarAsig}
+            maxHeight="200px"
           />
-          {asigBuscada && asigNoSeleccionadas.length > 0 && (
-            <div className="asignaturas-lista" style={{ maxHeight: "140px", overflowY: "auto", marginTop: "0.25rem" }}>
-              {asigNoSeleccionadas.map((a) => (
-                <div key={a.Asignatura_Id} className="asignatura-item" onClick={() => agregarAsig(a)} style={{ cursor: "pointer" }}>
-                  <span className="asig-nombre">{a.Asignatura_Nombre}</span>
-                  <span className="asig-tipo">{a.Asignatura_Prioridad_Academica}</span>
-                </div>
-              ))}
-            </div>
-          )}
 
           <label style={{ marginTop: "1rem" }}>Asignaturas del plan ({asignaturas.length})</label>
           {asignaturas.length === 0 ? (

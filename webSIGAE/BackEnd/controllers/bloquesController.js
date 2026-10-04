@@ -1,4 +1,14 @@
 const pool = require('../config/db');
+const { condicionDesajustado, motivoDesajuste } = require('../utils/bloquesDesajustados');
+
+// Las horas llegan como "HH:MM" desde el formulario y MySQL las devuelve como
+// "HH:MM:SS". Se normalizan antes de compararlas como texto: sin esto,
+// "08:30" < "08:30:00" y un bloque que parte justo al inicio de la jornada
+// se rechazaba como fuera de rango.
+const horaCompleta = (hora) => {
+  const [h = '00', m = '00', seg = '00'] = String(hora).split(':');
+  return `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${seg.padStart(2, '0')}`;
+};
 
 // ── PARÁMETROS INSTITUCIONALES ────────────────────────────────────
 
@@ -44,7 +54,7 @@ const updateParametros = async (req, res) => {
     return res.status(400).json({ error: 'Valores numéricos inválidos' });
   }
 
-  if (Parametro_Institucional_Inicio_Jornada >= Parametro_Institucional_Fin_Jornada) {
+  if (horaCompleta(Parametro_Institucional_Inicio_Jornada) >= horaCompleta(Parametro_Institucional_Fin_Jornada)) {
     return res.status(400).json({ error: 'El inicio de jornada debe ser anterior al fin' });
   }
 
@@ -87,7 +97,10 @@ const getBloques = async (req, res) => {
     const [rows] = await pool.execute(
       `SELECT bh.*,
               pi.Parametro_Institucional_Inicio_Jornada AS jornada_inicio,
-              pi.Parametro_Institucional_Fin_Jornada    AS jornada_fin
+              pi.Parametro_Institucional_Fin_Jornada    AS jornada_fin,
+              ${condicionDesajustado('bh')} AS desajustado,
+              ${motivoDesajuste('bh')} AS motivo_desajuste,
+              (SELECT COUNT(*) FROM horario_asignatura x WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id) AS clases
        FROM bloque_horario bh
        JOIN parametro_institucional pi ON pi.Parametro_Institucional_Id = bh.Parametro_Institucional_Id
        ORDER BY bh.Bloque_Horario_Hora_Inicio`
@@ -101,11 +114,14 @@ const getBloques = async (req, res) => {
 
 const createBloque = async (req, res) => {
   const { Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada, Bloque_Horario_Tipo } = req.body;
+  // Redefinir bloques: con reemplazar=true el nuevo bloque reemplaza a los que
+  // se superponen; sus clases quedan pendientes de reubicar.
+  const reemplazar = req.body.reemplazar === true;
 
   if (!Bloque_Horario_Hora_Inicio || !Bloque_Horario_Hora_Fin || !Bloque_Horario_Jornada || !Bloque_Horario_Tipo) {
     return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
-  if (Bloque_Horario_Hora_Inicio >= Bloque_Horario_Hora_Fin) {
+  if (horaCompleta(Bloque_Horario_Hora_Inicio) >= horaCompleta(Bloque_Horario_Hora_Fin)) {
     return res.status(400).json({ error: 'La hora de inicio debe ser anterior a la hora de fin' });
   }
 
@@ -117,33 +133,78 @@ const createBloque = async (req, res) => {
     const p = param[0];
 
     // Validar rango institucional
-    if (Bloque_Horario_Hora_Inicio < p.Parametro_Institucional_Inicio_Jornada ||
-        Bloque_Horario_Hora_Fin    > p.Parametro_Institucional_Fin_Jornada) {
+    if (horaCompleta(Bloque_Horario_Hora_Inicio) < horaCompleta(p.Parametro_Institucional_Inicio_Jornada) ||
+        horaCompleta(Bloque_Horario_Hora_Fin)    > horaCompleta(p.Parametro_Institucional_Fin_Jornada)) {
       return res.status(400).json({
         error: `El bloque debe estar dentro del rango institucional: ${p.Parametro_Institucional_Inicio_Jornada.slice(0,5)} – ${p.Parametro_Institucional_Fin_Jornada.slice(0,5)}`
       });
     }
 
-    // Verificar conflicto con bloques existentes (CU49: solo dentro de la misma jornada)
+    // Verificar conflicto con bloques vigentes (CU49: solo dentro de la misma jornada).
+    // Los bloques ya desajustados no cuentan: están a la espera de reubicar sus clases.
     const [conflicto] = await pool.execute(
-      `SELECT Bloque_Horario_Id FROM bloque_horario
-       WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?
-         AND Bloque_Horario_Jornada = ?`,
+      `SELECT b.Bloque_Horario_Id, b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin, b.Bloque_Horario_Tipo,
+              (SELECT COUNT(*) FROM horario_asignatura x WHERE x.Bloque_Horario_Id = b.Bloque_Horario_Id) AS clases,
+              (SELECT COUNT(*) FROM afecta af WHERE af.Bloque_Horario_Id = b.Bloque_Horario_Id) AS eventos
+       FROM bloque_horario b
+       WHERE b.Bloque_Horario_Hora_Inicio < ? AND b.Bloque_Horario_Hora_Fin > ?
+         AND b.Bloque_Horario_Jornada = ?
+         AND NOT ${condicionDesajustado('b')}`,
       [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, Bloque_Horario_Jornada]
     );
-    if (conflicto.length > 0) {
-      return res.status(409).json({ error: 'El horario se superpone con un bloque existente' });
+    if (conflicto.length > 0 && !reemplazar) {
+      return res.status(409).json({
+        error: 'El horario se superpone con un bloque existente',
+        codigo: 'SUPERPOSICION',
+        bloques: conflicto.map((b) => ({
+          Bloque_Horario_Id: b.Bloque_Horario_Id,
+          Bloque_Horario_Hora_Inicio: b.Bloque_Horario_Hora_Inicio,
+          Bloque_Horario_Hora_Fin: b.Bloque_Horario_Hora_Fin,
+          Bloque_Horario_Tipo: b.Bloque_Horario_Tipo,
+          clases: Number(b.clases),
+        })),
+      });
     }
 
-    const [result] = await pool.execute(
-      `INSERT INTO bloque_horario
-       (Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada,
-        Bloque_Horario_Tipo, Parametro_Institucional_Id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada,
-       Bloque_Horario_Tipo, p.Parametro_Institucional_Id]
-    );
-    res.status(201).json({ mensaje: 'Bloque creado correctamente', id: result.insertId });
+    const conn = await pool.getConnection();
+    let nuevoId;
+    let clasesPendientes = 0;
+    try {
+      await conn.beginTransaction();
+      const [result] = await conn.execute(
+        `INSERT INTO bloque_horario
+         (Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada,
+          Bloque_Horario_Tipo, Parametro_Institucional_Id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [Bloque_Horario_Hora_Inicio, Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada,
+         Bloque_Horario_Tipo, p.Parametro_Institucional_Id]
+      );
+      nuevoId = result.insertId;
+
+      // Los bloques reemplazados sin clases ni eventos se eliminan; los que tienen
+      // clases quedan desajustados hasta que el administrador las reubique.
+      for (const b of conflicto) {
+        if (Number(b.clases) === 0 && Number(b.eventos) === 0) {
+          await conn.execute('DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?', [b.Bloque_Horario_Id]);
+        } else {
+          clasesPendientes += Number(b.clases);
+        }
+      }
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+
+    res.status(201).json({
+      mensaje: clasesPendientes > 0
+        ? `Bloque creado. ${clasesPendientes} clase(s) quedaron pendientes de reubicar.`
+        : 'Bloque creado correctamente',
+      id: nuevoId,
+      clasesPendientes,
+    });
   } catch (err) {
     console.error('createBloque:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -158,7 +219,7 @@ const updateBloque = async (req, res) => {
   if (!Bloque_Horario_Hora_Inicio || !Bloque_Horario_Hora_Fin || !Bloque_Horario_Jornada || !Bloque_Horario_Tipo) {
     return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
   }
-  if (Bloque_Horario_Hora_Inicio >= Bloque_Horario_Hora_Fin) {
+  if (horaCompleta(Bloque_Horario_Hora_Inicio) >= horaCompleta(Bloque_Horario_Hora_Fin)) {
     return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
   }
 
@@ -174,16 +235,17 @@ const updateBloque = async (req, res) => {
     }
     const p = param[0];
 
-    if (Bloque_Horario_Hora_Inicio < p.Parametro_Institucional_Inicio_Jornada ||
-        Bloque_Horario_Hora_Fin    > p.Parametro_Institucional_Fin_Jornada) {
+    if (horaCompleta(Bloque_Horario_Hora_Inicio) < horaCompleta(p.Parametro_Institucional_Inicio_Jornada) ||
+        horaCompleta(Bloque_Horario_Hora_Fin)    > horaCompleta(p.Parametro_Institucional_Fin_Jornada)) {
       return res.status(400).json({ error: 'Datos inválidos o fuera de rango' });
     }
 
     // CU49 - Excepción "Conflicto con bloque existente" (solo dentro de la misma jornada)
     const [conflicto] = await pool.execute(
-      `SELECT Bloque_Horario_Id FROM bloque_horario
-       WHERE Bloque_Horario_Hora_Inicio < ? AND Bloque_Horario_Hora_Fin > ?
-         AND Bloque_Horario_Jornada = ? AND Bloque_Horario_Id != ?`,
+      `SELECT b.Bloque_Horario_Id FROM bloque_horario b
+       WHERE b.Bloque_Horario_Hora_Inicio < ? AND b.Bloque_Horario_Hora_Fin > ?
+         AND b.Bloque_Horario_Jornada = ? AND b.Bloque_Horario_Id != ?
+         AND NOT ${condicionDesajustado('b')}`,
       [Bloque_Horario_Hora_Fin, Bloque_Horario_Hora_Inicio, Bloque_Horario_Jornada, id]
     );
     if (conflicto.length > 0) return res.status(409).json({ error: 'Conflicto con bloque existente' });
@@ -207,12 +269,17 @@ const updateBloque = async (req, res) => {
 const deleteBloque = async (req, res) => {
   const { id } = req.params;
   try {
-    // CU50 - Excepción "Bloque posee asignaciones activas"
+    // CU50 - Excepción "Bloque posee asignaciones": el panel de avisos permite
+    // migrar o eliminar esas clases antes de quitar el bloque.
     const [enHorario] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ? AND Horario_Asignatura_Estado = 'Activo' LIMIT 1`, [id]
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ?`, [id]
     );
     if (enHorario.length > 0) {
-      return res.status(409).json({ error: 'El bloque posee asignaciones activas' });
+      return res.status(409).json({
+        error: 'El bloque posee asignaciones activas',
+        codigo: 'TIENE_CLASES',
+        clases: enHorario.length,
+      });
     }
 
     const [enEvento] = await pool.execute(

@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { condicionDesajustado, motivoDesajuste } = require('../utils/bloquesDesajustados');
 
 // ── GET /api/horarios?curso_id=X  (admin ve todo, docente solo el suyo) ──
 const getHorarios = async (req, res) => {
@@ -89,10 +90,12 @@ const getCursos = async (req, res) => {
 const getBloques = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT Bloque_Horario_Id, Bloque_Horario_Hora_Inicio,
-              Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada, Bloque_Horario_Tipo
-       FROM bloque_horario
-       ORDER BY Bloque_Horario_Hora_Inicio`
+      `SELECT bh.Bloque_Horario_Id, bh.Bloque_Horario_Hora_Inicio,
+              bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Jornada, bh.Bloque_Horario_Tipo,
+              ${condicionDesajustado('bh')} AS desajustado,
+              ${motivoDesajuste('bh')} AS motivo_desajuste
+       FROM bloque_horario bh
+       ORDER BY bh.Bloque_Horario_Hora_Inicio`
     );
     res.json(rows);
   } catch (error) {
@@ -361,6 +364,7 @@ const createHorario = async (req, res) => {
     // Excepción 5 — restricciones institucionales (tipo de bloque y límite diario)
     const [[bloqueRestriccion]] = await pool.execute(
       `SELECT bh.Bloque_Horario_Tipo,
+              ${condicionDesajustado('bh')} AS desajustado,
               pi.Parametro_Institucional_Bloques_Maximos_Diarios,
               TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion_horas
        FROM bloque_horario bh
@@ -373,6 +377,9 @@ const createHorario = async (req, res) => {
     }
     if (bloqueRestriccion.Bloque_Horario_Tipo === 'Recreo') {
       return res.status(422).json({ error: 'No se pueden programar clases en bloques de recreo' });
+    }
+    if (Number(bloqueRestriccion.desajustado) === 1) {
+      return res.status(422).json({ error: 'El bloque fue reemplazado o quedó fuera de la jornada; elige un bloque vigente' });
     }
     const [[{ total_dia }]] = await pool.execute(
       `SELECT COUNT(*) AS total_dia FROM horario_asignatura
@@ -533,7 +540,7 @@ const updateHorario = async (req, res) => {
 
   try {
     const [existe] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
+      `SELECT Horario_Asignatura_Id, Bloque_Horario_Id FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
       [id]
     );
     if (existe.length === 0) {
@@ -600,6 +607,7 @@ const updateHorario = async (req, res) => {
     // Excepción 5 — restricciones institucionales
     const [[bloqueRestriccionU]] = await pool.execute(
       `SELECT bh.Bloque_Horario_Tipo,
+              ${condicionDesajustado('bh')} AS desajustado,
               pi.Parametro_Institucional_Bloques_Maximos_Diarios,
               TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion_horas
        FROM bloque_horario bh
@@ -612,6 +620,11 @@ const updateHorario = async (req, res) => {
     }
     if (bloqueRestriccionU.Bloque_Horario_Tipo === 'Recreo') {
       return res.status(422).json({ error: 'No se pueden programar clases en bloques de recreo' });
+    }
+    // Una clase pendiente puede editarse sin moverla, pero no trasladarse a otro bloque desajustado
+    if (Number(bloqueRestriccionU.desajustado) === 1 &&
+        Number(Bloque_Horario_Id) !== Number(existe[0].Bloque_Horario_Id)) {
+      return res.status(422).json({ error: 'El bloque fue reemplazado o quedó fuera de la jornada; elige un bloque vigente' });
     }
     const [[{ total_dia_u }]] = await pool.execute(
       `SELECT COUNT(*) AS total_dia_u FROM horario_asignatura
@@ -933,12 +946,16 @@ const getHorarioDocente = async (req, res) => {
 
     const [filas] = await pool.execute(
       `SELECT
+        ha.Horario_Asignatura_Id         AS id,
+        ha.Curso_Id                      AS cursoId,
+        ha.Asignatura_Id                 AS asignaturaId,
         c.Curso_Nombre                   AS curso,
         a.Asignatura_Nombre              AS asignatura,
         ha.Horario_Asignatura_Dia_Semana AS dia,
         bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
         bh.Bloque_Horario_Hora_Fin       AS horaFin,
-        ha.Horario_Asignatura_Estado     AS estado
+        ha.Horario_Asignatura_Estado     AS estado,
+        ${condicionDesajustado('bh')}    AS pendiente
       FROM horario_asignatura ha
       JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
       JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
@@ -960,6 +977,74 @@ const getHorarioDocente = async (req, res) => {
     return res.json(filas);
   } catch (error) {
     console.error('getHorarioDocente:', error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar el horario, reintente más tarde' });
+  }
+};
+
+// ── GET /api/horarios/estudiante/:estudianteId/horario ──
+// Horario semanal del curso de un estudiante. El apoderado solo puede consultar
+// a sus propios estudiantes; un Administrador/SuperAdmin puede consultar cualquiera.
+const getHorarioEstudiante = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esApoderado = roles.includes('Apoderado');
+
+    if (!esAdmin && !esApoderado) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    const estudianteId = Number(req.params.estudianteId);
+    if (!Number.isInteger(estudianteId) || estudianteId <= 0) {
+      return res.status(400).json({ mensaje: 'ID de estudiante inválido' });
+    }
+
+    const [[estudiante]] = await pool.execute(
+      `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Curso_Id,
+              e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+        WHERE e.Estudiante_Id = ? AND e.Estudiante_Fecha_Eliminacion IS NULL`,
+      [estudianteId]
+    );
+
+    // Un apoderado que no es Admin no distingue "no existe" de "no es suyo"
+    if (!estudiante || (!esAdmin && Number(estudiante.Apoderado_Usuario_Id) !== Number(userId))) {
+      return res.status(404).json({ mensaje: 'El estudiante no fue encontrado' });
+    }
+
+    const [horario] = await pool.execute(
+      `SELECT
+        ha.Horario_Asignatura_Id         AS id,
+        ha.Asignatura_Id                 AS asignaturaId,
+        a.Asignatura_Nombre              AS asignatura,
+        u.Usuario_Nombre_Completo        AS docente,
+        ha.Horario_Asignatura_Dia_Semana AS dia,
+        bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin       AS horaFin,
+        ha.Horario_Asignatura_Estado     AS estado,
+        ${condicionDesajustado('bh')}    AS pendiente
+      FROM horario_asignatura ha
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
+      WHERE ha.Curso_Id = ?
+      ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'),
+               bh.Bloque_Horario_Hora_Inicio`,
+      [estudiante.Curso_Id]
+    );
+
+    return res.json({
+      estudiante: {
+        id: estudiante.Estudiante_Id,
+        nombre: estudiante.Estudiante_Nombre_Completo,
+        curso: estudiante.Curso_Nombre,
+      },
+      horario,
+      ...(horario.length === 0 && { mensaje: 'El curso del estudiante aún no tiene horario planificado' }),
+    });
+  } catch (error) {
+    console.error('getHorarioEstudiante:', error);
     return res.status(500).json({ mensaje: 'No fue posible cargar el horario, reintente más tarde' });
   }
 };
@@ -1241,6 +1326,14 @@ const getBloquesLibres = async (req, res) => {
 // ── GET /api/horarios/bloque-detalle/:id ── CU69 / CU71 / RF45: Detalle de bloque horario
 const getDetalleBloqueHorario = async (req, res) => {
   try {
+    const roles = req.user?.roles || [];
+    const esAdmin = roles.includes('Administrador');
+
+    // Solo Admin, o un docente sobre sus propias clases (se valida tras la consulta)
+    if (!esAdmin && !roles.includes('Docente')) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
     const id = Number(req.params.id);
 
     // CU69 - Excepción 1: identificador inválido equivale a bloque inexistente
@@ -1282,6 +1375,10 @@ const getDetalleBloqueHorario = async (req, res) => {
     }
 
     const detalle = rows[0];
+
+    if (!esAdmin && Number(detalle.docenteId) !== Number(req.user.id)) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
 
     // RF42/RF45: próximos eventos institucionales que suspenden este bloque
     // (tabla afecta) en una fecha que cae el mismo día de la semana.
@@ -1974,6 +2071,7 @@ module.exports = {
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
   getAsignacionesDocente, // CU42
   getHorarioDocente, // CU43 / CU58
+  getHorarioEstudiante,
   getHorarioMaestro, // CU57
   filtrarHorarios,
   getBloquesLibres,

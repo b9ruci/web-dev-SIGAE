@@ -321,6 +321,14 @@ export async function editarAdministrador(id, datos) {
 
 // ── CU42: Cursos y asignaturas de un docente ──
 
+// "Mis Cursos": estudiantes de un curso donde el docente hace clases (sin RUT ni dirección)
+export async function getEstudiantesCursoDocente(cursoId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/curso/${cursoId}/mis-estudiantes`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 export async function getAsignacionesDocente(docenteId) {
   const res = await fetch(`${BASE_URL}/horarios/docente/${docenteId}/asignaciones`, {
     headers: authHeaders(),
@@ -332,6 +340,14 @@ export async function getAsignacionesDocente(docenteId) {
 
 export async function getHorarioDocente(docenteId) {
   const res = await fetch(`${BASE_URL}/horarios/docente/${docenteId}/horario`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// Horario semanal del curso de un estudiante (su apoderado o un Administrador)
+export async function getHorarioEstudiante(estudianteId) {
+  const res = await fetch(`${BASE_URL}/horarios/estudiante/${estudianteId}/horario`, {
     headers: authHeaders(),
   });
   return handleResponse(res);
@@ -535,6 +551,17 @@ export async function iniciarConversacion(contactoId, rol) {
 export async function getMensajesConversacion(conversacionId) {
   const res = await apiFetch(
     `${BASE_URL}/mensajes/conversaciones/${conversacionId}/mensajes`
+  );
+
+  if (!res) return null;
+
+  return handleResponse(res);
+}
+
+// Datos no invasivos de la contraparte de una conversación (panel lateral)
+export async function getDetalleContactoConversacion(conversacionId) {
+  const res = await apiFetch(
+    `${BASE_URL}/mensajes/conversaciones/${conversacionId}/contacto`
   );
 
   if (!res) return null;

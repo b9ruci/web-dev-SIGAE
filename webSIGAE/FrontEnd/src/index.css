@@ -623,42 +623,111 @@ select {
 .logout-button:hover {
   background: #1d4ed8;
 }
-.select-role-container{
-  min-height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:#f4f7fb;
+/* ===== SELECCIÓN DE PERFIL (usuarios con más de un rol) ===== */
+.select-role-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  background: #f4f7fb;
 }
 
-.select-role-card{
-  background:white;
-  padding:40px;
-  border-radius:16px;
-  width:400px;
-  box-shadow:0 4px 20px rgba(0,0,0,0.1);
-  text-align:center;
+.select-role-card {
+  width: 100%;
+  max-width: 440px;
+  background: white;
+  padding: 36px 32px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  box-sizing: border-box;
 }
 
-.roles-container{
-  display:flex;
-  flex-direction:column;
-  gap:16px;
-  margin-top:24px;
+.select-role-logo {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  display: block;
+  margin: 0 auto 16px;
+  object-fit: contain;
 }
 
-.role-button{
-  padding:14px;
-  border:none;
-  border-radius:10px;
-  background:#2563eb;
-  color:white;
-  font-size:16px;
-  cursor:pointer;
+.select-role-card h1 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 1.5rem;
 }
 
-.role-button:hover{
-  opacity:0.9;
+.select-role-saludo {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.roles-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.role-button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f8fbff;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.role-button:hover,
+.role-button:focus-visible {
+  border-color: #2563eb;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.15);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.role-button-icono {
+  font-size: 1.6rem;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #dbeafe;
+}
+
+.role-button-texto {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.role-button-texto strong {
+  font-size: 1rem;
+}
+
+.role-button-texto small {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.role-button-flecha {
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
 /* ===== CURSOS ===== */
@@ -1181,6 +1250,132 @@ select {
 .perfil-container {
   padding: 30px;
   max-width: 800px;
+}
+
+/* Perfil en bloques: cuenta a la izquierda, información académica en la zona ancha */
+.perfil-container--amplio {
+  max-width: 1440px;
+}
+
+/* Grilla en bloques (bento): columnas de al menos 320px según el ancho
+   disponible; "dense" rellena los huecos con las tarjetas pequeñas */
+.perfil-bento {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-auto-flow: row dense;
+  gap: 24px;
+  align-items: start;
+}
+
+.perfil-bento .perfil-card {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+/* Con espacio para 2+ columnas: identidad alta, cursos y estudiantes anchos */
+@media (min-width: 1100px) {
+  .perfil-card--identidad {
+    grid-row: span 2;
+  }
+
+  .perfil-card--ancha {
+    grid-column: span 2;
+  }
+}
+
+.perfil-identidad {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.perfil-identidad-foto {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #dbeafe;
+}
+
+.perfil-identidad-nombre {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}
+
+/* Bloques (tarjetas) de asignaciones y estudiantes */
+/* auto-fit: con pocos elementos, los bloques se estiran y llenan la tarjeta */
+.perfil-bloques {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.perfil-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #2563eb;
+  border-radius: 10px;
+  background: #f8fbff;
+  min-width: 0;
+}
+
+.perfil-bloque--apoderado {
+  border-left-color: #d97706;
+  background: #fffbeb;
+}
+
+.perfil-bloque-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.perfil-bloque-cabecera strong {
+  color: #0f172a;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.perfil-bloque-cabecera span {
+  flex-shrink: 0;
+}
+
+.perfil-bloque-detalle {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.perfil-bloque-metricas {
+  display: flex;
+  gap: 14px;
+  font-size: 0.82rem;
+  color: #334155;
+}
+
+.perfil-bloque-accion {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+@media (max-width: 520px) {
+  .perfil-bento {
+    grid-template-columns: 1fr;
+  }
+
+  .perfil-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .perfil-header {
@@ -2201,5 +2396,36 @@ body.bloques-panel-open .main-content {
   .cit-select-estudiante {
     min-width: 0;
     width: 100%;
+  }
+}
+
+/* ── Mis Cursos (docente): clases a la izquierda, estudiantes a la derecha ── */
+.mis-cursos-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 400px) 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.mis-cursos-panel {
+  position: sticky;
+  top: 1rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .mis-cursos-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mis-cursos-panel {
+    position: static;
+    max-height: none;
   }
 }

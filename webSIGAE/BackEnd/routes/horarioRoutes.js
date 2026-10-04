@@ -14,6 +14,7 @@ const {
   getResumenCursos,
   getAsignacionesDocente,
   getHorarioDocente,
+  getHorarioEstudiante,
   getHorarioMaestro,
   filtrarHorarios,
   getBloquesLibres,
@@ -48,13 +49,15 @@ router.get('/asignaturas-curso',     getAsignaturasCurso);
 router.get('/docentes',              getDocentes);
 router.get('/docentes-disponibles',  getDocentesDisponibles);
 
-// CU68 / RF44: Filtrar grilla horaria reactivamente
-router.get('/filtrar', filtrarHorarios);
+// CU68 / RF44: Filtrar grilla horaria reactivamente — Super Admin/Admin
+// (expone el horario de toda la institución)
+router.get('/filtrar', verifyAdmin, filtrarHorarios);
 
 // CU67 / RF43: Consultar bloques horarios libres — Super Admin/Admin
 router.get('/bloques-libres', verifyAdmin, getBloquesLibres);
 
 // CU69, CU71 / RF45: Detalle informativo de un bloque horario
+// (Admin, o el docente de esa clase: la autorización se resuelve en el controlador)
 router.get('/bloque-detalle/:id', getDetalleBloqueHorario);
 
 // CU42: Cursos y asignaturas asignadas a un docente (propias o vistas desde su perfil)
@@ -62,6 +65,9 @@ router.get('/docente/:docenteId/asignaciones', getAsignacionesDocente);
 
 // CU43: Horario semanal de un docente a partir de sus cursos asociados (propio o desde su perfil)
 router.get('/docente/:docenteId/horario', getHorarioDocente);
+
+// Horario semanal del curso de un estudiante — su apoderado o un Administrador
+router.get('/estudiante/:estudianteId/horario', getHorarioEstudiante);
 
 // CU57: vista consolidada del horario de toda la institución — solo Super Admin/Admin
 router.get('/maestro', verifyAdmin, getHorarioMaestro);

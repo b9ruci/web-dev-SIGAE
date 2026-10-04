@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAuth } from '../context/AuthContext';
 import {
@@ -7,8 +7,170 @@ import {
   enviarMensaje,
   marcarMensajesLeidos,
   getContactosMensajeria,
-  iniciarConversacion
+  iniciarConversacion,
+  getDetalleContactoConversacion
 } from '../../services/api';
+
+// Iniciales para el avatar cuando el contacto no tiene fotografía
+function iniciales(nombre = '') {
+  return nombre
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0].toUpperCase())
+    .join('');
+}
+
+// Fila etiqueta / valor del panel de datos del contacto
+function DatoContacto({ etiqueta, valor }) {
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
+        {etiqueta}
+      </div>
+      <div style={{ wordBreak: 'break-word' }}>
+        {valor || <span style={{ color: '#999' }}>No registrado</span>}
+      </div>
+    </div>
+  );
+}
+
+// Panel lateral con los datos no invasivos de la contraparte
+function PanelContacto({ detalle, cargando, error, onCerrar }) {
+  return (
+    <div
+      style={{
+        border: '1px solid #ddd',
+        borderRadius: '10px',
+        background: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}
+    >
+      <div
+        style={{
+          padding: '12px 15px',
+          borderBottom: '1px solid #ddd',
+          fontWeight: 'bold',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}
+      >
+        Datos del contacto
+        <button
+          type="button"
+          onClick={onCerrar}
+          title="Ocultar datos"
+          style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px' }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '15px' }}>
+        {cargando && <p>Cargando datos...</p>}
+
+        {error && (
+          <div
+            style={{
+              padding: '10px',
+              borderRadius: '8px',
+              background: '#fee2e2',
+              color: '#991b1b'
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {!cargando && !error && detalle && (
+          <>
+            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+              {detalle.Foto ? (
+                <img
+                  src={detalle.Foto}
+                  alt={detalle.Nombre}
+                  style={{ width: '72px', height: '72px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '72px',
+                    height: '72px',
+                    borderRadius: '50%',
+                    background: '#dbeafe',
+                    color: '#1e40af',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 'bold',
+                    fontSize: '24px'
+                  }}
+                >
+                  {iniciales(detalle.Nombre)}
+                </div>
+              )}
+              <div style={{ fontWeight: 'bold', marginTop: '8px' }}>
+                {detalle.Nombre}
+              </div>
+              <div style={{ fontSize: '13px', color: '#666' }}>
+                {detalle.Rol}
+              </div>
+            </div>
+
+            {detalle.Rol === 'Apoderado' ? (
+              <>
+                <DatoContacto etiqueta="Teléfono" valor={detalle.Telefono} />
+                <DatoContacto etiqueta="Correo" valor={detalle.Correo} />
+
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>
+                  Estudiantes asociados
+                </div>
+                {detalle.Estudiantes?.length ? (
+                  <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                    {detalle.Estudiantes.map((e) => (
+                      <li key={e.Estudiante_Id} style={{ marginBottom: '4px' }}>
+                        {e.Nombre}
+                        {e.Curso && (
+                          <span style={{ color: '#666', fontSize: '13px' }}> · {e.Curso}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span style={{ color: '#999' }}>Sin estudiantes asociados</span>
+                )}
+              </>
+            ) : (
+              <>
+                <DatoContacto etiqueta="Especialidad" valor={detalle.Especialidad} />
+                <DatoContacto etiqueta="Correo institucional" valor={detalle.Correo} />
+
+                <div style={{ fontSize: '12px', color: '#666', marginBottom: '6px' }}>
+                  Asignaturas que dicta a tus estudiantes
+                </div>
+                {detalle.Asignaturas?.length ? (
+                  <ul style={{ margin: 0, paddingLeft: '18px' }}>
+                    {detalle.Asignaturas.map((a) => (
+                      <li key={`${a.Nombre}-${a.Curso}`} style={{ marginBottom: '4px' }}>
+                        {a.Nombre}
+                        <span style={{ color: '#666', fontSize: '13px' }}> · {a.Curso}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span style={{ color: '#999' }}>Sin asignaturas registradas</span>
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // CU73 / RF47: mensajería interna entre docentes y apoderados
 function Mensajes() {
@@ -34,6 +196,14 @@ function Mensajes() {
   const [cargandoContactos, setCargandoContactos] = useState(false);
   const [errorContactos, setErrorContactos] = useState('');
   const [iniciando, setIniciando] = useState(null);
+
+  // Panel lateral con los datos de la contraparte
+  const [mostrarDetalle, setMostrarDetalle] = useState(true);
+  const [detalleContacto, setDetalleContacto] = useState(null);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+  const [errorDetalle, setErrorDetalle] = useState('');
+  // Evita que una respuesta lenta pise la ficha de otra conversación
+  const conversacionActivaRef = useRef(null);
 
   // ─────────────────────────────────────────
   // Cargar conversaciones
@@ -64,7 +234,31 @@ function Mensajes() {
   // Cargar mensajes de una conversación
   // ─────────────────────────────────────────
 
+  const cargarDetalleContacto = async (conversacionId) => {
+    setDetalleContacto(null);
+    setErrorDetalle('');
+    setCargandoDetalle(true);
+
+    try {
+      const data = await getDetalleContactoConversacion(conversacionId);
+      if (conversacionActivaRef.current === conversacionId) {
+        setDetalleContacto(data);
+      }
+    } catch (err) {
+      if (conversacionActivaRef.current === conversacionId) {
+        setErrorDetalle(err.message || 'No se pudieron cargar los datos del contacto');
+      }
+    } finally {
+      if (conversacionActivaRef.current === conversacionId) {
+        setCargandoDetalle(false);
+      }
+    }
+  };
+
   const seleccionarConversacion = async (conversacion) => {
+    conversacionActivaRef.current = conversacion.Conversacion_Id;
+    cargarDetalleContacto(conversacion.Conversacion_Id);
+
     try {
       setConversacionSeleccionada(conversacion);
       setMostrarContactos(false);
@@ -152,7 +346,11 @@ function Mensajes() {
   // ─────────────────────────────────────────
 
   const handleEnviarMensaje = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
+
+    if (enviando) {
+      return;
+    }
 
     if (!conversacionSeleccionada) {
       return;
@@ -211,7 +409,17 @@ function Mensajes() {
     cargarConversaciones();
   }, [cargarConversaciones]);
 
+  // Enter envía; Shift + Enter inserta un salto de línea
+  const handleTeclaMensaje = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleEnviarMensaje();
+    }
+  };
+
   const miRol = conversacionSeleccionada?.Mi_Rol || rol;
+  const panelDetalleVisible =
+    Boolean(conversacionSeleccionada) && !mostrarContactos && mostrarDetalle;
   const conversacionCerrada =
     conversacionSeleccionada &&
     !conversacionSeleccionada.Conversacion_Estado;
@@ -250,7 +458,9 @@ function Mensajes() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'minmax(260px, 320px) 1fr',
+          gridTemplateColumns: panelDetalleVisible
+            ? 'minmax(240px, 300px) 1fr minmax(240px, 300px)'
+            : 'minmax(260px, 320px) 1fr',
           gap: '20px',
           height: 'calc(100% - 70px)'
         }}
@@ -535,27 +745,43 @@ function Mensajes() {
               <div
                 style={{
                   padding: '15px',
-                  borderBottom: '1px solid #ddd'
+                  borderBottom: '1px solid #ddd',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '10px'
                 }}
               >
 
-                <div
-                  style={{
-                    fontWeight: 'bold',
-                    fontSize: '18px'
-                  }}
-                >
-                  {conversacionSeleccionada.Contacto_Nombre}
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 'bold',
+                      fontSize: '18px'
+                    }}
+                  >
+                    {conversacionSeleccionada.Contacto_Nombre}
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: '14px',
+                      color: '#666'
+                    }}
+                  >
+                    {miRol === 'Docente' ? 'Apoderado' : 'Docente'}
+                  </div>
                 </div>
 
-                <div
-                  style={{
-                    fontSize: '14px',
-                    color: '#666'
-                  }}
-                >
-                  {miRol === 'Docente' ? 'Apoderado' : 'Docente'}
-                </div>
+                {!mostrarDetalle && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setMostrarDetalle(true)}
+                  >
+                    Ver datos
+                  </button>
+                )}
 
               </div>
 
@@ -684,49 +910,65 @@ function Mensajes() {
                 <form
                   onSubmit={handleEnviarMensaje}
                   style={{
-                    padding: '15px',
-                    borderTop: '1px solid #ddd',
-                    display: 'flex',
-                    gap: '10px'
+                    padding: '15px 15px 8px',
+                    borderTop: '1px solid #ddd'
                   }}
                 >
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
 
-                  <input
-                    type="text"
-                    value={nuevoMensaje}
-                    onChange={(e) =>
-                      setNuevoMensaje(e.target.value)
-                    }
-                    placeholder="Escribe un mensaje..."
-                    maxLength={5000}
-                    disabled={enviando}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      border: '1px solid #ccc',
-                      borderRadius: '8px'
-                    }}
-                  />
+                    <textarea
+                      value={nuevoMensaje}
+                      onChange={(e) =>
+                        setNuevoMensaje(e.target.value)
+                      }
+                      onKeyDown={handleTeclaMensaje}
+                      placeholder="Escribe un mensaje..."
+                      maxLength={5000}
+                      readOnly={enviando}
+                      rows={2}
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        border: '1px solid #ccc',
+                        borderRadius: '8px',
+                        resize: 'none',
+                        fontFamily: 'inherit',
+                        fontSize: 'inherit'
+                      }}
+                    />
 
-                  <button
-                    type="submit"
-                    disabled={
-                      enviando ||
-                      !nuevoMensaje.trim()
-                    }
-                    style={{
-                      padding: '12px 20px',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor:
+                    <button
+                      type="submit"
+                      disabled={
                         enviando ||
                         !nuevoMensaje.trim()
-                          ? 'not-allowed'
-                          : 'pointer'
+                      }
+                      style={{
+                        padding: '12px 20px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor:
+                          enviando ||
+                          !nuevoMensaje.trim()
+                            ? 'not-allowed'
+                            : 'pointer'
+                      }}
+                    >
+                      {enviando ? 'Enviando...' : 'Enviar'}
+                    </button>
+
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: '6px',
+                      fontSize: '12px',
+                      color: '#666'
                     }}
                   >
-                    {enviando ? 'Enviando...' : 'Enviar'}
-                  </button>
+                    <strong>PRESIONE ENTER PARA ENVIAR</strong>
+                    {' · '}Shift + Enter para un salto de línea
+                  </div>
 
                 </form>
               )}
@@ -735,6 +977,15 @@ function Mensajes() {
           )}
 
         </div>
+
+        {panelDetalleVisible && (
+          <PanelContacto
+            detalle={detalleContacto}
+            cargando={cargandoDetalle}
+            error={errorDetalle}
+            onCerrar={() => setMostrarDetalle(false)}
+          />
+        )}
 
       </div>
 

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { getHorarioDocente, getListaDocentes } from "../../services/api";
 import ExportMenu from "../../components/ExportMenu";
+import HorarioSemanal from "../../components/horarios/HorarioSemanal";
+import AvisoTopes from "../../components/horarios/AvisoTopes";
+import { detectarTopes } from "../../utils/horarios";
 
 function MiHorario() {
   const { usuario, rolActivo } = useAuth();
@@ -15,15 +18,7 @@ function MiHorario() {
   const [loading, setLoading] = useState(!esAdmin);
   const [mensajeInfo, setMensajeInfo] = useState("");
   const [errorCarga, setErrorCarga] = useState("");
-
-  useEffect(() => {
-    if (esAdmin) {
-      getListaDocentes().then(setDocentes).catch(() => {});
-    } else {
-      cargarHorario(usuario?.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [avisoCerrado, setAvisoCerrado] = useState(false);
 
   // CU43: horario semanal a partir de sus cursos asociados
   const cargarHorario = async (id) => {
@@ -31,6 +26,7 @@ function MiHorario() {
     setLoading(true);
     setErrorCarga("");
     setMensajeInfo("");
+    setAvisoCerrado(false);
     try {
       const data = await getHorarioDocente(id);
       if (Array.isArray(data)) {
@@ -48,6 +44,16 @@ function MiHorario() {
     }
   };
 
+  useEffect(() => {
+    if (esAdmin) {
+      getListaDocentes().then(setDocentes).catch(() => {});
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      cargarHorario(usuario?.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const seleccionarDocente = (id) => {
     setDocenteId(id);
     setHorario([]);
@@ -55,6 +61,19 @@ function MiHorario() {
     setErrorCarga("");
     if (id) cargarHorario(id);
   };
+
+  const clases = horario.map((h, idx) => ({
+    id: h.id ?? idx,
+    dia: h.dia,
+    horaInicio: h.horaInicio,
+    horaFin: h.horaFin,
+    titulo: h.asignatura,
+    lineas: [h.curso],
+    colorKey: h.asignaturaId ?? h.asignatura,
+    estado: h.estado,
+    pendiente: Boolean(Number(h.pendiente)),
+  }));
+  const topes = detectarTopes(clases);
 
   return (
     <div className="usuarios-container">
@@ -104,34 +123,11 @@ function MiHorario() {
       )}
 
       {!loading && !errorCarga && !mensajeInfo && (esAdmin ? docenteId : true) && horario.length > 0 && (
-        <table className="tabla-usuarios">
-          <thead>
-            <tr>
-              <th>Día</th>
-              <th>Horario</th>
-              <th>Curso</th>
-              <th>Asignatura</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {horario.map((h, idx) => (
-              <tr key={idx}>
-                <td>{h.dia}</td>
-                <td>{h.horaInicio?.slice(0, 5)} - {h.horaFin?.slice(0, 5)}</td>
-                <td>{h.curso}</td>
-                <td>{h.asignatura}</td>
-                <td>
-                  {h.estado === "Activo" ? (
-                    <span className="badge-activo">Activo</span>
-                  ) : (
-                    <span className="badge-inactivo">{h.estado}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <HorarioSemanal clases={clases} />
+      )}
+
+      {!loading && !avisoCerrado && (
+        <AvisoTopes topes={topes} onCerrar={() => setAvisoCerrado(true)} />
       )}
     </div>
   );
