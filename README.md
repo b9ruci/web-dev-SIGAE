@@ -89,7 +89,6 @@ Toda la documentación, salvo este README, está en `docs/`. No agregues archivo
 | [`docs/api-citaciones.md`](docs/api-citaciones.md) | Contrato entre frontend y backend del módulo de citaciones (CU74–CU79): endpoints, formato de respuestas y permisos. |
 | [`docs/navegacion-sidebar.md`](docs/navegacion-sidebar.md) | Cómo funciona el sidebar (`MainLayout.jsx`), reglas para agregar enlaces y pendientes conocidos. |
 | [`docs/tabla-historial.md`](docs/tabla-historial.md) | Estado de la tabla de auditoría `historial` y qué hacer al llegar a la fase alfa. |
-| [`docs/entregas/`](docs/entregas/) | Tareas entregadas en septiembre (modelo físico, diagrama de componentes y casos de uso de CU9, CU10 y CU30–CU33). Son registro histórico y **no** reflejan el código actual. |
 
 ---
 
