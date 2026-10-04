@@ -59,6 +59,7 @@ function HorarioEstudiante() {
     lineas: [h.docente || "Docente por asignar"],
     colorKey: h.asignaturaId,
     estado: h.estado,
+    pendiente: Boolean(Number(h.pendiente)),
   }));
 
   return (

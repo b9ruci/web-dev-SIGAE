@@ -6,6 +6,9 @@ const {
   getEventos, createEvento, updateEvento, deleteEvento,
   getBloquesAfectadosPorEvento,
 } = require('../controllers/bloquesController');
+const {
+  getConflictos, migrarClase, eliminarClase, getImpactoParametros,
+} = require('../controllers/conflictosHorarioController');
 
 const router = express.Router();
 
@@ -14,6 +17,14 @@ router.use(verifyToken);
 // Parámetros institucionales (CU53) — solo admin
 router.get('/parametros',       getParametros);
 router.put('/parametros',       verifyAdmin, updateParametros);
+// Antes de guardar una nueva jornada: clases que quedarían fuera de ella
+router.post('/parametros/impacto', verifyAdmin, getImpactoParametros);
+
+// Clases pendientes de reubicar tras redefinir la jornada o los bloques.
+// Deben ir antes de '/:id' para no ser capturadas por el parámetro.
+router.get('/conflictos',                    verifyAdmin, getConflictos);
+router.put('/conflictos/:horarioId/migrar',  verifyAdmin, migrarClase);
+router.delete('/conflictos/:horarioId',      verifyAdmin, eliminarClase);
 
 // Bloques horarios (CU49, CU50, CU51) — solo admin para escritura
 // CU51 debe ir antes de '/:id' para no ser capturada por el parámetro

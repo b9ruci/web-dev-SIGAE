@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { condicionDesajustado, motivoDesajuste } = require('../utils/bloquesDesajustados');
 
 // ── GET /api/horarios?curso_id=X  (admin ve todo, docente solo el suyo) ──
 const getHorarios = async (req, res) => {
@@ -89,10 +90,12 @@ const getCursos = async (req, res) => {
 const getBloques = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT Bloque_Horario_Id, Bloque_Horario_Hora_Inicio,
-              Bloque_Horario_Hora_Fin, Bloque_Horario_Jornada, Bloque_Horario_Tipo
-       FROM bloque_horario
-       ORDER BY Bloque_Horario_Hora_Inicio`
+      `SELECT bh.Bloque_Horario_Id, bh.Bloque_Horario_Hora_Inicio,
+              bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Jornada, bh.Bloque_Horario_Tipo,
+              ${condicionDesajustado('bh')} AS desajustado,
+              ${motivoDesajuste('bh')} AS motivo_desajuste
+       FROM bloque_horario bh
+       ORDER BY bh.Bloque_Horario_Hora_Inicio`
     );
     res.json(rows);
   } catch (error) {
@@ -361,6 +364,7 @@ const createHorario = async (req, res) => {
     // Excepción 5 — restricciones institucionales (tipo de bloque y límite diario)
     const [[bloqueRestriccion]] = await pool.execute(
       `SELECT bh.Bloque_Horario_Tipo,
+              ${condicionDesajustado('bh')} AS desajustado,
               pi.Parametro_Institucional_Bloques_Maximos_Diarios,
               TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion_horas
        FROM bloque_horario bh
@@ -373,6 +377,9 @@ const createHorario = async (req, res) => {
     }
     if (bloqueRestriccion.Bloque_Horario_Tipo === 'Recreo') {
       return res.status(422).json({ error: 'No se pueden programar clases en bloques de recreo' });
+    }
+    if (Number(bloqueRestriccion.desajustado) === 1) {
+      return res.status(422).json({ error: 'El bloque fue reemplazado o quedó fuera de la jornada; elige un bloque vigente' });
     }
     const [[{ total_dia }]] = await pool.execute(
       `SELECT COUNT(*) AS total_dia FROM horario_asignatura
@@ -533,7 +540,7 @@ const updateHorario = async (req, res) => {
 
   try {
     const [existe] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
+      `SELECT Horario_Asignatura_Id, Bloque_Horario_Id FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
       [id]
     );
     if (existe.length === 0) {
@@ -600,6 +607,7 @@ const updateHorario = async (req, res) => {
     // Excepción 5 — restricciones institucionales
     const [[bloqueRestriccionU]] = await pool.execute(
       `SELECT bh.Bloque_Horario_Tipo,
+              ${condicionDesajustado('bh')} AS desajustado,
               pi.Parametro_Institucional_Bloques_Maximos_Diarios,
               TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion_horas
        FROM bloque_horario bh
@@ -612,6 +620,11 @@ const updateHorario = async (req, res) => {
     }
     if (bloqueRestriccionU.Bloque_Horario_Tipo === 'Recreo') {
       return res.status(422).json({ error: 'No se pueden programar clases en bloques de recreo' });
+    }
+    // Una clase pendiente puede editarse sin moverla, pero no trasladarse a otro bloque desajustado
+    if (Number(bloqueRestriccionU.desajustado) === 1 &&
+        Number(Bloque_Horario_Id) !== Number(existe[0].Bloque_Horario_Id)) {
+      return res.status(422).json({ error: 'El bloque fue reemplazado o quedó fuera de la jornada; elige un bloque vigente' });
     }
     const [[{ total_dia_u }]] = await pool.execute(
       `SELECT COUNT(*) AS total_dia_u FROM horario_asignatura
@@ -941,7 +954,8 @@ const getHorarioDocente = async (req, res) => {
         ha.Horario_Asignatura_Dia_Semana AS dia,
         bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
         bh.Bloque_Horario_Hora_Fin       AS horaFin,
-        ha.Horario_Asignatura_Estado     AS estado
+        ha.Horario_Asignatura_Estado     AS estado,
+        ${condicionDesajustado('bh')}    AS pendiente
       FROM horario_asignatura ha
       JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
       JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
@@ -1008,7 +1022,8 @@ const getHorarioEstudiante = async (req, res) => {
         ha.Horario_Asignatura_Dia_Semana AS dia,
         bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
         bh.Bloque_Horario_Hora_Fin       AS horaFin,
-        ha.Horario_Asignatura_Estado     AS estado
+        ha.Horario_Asignatura_Estado     AS estado,
+        ${condicionDesajustado('bh')}    AS pendiente
       FROM horario_asignatura ha
       JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id

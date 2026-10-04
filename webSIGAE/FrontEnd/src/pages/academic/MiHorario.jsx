@@ -71,6 +71,7 @@ function MiHorario() {
     lineas: [h.curso],
     colorKey: h.asignaturaId ?? h.asignatura,
     estado: h.estado,
+    pendiente: Boolean(Number(h.pendiente)),
   }));
   const topes = detectarTopes(clases);
 

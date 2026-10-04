@@ -2,6 +2,23 @@
 
 export const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"];
 
+// Paleta por asignatura del creador de horarios: el índice es la posición de
+// la asignatura en el plan del curso (/api/horarios/asignaturas-curso)
+export const COLORES_ASIGNATURA = [
+  { bg: "#dbeafe", border: "#93c5fd", text: "#1e40af" },
+  { bg: "#fce7f3", border: "#f9a8d4", text: "#9d174d" },
+  { bg: "#d1fae5", border: "#6ee7b7", text: "#064e3b" },
+  { bg: "#fef3c7", border: "#fcd34d", text: "#92400e" },
+  { bg: "#ede9fe", border: "#c4b5fd", text: "#5b21b6" },
+  { bg: "#fee2e2", border: "#fca5a5", text: "#991b1b" },
+  { bg: "#e0f2fe", border: "#7dd3fc", text: "#0c4a6e" },
+  { bg: "#dcfce7", border: "#86efac", text: "#166534" },
+  { bg: "#ffedd5", border: "#fdba74", text: "#9a3412" },
+];
+
+// Clase pendiente de reubicar (su bloque fue reemplazado o quedó fuera de la jornada)
+export const COLOR_PENDIENTE = { bg: "#fefce8", border: "#fde047", text: "#854d0e" };
+
 export function aMinutos(hora) {
   if (!hora) return 0;
   const [h, m] = String(hora).split(":").map(Number);

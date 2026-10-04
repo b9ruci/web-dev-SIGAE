@@ -1,18 +1,9 @@
 import { useState } from "react";
-import { DIAS_SEMANA, aMinutos, hhmm, minutosAHHMM, detectarTopes } from "../../utils/horarios";
+import {
+  DIAS_SEMANA, COLORES_ASIGNATURA, COLOR_PENDIENTE, aMinutos, hhmm, minutosAHHMM, detectarTopes,
+} from "../../utils/horarios";
 
-// Misma paleta que el creador de horarios
-const COLORES = [
-  { bg: "#dbeafe", border: "#93c5fd", text: "#1e40af" },
-  { bg: "#fce7f3", border: "#f9a8d4", text: "#9d174d" },
-  { bg: "#d1fae5", border: "#6ee7b7", text: "#064e3b" },
-  { bg: "#fef3c7", border: "#fcd34d", text: "#92400e" },
-  { bg: "#ede9fe", border: "#c4b5fd", text: "#5b21b6" },
-  { bg: "#fee2e2", border: "#fca5a5", text: "#991b1b" },
-  { bg: "#e0f2fe", border: "#7dd3fc", text: "#0c4a6e" },
-  { bg: "#dcfce7", border: "#86efac", text: "#166534" },
-  { bg: "#ffedd5", border: "#fdba74", text: "#9a3412" },
-];
+const COLORES = COLORES_ASIGNATURA;
 const COLOR_INACTIVO = { bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" };
 
 const PX_POR_MIN = 1.5;
@@ -62,7 +53,10 @@ function distribuirEnCarriles(clases) {
  * Grilla semanal con eje de tiempo (estilo "Bloques horarios"): días en
  * columnas y cada clase ubicada según su hora de inicio y término.
  *
- * clases: [{ id, dia, horaInicio, horaFin, titulo, lineas: [string], colorKey, estado }]
+ * clases: [{ id, dia, horaInicio, horaFin, titulo, lineas: [string], colorKey, estado, pendiente }]
+ *
+ * pendiente: su bloque fue reemplazado o quedó fuera de la jornada y la
+ * administración aún debe reubicarla; se muestra en amarillo tenue con ⚠.
  */
 export default function HorarioSemanal({ clases }) {
   const [hover, setHover] = useState(null);
@@ -146,7 +140,7 @@ export default function HorarioSemanal({ clases }) {
                   const alto = Math.max((fin - ini) * PX_POR_MIN - 3, 22);
                   const activa = !c.estado || c.estado === "Activo";
                   const enTope = idsEnTope.has(c.id);
-                  const col = activa ? colorDe(c) : COLOR_INACTIVO;
+                  const col = c.pendiente ? COLOR_PENDIENTE : activa ? colorDe(c) : COLOR_INACTIVO;
                   const ancho = 100 / total;
                   const esHover = hover === c.id;
 
@@ -159,6 +153,7 @@ export default function HorarioSemanal({ clases }) {
                         `${c.titulo} · ${hhmm(c.horaInicio)}–${hhmm(c.horaFin)}`,
                         ...(c.lineas || []),
                         !activa && `Estado: ${c.estado}`,
+                        c.pendiente && "⚠ Horario en revisión: el bloque cambió y esta clase será reubicada",
                         enTope && "⚠ Tope de horario con otra clase",
                       ].filter(Boolean).join("\n")}
                       style={{
@@ -180,7 +175,7 @@ export default function HorarioSemanal({ clases }) {
                       }}
                     >
                       <div style={{ fontWeight: 700, fontSize: "0.72rem", color: col.text, lineHeight: 1.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {enTope && "⚠ "}{c.titulo}
+                        {(enTope || c.pendiente) && "⚠ "}{c.titulo}
                       </div>
                       <div style={{ fontSize: "0.66rem", color: col.text, opacity: 0.85, whiteSpace: "nowrap" }}>
                         {hhmm(c.horaInicio)}–{hhmm(c.horaFin)}
@@ -190,7 +185,12 @@ export default function HorarioSemanal({ clases }) {
                           {l}
                         </div>
                       ))}
-                      {!activa && alto > 58 && (
+                      {c.pendiente && alto > 58 && (
+                        <div style={{ fontSize: "0.62rem", fontWeight: 700, color: COLOR_PENDIENTE.text }}>
+                          EN REVISIÓN
+                        </div>
+                      )}
+                      {!activa && !c.pendiente && alto > 58 && (
                         <div style={{ fontSize: "0.62rem", fontWeight: 700, color: "#6b7280", textTransform: "uppercase" }}>
                           {c.estado}
                         </div>
@@ -216,6 +216,12 @@ export default function HorarioSemanal({ clases }) {
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: COLOR_INACTIVO.bg, border: `1px solid ${COLOR_INACTIVO.border}` }} />
             Suspendida / inactiva
+          </span>
+        )}
+        {clases.some((c) => c.pendiente) && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, color: COLOR_PENDIENTE.text, fontWeight: 600 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: COLOR_PENDIENTE.bg, border: `1px solid ${COLOR_PENDIENTE.border}` }} />
+            ⚠ En revisión (será reubicada)
           </span>
         )}
         {idsEnTope.size > 0 && (

@@ -152,12 +152,13 @@ describe('Pruebas Unitarias - CU50: Eliminando Bloques Horarios Individuales', (
   });
 
   test('Excepción "Bloque posee asignaciones activas"', async () => {
-    pool.execute.mockResolvedValueOnce([[{ Horario_Asignatura_Id: 1 }]]); // horario_asignatura: asignación activa
+    pool.execute.mockResolvedValueOnce([[{ Horario_Asignatura_Id: 1 }, { Horario_Asignatura_Id: 2 }]]); // horario_asignatura: con clases
 
     await bloquesController.deleteBloque(req, res);
 
     expect(res.status).toHaveBeenCalledWith(409);
-    expect(res.json).toHaveBeenCalledWith({ error: 'El bloque posee asignaciones activas' });
+    // El panel de avisos usa codigo/clases para ofrecer reubicarlas antes de quitar el bloque
+    expect(res.json).toHaveBeenCalledWith({ error: 'El bloque posee asignaciones activas', codigo: 'TIENE_CLASES', clases: 2 });
   });
 
   test('Retorna 409 si el bloque está asociado a un evento institucional', async () => {
