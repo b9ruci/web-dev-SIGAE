@@ -122,16 +122,12 @@ echo "=== Instalando dependencias Backend ==="
 echo "=== Instalando dependencias Frontend ==="
 (cd "$ROOT/webSIGAE/FrontEnd" && npm install)
 
-echo "=== Creando .env ==="
+echo "=== Creando .env (desde .env.example) ==="
 ENV_FILE="$ROOT/webSIGAE/BackEnd/.env"
-ENV_NUEVO="JWT_SECRET=un_secreto_muy_largo_y_seguro
-PORT=3000
-DB_HOST=127.0.0.1
-DB_USER=sigae
-DB_PASSWORD=sigae123
-DB_NAME=sigae
-FRONTEND_URL=http://localhost:5173"
-if [ -f "$ENV_FILE" ] && [ "$(cat "$ENV_FILE")" != "$ENV_NUEVO" ]; then
+ENV_EJEMPLO="$ROOT/webSIGAE/BackEnd/.env.example"
+[ -f "$ENV_EJEMPLO" ] || fallar "No se encontró $ENV_EJEMPLO"
+ENV_NUEVO="$(tr -d '\r' < "$ENV_EJEMPLO")"
+if [ -f "$ENV_FILE" ] && [ "$(tr -d '\r' < "$ENV_FILE")" != "$ENV_NUEVO" ]; then
   cp "$ENV_FILE" "$ENV_FILE.bak"
   echo "Tu .env anterior quedó respaldado en webSIGAE/BackEnd/.env.bak"
 fi

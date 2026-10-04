@@ -19,7 +19,7 @@ SIGAE es una plataforma web para la gestión académica y escolar, con módulos 
 
 ## 🚀 Primeros pasos
 
-Hay un script de setup por sistema. Ambos hacen lo mismo: crean la base de datos y el usuario `sigae`, importan `SIGAE.sql`, instalan las dependencias del backend y del frontend, escriben `webSIGAE/BackEnd/.env` y hashean las contraseñas de prueba. Se pueden correr cuantas veces quieras; también sirven para **dejar todo al día** cuando algo deja de funcionar.
+Hay un script de setup por sistema. Ambos hacen lo mismo: crean la base de datos y el usuario `sigae`, importan `SIGAE.sql`, instalan las dependencias del backend y del frontend, crean `webSIGAE/BackEnd/.env` a partir de `.env.example` y hashean las contraseñas de prueba. Se pueden correr cuantas veces quieras; también sirven para **dejar todo al día** cuando algo deja de funcionar.
 
 | Dónde trabajas | Script |
 | --- | --- |
@@ -120,16 +120,16 @@ Toda la documentación, salvo este README, está en `docs/`. No agregues archivo
 
 ## 🔧 Variables de entorno
 
-El archivo `webSIGAE/BackEnd/.env` viene en el repo y los scripts de setup lo reescriben con estos valores (si tenías uno distinto, queda respaldado en `.env.bak`). Como el setup crea el usuario `sigae` en la base de datos, **no hace falta editarlo**, tampoco en Windows. Su contenido:
+El backend lee su configuración de `webSIGAE/BackEnd/.env`. Ese archivo **no se sube a git**: cada uno tiene el suyo. Lo que sí está en el repo es la plantilla, `webSIGAE/BackEnd/.env.example`.
 
-```env
-JWT_SECRET=un_secreto_muy_largo_y_seguro
-PORT=3000
-DB_HOST=127.0.0.1
-DB_USER=sigae
-DB_PASSWORD=sigae123
-DB_NAME=sigae
-FRONTEND_URL=http://localhost:5173
+- **No tienes que crearlo a mano:** los scripts de setup copian `.env.example` a `.env`. Si ya tenías un `.env` distinto, lo guardan en `.env.bak` antes de reemplazarlo.
+- **No hace falta editarlo**, tampoco en Windows: el setup crea en tu base de datos el usuario `sigae` que usa la plantilla.
+- **Si agregas una variable nueva** al backend, agrégala también en `.env.example` con un valor de ejemplo, para que le llegue al resto del equipo. Nunca pongas claves reales en la plantilla.
+
+Si necesitas crearlo sin correr el setup, copia la plantilla:
+
+```bash
+cp webSIGAE/BackEnd/.env.example webSIGAE/BackEnd/.env
 ```
 
 ---

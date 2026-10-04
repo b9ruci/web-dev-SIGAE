@@ -486,5 +486,6 @@ $RECYCLE.BIN/
 .azure
 backups/
 
-# Respaldo del .env que dejan setup.sh / win_setup.sh
+# Variables de entorno locales (la plantilla es webSIGAE/BackEnd/.env.example)
+.env
 .env.bak
