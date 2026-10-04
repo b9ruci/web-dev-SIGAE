@@ -1,6 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
+// Descripción de cada perfil para ayudar a elegir con cuál ingresar
+const INFO_ROLES = {
+  Administrador: { icono: "🛡️", detalle: "Usuarios, cursos, planes y horarios" },
+  Docente:       { icono: "📚", detalle: "Tus clases, horario, citaciones y mensajes" },
+  Apoderado:     { icono: "👪", detalle: "Horario de tus alumnos, citaciones y mensajes" },
+};
+
 function SelectRole() {
 
   const navigate = useNavigate();
@@ -19,33 +26,52 @@ function SelectRole() {
 
   if (!usuario) {
 
-    return <p>Cargando...</p>;
+    return <div className="select-role-container"><p>Cargando...</p></div>;
   }
 
   return (
 
-    <div className="page-container">
+    <div className="select-role-container">
 
-      <div className="form-card">
+      <div className="select-role-card">
 
-        <h1>Seleccionar Rol</h1>
+        <img src="/logo-colegio.png" alt="Logo Colegio Jacques Cousteau" className="select-role-logo" />
 
-        <p>
-          Bienvenido {usuario.nombre}
+        <h1>Seleccionar perfil</h1>
+
+        <p className="select-role-saludo">
+          Bienvenido(a), <strong>{usuario.nombre}</strong>.<br />
+          ¿Con qué perfil quieres ingresar?
         </p>
 
-        {usuario.roles.map((rol) => (
+        <div className="roles-container">
 
-          <button
-            key={rol}
-            onClick={() =>
-              handleSelectRole(rol)
-            }
-          >
-            {rol}
-          </button>
+          {usuario.roles.map((rol) => {
 
-        ))}
+            const info = INFO_ROLES[rol] || { icono: "👤", detalle: "" };
+
+            return (
+
+              <button
+                key={rol}
+                type="button"
+                className="role-button"
+                onClick={() =>
+                  handleSelectRole(rol)
+                }
+              >
+                <span className="role-button-icono" aria-hidden="true">{info.icono}</span>
+                <span className="role-button-texto">
+                  <strong>{rol}</strong>
+                  {info.detalle && <small>{info.detalle}</small>}
+                </span>
+                <span className="role-button-flecha" aria-hidden="true">→</span>
+              </button>
+
+            );
+          })}
+
+        </div>
 
       </div>
 
