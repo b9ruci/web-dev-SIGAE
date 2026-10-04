@@ -14,6 +14,7 @@ const {
   getResumenCursos,
   getAsignacionesDocente,
   getHorarioDocente,
+  getHorarioEstudiante,
   getHorarioMaestro,
   filtrarHorarios,
   getBloquesLibres,
@@ -62,6 +63,9 @@ router.get('/docente/:docenteId/asignaciones', getAsignacionesDocente);
 
 // CU43: Horario semanal de un docente a partir de sus cursos asociados (propio o desde su perfil)
 router.get('/docente/:docenteId/horario', getHorarioDocente);
+
+// Horario semanal del curso de un estudiante — su apoderado o un Administrador
+router.get('/estudiante/:estudianteId/horario', getHorarioEstudiante);
 
 // CU57: vista consolidada del horario de toda la institución — solo Super Admin/Admin
 router.get('/maestro', verifyAdmin, getHorarioMaestro);

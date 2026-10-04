@@ -318,6 +318,10 @@ function MainLayout() {
                   Apoderado
                 </span>
 
+                <Link to="/horario-alumno">
+                  Horario del Alumno
+                </Link>
+
                 <Link to="/citaciones">
                   Citaciones
                 </Link>

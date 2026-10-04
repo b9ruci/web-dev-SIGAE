@@ -43,6 +43,7 @@ import Cursos from "../pages/academic/Cursos";
 import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
 import MiHorario from "../pages/academic/MiHorario";
+import HorarioEstudiante from "../pages/academic/HorarioEstudiante";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import HorarioMaestro from "../pages/academic/HorarioMaestro";
 import ConsultaHorarios from "../pages/academic/ConsultaHorarios";
@@ -155,6 +156,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Docente", "Administrador"]}>
                 <MiHorario />
+              </RoleRoute>
+            }
+          />
+
+          {/* Horario semanal del curso de los estudiantes asociados (Apoderado) */}
+          <Route
+            path="/horario-alumno"
+            element={
+              <RoleRoute roles={["Apoderado"]}>
+                <HorarioEstudiante />
               </RoleRoute>
             }
           />

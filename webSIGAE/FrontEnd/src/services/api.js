@@ -337,6 +337,14 @@ export async function getHorarioDocente(docenteId) {
   return handleResponse(res);
 }
 
+// Horario semanal del curso de un estudiante (su apoderado o un Administrador)
+export async function getHorarioEstudiante(estudianteId) {
+  const res = await fetch(`${BASE_URL}/horarios/estudiante/${estudianteId}/horario`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 // Listado simple de docentes activos, usado para el selector de "Mi Horario" (Admin/Super Admin)
 export async function getListaDocentes() {
   const res = await fetch(`${BASE_URL}/horarios/docentes`, {

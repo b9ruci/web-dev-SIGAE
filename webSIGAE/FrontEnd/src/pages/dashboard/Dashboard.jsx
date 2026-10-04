@@ -217,6 +217,7 @@ function DashboardDocente({ nombre }) {
         <div className="actions-grid">
           <Link to="/plan-educativo">Plan Educativo</Link>
           <Link to="/horarios">Mi Horario</Link>
+          <Link to="/horario-alumno">Horario del Alumno</Link>
           <Link to="/citaciones">Mis Citaciones</Link>
           <Link to="/mensajes">Mensajes</Link>
           <Link to="/perfil">Mi Perfil</Link>
@@ -238,6 +239,7 @@ function DashboardApoderado({ nombre }) {
       <div className="quick-actions">
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
+          <Link to="/horario-alumno">Horario del Alumno</Link>
           <Link to="/citaciones">Mis Citaciones</Link>
           <Link to="/mensajes">Mensajes</Link>
           <Link to="/perfil">Mi Perfil</Link>

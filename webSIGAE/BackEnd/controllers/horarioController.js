@@ -933,6 +933,9 @@ const getHorarioDocente = async (req, res) => {
 
     const [filas] = await pool.execute(
       `SELECT
+        ha.Horario_Asignatura_Id         AS id,
+        ha.Curso_Id                      AS cursoId,
+        ha.Asignatura_Id                 AS asignaturaId,
         c.Curso_Nombre                   AS curso,
         a.Asignatura_Nombre              AS asignatura,
         ha.Horario_Asignatura_Dia_Semana AS dia,
@@ -960,6 +963,73 @@ const getHorarioDocente = async (req, res) => {
     return res.json(filas);
   } catch (error) {
     console.error('getHorarioDocente:', error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar el horario, reintente más tarde' });
+  }
+};
+
+// ── GET /api/horarios/estudiante/:estudianteId/horario ──
+// Horario semanal del curso de un estudiante. El apoderado solo puede consultar
+// a sus propios estudiantes; un Administrador/SuperAdmin puede consultar cualquiera.
+const getHorarioEstudiante = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esApoderado = roles.includes('Apoderado');
+
+    if (!esAdmin && !esApoderado) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    const estudianteId = Number(req.params.estudianteId);
+    if (!Number.isInteger(estudianteId) || estudianteId <= 0) {
+      return res.status(400).json({ mensaje: 'ID de estudiante inválido' });
+    }
+
+    const [[estudiante]] = await pool.execute(
+      `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Curso_Id,
+              e.Apoderado_Usuario_Id, c.Curso_Nombre
+         FROM estudiante e
+         JOIN curso c ON c.Curso_Id = e.Curso_Id
+        WHERE e.Estudiante_Id = ? AND e.Estudiante_Fecha_Eliminacion IS NULL`,
+      [estudianteId]
+    );
+
+    // Un apoderado que no es Admin no distingue "no existe" de "no es suyo"
+    if (!estudiante || (!esAdmin && Number(estudiante.Apoderado_Usuario_Id) !== Number(userId))) {
+      return res.status(404).json({ mensaje: 'El estudiante no fue encontrado' });
+    }
+
+    const [horario] = await pool.execute(
+      `SELECT
+        ha.Horario_Asignatura_Id         AS id,
+        ha.Asignatura_Id                 AS asignaturaId,
+        a.Asignatura_Nombre              AS asignatura,
+        u.Usuario_Nombre_Completo        AS docente,
+        ha.Horario_Asignatura_Dia_Semana AS dia,
+        bh.Bloque_Horario_Hora_Inicio    AS horaInicio,
+        bh.Bloque_Horario_Hora_Fin       AS horaFin,
+        ha.Horario_Asignatura_Estado     AS estado
+      FROM horario_asignatura ha
+      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
+      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+      LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
+      WHERE ha.Curso_Id = ?
+      ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'),
+               bh.Bloque_Horario_Hora_Inicio`,
+      [estudiante.Curso_Id]
+    );
+
+    return res.json({
+      estudiante: {
+        id: estudiante.Estudiante_Id,
+        nombre: estudiante.Estudiante_Nombre_Completo,
+        curso: estudiante.Curso_Nombre,
+      },
+      horario,
+      ...(horario.length === 0 && { mensaje: 'El curso del estudiante aún no tiene horario planificado' }),
+    });
+  } catch (error) {
+    console.error('getHorarioEstudiante:', error);
     return res.status(500).json({ mensaje: 'No fue posible cargar el horario, reintente más tarde' });
   }
 };
@@ -1974,6 +2044,7 @@ module.exports = {
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
   getAsignacionesDocente, // CU42
   getHorarioDocente, // CU43 / CU58
+  getHorarioEstudiante,
   getHorarioMaestro, // CU57
   filtrarHorarios,
   getBloquesLibres,
