@@ -278,11 +278,7 @@ function MainLayout() {
                   Docente
                 </span>
 
-                <Link to="/plan-educativo">
-                  Plan Educativo
-                </Link>
-
-                <Link to="/cursos">
+                <Link to="/mis-cursos">
                   Mis Cursos
                 </Link>
 

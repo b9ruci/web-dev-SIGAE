@@ -755,8 +755,70 @@ const getDetalleEstudiante = async (req, res) => {
   }
 };
 
+// GET /api/estudiantes/curso/:cursoId/mis-estudiantes
+// "Mis Cursos": estudiantes de un curso en el que el docente hace clases.
+// Solo datos no invasivos (sin RUT ni dirección). Un Administrador puede ver cualquier curso.
+const getEstudiantesCursoDocente = async (req, res) => {
+  try {
+    const { roles, id: userId } = req.user;
+    const esAdmin = roles.includes('Administrador');
+    const esDocente = roles.includes('Docente');
+
+    if (!esAdmin && !esDocente) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
+    const cursoId = Number(req.params.cursoId);
+    if (!Number.isInteger(cursoId) || cursoId <= 0) {
+      return res.status(400).json({ mensaje: 'ID de curso inválido' });
+    }
+
+    const [[curso]] = await db.query(
+      'SELECT Curso_Id, Curso_Nombre FROM curso WHERE Curso_Id = ?',
+      [cursoId]
+    );
+
+    if (!curso) {
+      return res.status(404).json({ mensaje: 'El curso no fue encontrado' });
+    }
+
+    // Un docente solo puede ver los cursos en los que tiene clases asignadas
+    if (!esAdmin) {
+      const [asignado] = await db.query(
+        'SELECT 1 FROM horario_asignatura WHERE Usuario_Id = ? AND Curso_Id = ? LIMIT 1',
+        [userId, cursoId]
+      );
+      if (asignado.length === 0) {
+        return res.status(403).json({ mensaje: 'No haces clases en este curso' });
+      }
+    }
+
+    const [estudiantes] = await db.query(
+      `SELECT
+        e.Estudiante_Id,
+        e.Estudiante_Nombre_Completo,
+        e.Estudiante_Estado_Academico,
+        u.Usuario_Nombre_Completo AS Apoderado_Nombre
+      FROM estudiante e
+      LEFT JOIN usuario u ON u.Usuario_Id = e.Apoderado_Usuario_Id
+      WHERE e.Curso_Id = ? AND e.Estudiante_Fecha_Eliminacion IS NULL
+      ORDER BY e.Estudiante_Nombre_Completo ASC`,
+      [cursoId]
+    );
+
+    return res.json({
+      curso: { id: curso.Curso_Id, nombre: curso.Curso_Nombre },
+      estudiantes,
+    });
+  } catch (error) {
+    console.error('getEstudiantesCursoDocente:', error);
+    return res.status(500).json({ mensaje: 'No fue posible cargar los estudiantes, reintente más tarde' });
+  }
+};
+
 module.exports = {
   getEstudiantes,
+  getEstudiantesCursoDocente,
   buscarEstudiantes, // CU36
   getEstudianteById,
   createEstudiante,

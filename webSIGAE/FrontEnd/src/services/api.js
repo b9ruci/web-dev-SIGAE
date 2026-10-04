@@ -321,6 +321,14 @@ export async function editarAdministrador(id, datos) {
 
 // ── CU42: Cursos y asignaturas de un docente ──
 
+// "Mis Cursos": estudiantes de un curso donde el docente hace clases (sin RUT ni dirección)
+export async function getEstudiantesCursoDocente(cursoId) {
+  const res = await fetch(`${BASE_URL}/estudiantes/curso/${cursoId}/mis-estudiantes`, {
+    headers: authHeaders(),
+  });
+  return handleResponse(res);
+}
+
 export async function getAsignacionesDocente(docenteId) {
   const res = await fetch(`${BASE_URL}/horarios/docente/${docenteId}/asignaciones`, {
     headers: authHeaders(),

@@ -44,6 +44,7 @@ import Estudiantes from "../pages/academic/Estudiantes";
 import Horarios from "../pages/academic/Horarios";
 import MiHorario from "../pages/academic/MiHorario";
 import HorarioEstudiante from "../pages/academic/HorarioEstudiante";
+import MisCursos from "../pages/academic/MisCursos";
 import BloquesHorarios from "../pages/academic/BloquesHorarios";
 import HorarioMaestro from "../pages/academic/HorarioMaestro";
 import ConsultaHorarios from "../pages/academic/ConsultaHorarios";
@@ -156,6 +157,16 @@ function AppRouter() {
             element={
               <RoleRoute roles={["Docente", "Administrador"]}>
                 <MiHorario />
+              </RoleRoute>
+            }
+          />
+
+          {/* Mis Cursos: clases que imparte el docente y sus estudiantes */}
+          <Route
+            path="/mis-cursos"
+            element={
+              <RoleRoute roles={["Docente"]}>
+                <MisCursos />
               </RoleRoute>
             }
           />
@@ -334,7 +345,7 @@ function AppRouter() {
           <Route
             path="/plan-educativo"
             element={
-              <RoleRoute roles={["Administrador", "Docente"]}>
+              <RoleRoute roles={["Administrador"]}>
                 <PlanEducativo />
               </RoleRoute>
             }

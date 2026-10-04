@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { apiFetch, getCitaciones, getConversaciones } from "../../services/api";
+import { apiFetch, getAsignacionesDocente, getCitaciones, getConversaciones } from "../../services/api";
 import EstadoCitacionBadge from "../../components/citaciones/EstadoCitacionBadge";
 import { esCancelada, fechaISO, formatearFecha, hoyISO } from "../../utils/citaciones";
 
@@ -205,8 +205,87 @@ function ResumenComunicaciones({ rol }) {
   );
 }
 
+/* ── Asignaturas por curso (Docente) ─────────────── */
+const bloquesActivos = (a) => a.bloques.filter((b) => b.estado === "Activo").length;
+const formatearBloques = (n) => `${n} ${n === 1 ? "bloque" : "bloques"}`;
+
+function AsignaturasPorCurso({ docenteId }) {
+  const [cursos, setCursos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let activo = true;
+    getAsignacionesDocente(docenteId)
+      .then((data) => {
+        if (!activo) return;
+        const lista = Array.isArray(data) ? data : data?.asignaciones || [];
+        const porCurso = new Map();
+        for (const a of lista) {
+          if (!porCurso.has(a.cursoId)) {
+            porCurso.set(a.cursoId, { cursoId: a.cursoId, curso: a.curso, nivel: a.nivelEducativo, asignaturas: [], bloques: 0 });
+          }
+          const c = porCurso.get(a.cursoId);
+          c.asignaturas.push(a);
+          c.bloques += bloquesActivos(a);
+        }
+        setCursos([...porCurso.values()]);
+      })
+      .catch(() => activo && setError("No fue posible cargar tus asignaturas"))
+      .finally(() => activo && setLoading(false));
+    return () => { activo = false; };
+  }, [docenteId]);
+
+  return (
+    <div className="quick-actions">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", flexWrap: "wrap" }}>
+        <h2>Mis asignaturas por curso</h2>
+        {cursos.length > 0 && <Link to="/mis-cursos">Ver Mis Cursos →</Link>}
+      </div>
+
+      {loading && <p>Cargando asignaturas...</p>}
+      {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
+      {!loading && !error && cursos.length === 0 && <p>No tienes asignaturas asignadas.</p>}
+
+      {cursos.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "1rem", marginTop: "1rem" }}>
+          {cursos.map((c) => (
+            <Link
+              key={c.cursoId}
+              to={`/mis-cursos?curso=${c.cursoId}`}
+              style={{
+                display: "block", textDecoration: "none", color: "inherit",
+                background: "#fff", borderRadius: 12, padding: "1rem 1.1rem",
+                border: "1px solid #e5e7eb", borderTop: "4px solid #2563eb",
+                boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <strong style={{ color: "#1e3a5f", fontSize: "1.05rem" }}>{c.curso}</strong>
+                <span style={{ color: "#2563eb", fontWeight: 700, whiteSpace: "nowrap" }}>{formatearBloques(c.bloques)}/sem</span>
+              </div>
+              <div style={{ fontSize: "0.8rem", color: "#6b7280", marginBottom: "0.6rem" }}>{c.nivel}</div>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                {c.asignaturas.map((a) => (
+                  <li key={a.asignaturaId} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: "0.88rem" }}>
+                    <span style={{ color: a.estadoVigencia === "Activo" ? "#334155" : "#9ca3af" }}>
+                      {a.asignatura}
+                      {a.estadoVigencia !== "Activo" && " (suspendida)"}
+                    </span>
+                    <span style={{ color: "#6b7280", whiteSpace: "nowrap" }}>{formatearBloques(bloquesActivos(a))}</span>
+                  </li>
+                ))}
+              </ul>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Dashboard de Docente ──────────────────────────── */
-function DashboardDocente({ nombre }) {
+function DashboardDocente({ nombre, docenteId }) {
   return (
     <div className="dashboard-container">
       <h1>Bienvenido, {nombre}</h1>
@@ -215,14 +294,16 @@ function DashboardDocente({ nombre }) {
       <div className="quick-actions">
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
-          <Link to="/plan-educativo">Plan Educativo</Link>
-          <Link to="/horarios">Mi Horario</Link>
-          <Link to="/horario-alumno">Horario del Alumno</Link>
+          <Link to="/mis-cursos">Mis Cursos</Link>
+          <Link to="/mi-horario">Mi Horario</Link>
+          <Link to="/estudiantes">Estudiantes</Link>
           <Link to="/citaciones">Mis Citaciones</Link>
           <Link to="/mensajes">Mensajes</Link>
           <Link to="/perfil">Mi Perfil</Link>
         </div>
       </div>
+
+      <AsignaturasPorCurso docenteId={docenteId} />
 
       <ResumenComunicaciones rol="Docente" />
     </div>
@@ -265,7 +346,7 @@ function Dashboard() {
   const esApoderado = rolEfectivo === "Apoderado";
 
   if (esAdmin)     return <DashboardAdmin esSuperAdmin={esSuperAdmin} />;
-  if (esDocente)   return <DashboardDocente nombre={usuario?.nombre} />;
+  if (esDocente)   return <DashboardDocente nombre={usuario?.nombre} docenteId={usuario?.id} />;
   if (esApoderado) return <DashboardApoderado nombre={usuario?.nombre} />;
 
   return (
