@@ -5,8 +5,7 @@ import {
   validarRut, normalizarRut, validarNombreCompleto, validarCorreo, validarTelefonoChileno,
   validarFortalezaContrasena, validarDireccion, MENSAJE_TELEFONO, MAX_NOMBRE_COMPLETO,
 } from "../../utils/validaciones";
-
-const CAMPOS_DIRECCION = ["calle", "numero", "depto", "comuna"];
+import CamposDireccion, { CAMPOS_DIRECCION, errorCampoDireccion } from "../../components/CamposDireccion";
 
 
 function RegisterGuardian() {
@@ -39,7 +38,7 @@ function RegisterGuardian() {
 
   const validarCampo = (name, value, datos = formData) => {
     if (CAMPOS_DIRECCION.includes(name)) {
-      return validarDireccion({ ...datos, [name]: value })[name] || "";
+      return errorCampoDireccion(name, value, datos);
     }
     switch (name) {
       case "nombre":
@@ -255,26 +254,7 @@ function RegisterGuardian() {
 
 
 
-          {[
-            { name: "calle",  placeholder: "Calle (ej: Avenida Concha y Toro)", maxLength: 100, required: true },
-            { name: "numero", placeholder: "Número (ej: 134)",                  maxLength: 7,   required: true },
-            { name: "depto",  placeholder: "Depto./Casa (opcional)",            maxLength: 20,  required: false },
-            { name: "comuna", placeholder: "Comuna (ej: Puente Alto)",          maxLength: 60,  required: true },
-          ].map((campo) => (
-            <div key={campo.name}>
-              <input
-                type="text"
-                name={campo.name}
-                placeholder={campo.placeholder}
-                maxLength={campo.maxLength}
-                value={formData[campo.name]}
-                onChange={handleChange}
-                className={errores[campo.name] ? "input-invalid" : ""}
-                required={campo.required}
-              />
-              {errores[campo.name] && <span className="input-error-msg">{errores[campo.name]}</span>}
-            </div>
-          ))}
+          <CamposDireccion valores={formData} errores={errores} onChange={handleChange} />
 
 
 

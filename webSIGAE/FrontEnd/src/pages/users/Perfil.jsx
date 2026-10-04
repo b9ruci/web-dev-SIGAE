@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { Link, useParams } from "react-router-dom";
 import FormEditarUsuario from "./FormEditarUsuario";
 import { apiFetch, getAsignacionesDocente, getEstudiantesAsociados, getDetalleEstudiante, editarPerfilPropio, actualizarFotoPerfil } from "../../services/api";
-import { validarTelefonoChileno, validarDireccion, formatearDireccion, MENSAJE_TELEFONO } from "../../utils/validaciones";
+import { validarTelefonoChileno, validarDireccion, formatearDireccion, COLUMNAS_DIRECCION_ESTUDIANTE, MENSAJE_TELEFONO } from "../../utils/validaciones";
 
 // CU20: placeholder cuando el usuario no tiene fotografía de perfil registrada
 const FOTO_PERFIL_PLACEHOLDER =
@@ -250,10 +250,10 @@ function Perfil() {
     setFormPerfil({
       correo: datos?.Administrador_Correo_Institucional || datos?.Docente_Correo_Institucional || datos?.Apoderado_Correo_Natural || "",
       telefono: datos?.Usuario_Telefono || "",
-      calle: datos?.Apoderado_Direccion_Calle || "",
-      numero: datos?.Apoderado_Direccion_Numero || "",
-      depto: datos?.Apoderado_Direccion_Depto || "",
-      comuna: datos?.Apoderado_Direccion_Comuna || "",
+      calle: datos?.Usuario_Direccion_Calle || "",
+      numero: datos?.Usuario_Direccion_Numero || "",
+      depto: datos?.Usuario_Direccion_Depto || "",
+      comuna: datos?.Usuario_Direccion_Comuna || "",
     });
     setMsgExitoPerfil("");
     setMsgErrorPerfil("");
@@ -276,7 +276,12 @@ function Perfil() {
       setMsgErrorPerfil(MENSAJE_TELEFONO);
       return;
     }
-    if (datos?.Es_Apoderado) {
+    // La dirección aplica a todo usuario: obligatoria para el apoderado; en los demás
+    // roles se valida y se envía solo si se ingresó
+    const { calle, numero, depto, comuna } = formPerfil;
+    const incluyeDireccion =
+      !!datos?.Es_Apoderado || [calle, numero, depto, comuna].some((v) => String(v || "").trim() !== "");
+    if (incluyeDireccion) {
       const erroresDireccion = Object.values(validarDireccion(formPerfil));
       if (erroresDireccion.length > 0) {
         setMsgErrorPerfil(erroresDireccion[0]);
@@ -289,10 +294,7 @@ function Perfil() {
       const tieneCorreo = !!(datos?.Es_Administrador || datos?.Es_Docente || datos?.Es_Apoderado);
       const payload = { telefono: formPerfil.telefono };
       if (tieneCorreo) payload.correo = formPerfil.correo;
-      if (datos?.Es_Apoderado) {
-        const { calle, numero, depto, comuna } = formPerfil;
-        payload.direccion = { calle, numero, depto, comuna };
-      }
+      if (incluyeDireccion) payload.direccion = { calle, numero, depto, comuna };
 
       const data = await editarPerfilPropio(payload);
       setMsgExitoPerfil(data.mensaje || "Cambios guardados correctamente");
@@ -432,12 +434,10 @@ function Perfil() {
               </div>
             </>
           ) : null}
-          {datos?.Es_Apoderado ? (
-            <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
-              <label>Dirección</label>
-              <span>{formatearDireccion(datos) || "Sin dirección registrada"}</span>
-            </div>
-          ) : null}
+          <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
+            <label>Dirección</label>
+            <span>{formatearDireccion(datos) || "Sin dirección registrada"}</span>
+          </div>
         </div>
       </div>
 
@@ -683,7 +683,7 @@ function Perfil() {
                   onChange={(e) => setFormPerfil((f) => ({ ...f, telefono: e.target.value }))}
                 />
               </div>
-              {!!datos?.Es_Apoderado && [
+              {[
                 { name: "calle",  label: "Calle",                  maxLength: 100 },
                 { name: "numero", label: "Número",                 maxLength: 7 },
                 { name: "depto",  label: "Depto./Casa (opcional)", maxLength: 20 },
@@ -795,6 +795,12 @@ function Perfil() {
                     ) : (
                       <span className="badge-inactivo">{detalleEstudiante.Estudiante_Estado_Academico}</span>
                     )}
+                  </span>
+                </div>
+                <div className="perfil-campo" style={{ gridColumn: "1 / -1" }}>
+                  <label>Dirección</label>
+                  <span>
+                    {formatearDireccion(detalleEstudiante, COLUMNAS_DIRECCION_ESTUDIANTE) || "Sin dirección registrada"}
                   </span>
                 </div>
               </div>

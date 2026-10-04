@@ -4,7 +4,9 @@ import { registrarDocente } from "../../services/api";
 import {
   validarRut, normalizarRut, validarNombreCompleto, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL,
   validarTelefonoChileno, validarFortalezaContrasena, MENSAJE_TELEFONO, MAX_NOMBRE_COMPLETO,
+  validarDireccion,
 } from "../../utils/validaciones";
+import CamposDireccion, { CAMPOS_DIRECCION, errorCampoDireccion } from "../../components/CamposDireccion";
 
 
 function RegisterTeacher() {
@@ -17,6 +19,10 @@ function RegisterTeacher() {
     rut: "",
     correo: "",
     telefono: "",
+    calle: "",
+    numero: "",
+    depto: "",
+    comuna: "",
     password: "",
     especialidad: "",
     cargaHoraria: "",
@@ -29,7 +35,8 @@ function RegisterTeacher() {
   const [error, setError] = useState(null);
 
 
-  const validarCampo = (name, value) => {
+  const validarCampo = (name, value, datos = formData) => {
+    if (CAMPOS_DIRECCION.includes(name)) return errorCampoDireccion(name, value, datos);
     switch (name) {
       case "nombre":
         return value && !validarNombreCompleto(value)
@@ -76,6 +83,7 @@ function RegisterTeacher() {
       telefono: validarCampo("telefono", formData.telefono),
       password: validarCampo("password", formData.password),
       cargaHoraria: validarCampo("cargaHoraria", formData.cargaHoraria),
+      ...validarDireccion(formData),
     };
 
     if (Object.values(nuevosErrores).some((msg) => msg)) {
@@ -225,6 +233,10 @@ function RegisterTeacher() {
             />
             {errores.telefono && <span className="input-error-msg">{errores.telefono}</span>}
           </div>
+
+
+
+          <CamposDireccion valores={formData} errores={errores} onChange={handleChange} />
 
 
 

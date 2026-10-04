@@ -105,6 +105,9 @@ describe('validateCrearUsuario', () => {
     Usuario_Contraseña: 'Segura123',
     Es_Docente: 1,
     Docente_Correo_Institucional: 'ma.morales@jacquescousteau.edu',
+    Usuario_Direccion_Calle: 'Los Aromos',
+    Usuario_Direccion_Numero: '45',
+    Usuario_Direccion_Comuna: 'Ñuñoa',
   };
 
   const apoderadoValido = {
@@ -114,9 +117,9 @@ describe('validateCrearUsuario', () => {
     Usuario_Contraseña: 'Segura123',
     Es_Apoderado: 1,
     Apoderado_Correo_Natural: 'pedro@gmail.com',
-    Apoderado_Direccion_Calle: 'Avenida Concha y Toro',
-    Apoderado_Direccion_Numero: '134',
-    Apoderado_Direccion_Comuna: 'Puente Alto',
+    Usuario_Direccion_Calle: 'Avenida Concha y Toro',
+    Usuario_Direccion_Numero: '134',
+    Usuario_Direccion_Comuna: 'Puente Alto',
   };
 
   test('deja pasar un docente válido (teléfono con +56)', async () => {
@@ -143,16 +146,40 @@ describe('validateCrearUsuario', () => {
 
   test.each([
     [{ Apoderado_Correo_Natural: 'pedro-sin-arroba' }, 'El correo del apoderado debe tener el formato usuario@dominio'],
-    [{ Apoderado_Direccion_Comuna: '' }, 'La comuna es obligatoria'],
-    [{ Apoderado_Direccion_Numero: undefined }, 'El número de la dirección es obligatorio'],
+    [{ Usuario_Direccion_Comuna: '' }, 'La comuna es obligatoria'],
+    [{ Usuario_Direccion_Numero: undefined }, 'El número de la dirección es obligatorio'],
   ])('rechaza un apoderado con %p', async (cambio, mensaje) => {
     const { res, llegoAlFinal } = await ejecutarCadena(validateCrearUsuario, { ...apoderadoValido, ...cambio });
     expect(llegoAlFinal).toBe(false);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ mensaje }));
   });
 
-  test('no exige dirección a quien no es apoderado', async () => {
-    const { llegoAlFinal } = await ejecutarCadena(validateCrearUsuario, docenteValido);
-    expect(llegoAlFinal).toBe(true);
+  test.each([
+    [{ Usuario_Direccion_Calle: undefined }, 'La calle es obligatoria'],
+    [{ Usuario_Direccion_Comuna: 'Ñuñoa 2' }, 'La comuna solo puede contener letras y espacios'],
+  ])('exige la dirección también a un docente: %p', async (cambio, mensaje) => {
+    const { res, llegoAlFinal } = await ejecutarCadena(validateCrearUsuario, { ...docenteValido, ...cambio });
+    expect(llegoAlFinal).toBe(false);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ mensaje }));
+  });
+
+  test('exige la dirección a un administrador', async () => {
+    const admin = {
+      Usuario_RUT: '9343727-6',
+      Usuario_Nombre_Completo: 'Carlos Gonzales',
+      Usuario_Telefono: '979746782',
+      Usuario_Contraseña: 'Segura123',
+      Es_Administrador: 1,
+      Administrador_Correo_Institucional: 'ca.gonzales@jacquescousteau.edu',
+    };
+    const sinDireccion = await ejecutarCadena(validateCrearUsuario, admin);
+    expect(sinDireccion.llegoAlFinal).toBe(false);
+    const conDireccion = await ejecutarCadena(validateCrearUsuario, {
+      ...admin,
+      Usuario_Direccion_Calle: 'Av. Matta',
+      Usuario_Direccion_Numero: '1020',
+      Usuario_Direccion_Comuna: 'Santiago',
+    });
+    expect(conDireccion.llegoAlFinal).toBe(true);
   });
 });

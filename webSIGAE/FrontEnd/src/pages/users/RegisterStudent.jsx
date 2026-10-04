@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { registrarEstudiante, verificarRutEstudiante } from "../../services/api";
-import { validarRut, normalizarRut } from "../../utils/validaciones";
+import { validarRut, normalizarRut, validarDireccion } from "../../utils/validaciones";
+import CamposDireccion, { CAMPOS_DIRECCION, errorCampoDireccion } from "../../components/CamposDireccion";
 
 function RegisterStudent() {
   const navigate = useNavigate();
@@ -11,6 +12,10 @@ function RegisterStudent() {
     rut            : "",
     curso          : "",
     estadoAcademico: "Regular",
+    calle          : "",
+    numero         : "",
+    depto          : "",
+    comuna         : "",
   });
 
   const [cursos, setCursos]           = useState([]);
@@ -48,7 +53,8 @@ function RegisterStudent() {
     return () => clearTimeout(timeout);
   }, [formData.rut]);
 
-  const validarCampo = (name, value) => {
+  const validarCampo = (name, value, datos = formData) => {
+    if (CAMPOS_DIRECCION.includes(name)) return errorCampoDireccion(name, value, datos);
     if (name === "rut" && value && !validarRut(value)) {
       return "RUT inválido. Formato esperado: 12345678-9";
     }
@@ -67,6 +73,7 @@ function RegisterStudent() {
 
     const nuevosErrores = {
       rut: validarCampo("rut", formData.rut),
+      ...validarDireccion(formData),
     };
 
     if (Object.values(nuevosErrores).some((msg) => msg)) {
@@ -148,6 +155,9 @@ function RegisterStudent() {
             <option value="Irregular">Irregular</option>
             <option value="Retirado">Retirado</option>
           </select>
+
+          {/* Incremento 3: dirección separada del estudiante */}
+          <CamposDireccion valores={formData} errores={errores} onChange={handleChange} />
 
           <button type="submit" disabled={loading}>
             {loading ? "Registrando..." : "Registrar Estudiante"}

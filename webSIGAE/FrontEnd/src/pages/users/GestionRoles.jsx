@@ -12,10 +12,10 @@ import {
 
 // Columnas de la dirección estructurada ↔ claves que usa validarDireccion
 const COLUMNAS_DIRECCION = {
-  Apoderado_Direccion_Calle : "calle",
-  Apoderado_Direccion_Numero: "numero",
-  Apoderado_Direccion_Depto : "depto",
-  Apoderado_Direccion_Comuna: "comuna",
+  Usuario_Direccion_Calle : "calle",
+  Usuario_Direccion_Numero: "numero",
+  Usuario_Direccion_Depto : "depto",
+  Usuario_Direccion_Comuna: "comuna",
 };
 
 /* ── Badge de roles ─────────────────────────────────── */
@@ -131,10 +131,10 @@ function CamposApoderado({ datos, errores, onChange }) {
         )}
       </div>
       {[
-        { name: "Apoderado_Direccion_Calle",  label: "Calle",                  placeholder: "Ej: Av. Providencia", maxLength: 100, required: true },
-        { name: "Apoderado_Direccion_Numero", label: "Número",                 placeholder: "Ej: 123",             maxLength: 7,   required: true },
-        { name: "Apoderado_Direccion_Depto",  label: "Depto./Casa (opcional)", placeholder: "Ej: 45B",             maxLength: 20,  required: false },
-        { name: "Apoderado_Direccion_Comuna", label: "Comuna",                 placeholder: "Ej: Santiago",        maxLength: 60,  required: true },
+        { name: "Usuario_Direccion_Calle",  label: "Calle",                  placeholder: "Ej: Av. Providencia", maxLength: 100, required: true },
+        { name: "Usuario_Direccion_Numero", label: "Número",                 placeholder: "Ej: 123",             maxLength: 7,   required: true },
+        { name: "Usuario_Direccion_Depto",  label: "Depto./Casa (opcional)", placeholder: "Ej: 45B",             maxLength: 20,  required: false },
+        { name: "Usuario_Direccion_Comuna", label: "Comuna",                 placeholder: "Ej: Santiago",        maxLength: 60,  required: true },
       ].map((campo) => (
         <div className="campo-pwd" key={campo.name}>
           <label>{campo.label}</label>
@@ -357,10 +357,10 @@ function GestionRoles() {
     } else if (nuevoRol === "Apoderado") {
       setDatosRol({
         Apoderado_Correo_Natural: seleccionado.Apoderado_Correo_Natural || "",
-        Apoderado_Direccion_Calle:  seleccionado.Apoderado_Direccion_Calle  || "",
-        Apoderado_Direccion_Numero: seleccionado.Apoderado_Direccion_Numero || "",
-        Apoderado_Direccion_Depto:  seleccionado.Apoderado_Direccion_Depto  || "",
-        Apoderado_Direccion_Comuna: seleccionado.Apoderado_Direccion_Comuna || "",
+        Usuario_Direccion_Calle:  seleccionado.Usuario_Direccion_Calle  || "",
+        Usuario_Direccion_Numero: seleccionado.Usuario_Direccion_Numero || "",
+        Usuario_Direccion_Depto:  seleccionado.Usuario_Direccion_Depto  || "",
+        Usuario_Direccion_Comuna: seleccionado.Usuario_Direccion_Comuna || "",
       });
     } else {
       setDatosRol({});

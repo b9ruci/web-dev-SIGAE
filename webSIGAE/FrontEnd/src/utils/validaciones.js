@@ -62,7 +62,7 @@ export function validarFortalezaContrasena(pwd) {
   return "";
 }
 
-// Dirección particular del apoderado: { calle, numero, depto (opcional), comuna }.
+// Dirección particular (todo usuario y estudiante): { calle, numero, depto (opcional), comuna }.
 // Devuelve un objeto { campo: mensaje } solo con los campos inválidos.
 export function validarDireccion({ calle = "", numero = "", depto = "", comuna = "" }) {
   const errores = {};
@@ -78,11 +78,25 @@ export function validarDireccion({ calle = "", numero = "", depto = "", comuna =
   return errores;
 }
 
-// "Calle Número, Depto X, Comuna" a partir de las columnas del usuario
-export function formatearDireccion(usuario) {
-  if (!usuario?.Apoderado_Direccion_Calle) return "";
-  const calleNumero = [usuario.Apoderado_Direccion_Calle, usuario.Apoderado_Direccion_Numero].filter(Boolean).join(" ");
-  return [calleNumero, usuario.Apoderado_Direccion_Depto, usuario.Apoderado_Direccion_Comuna].filter(Boolean).join(", ");
+// Columnas de la dirección en la BD: usuario (todo rol) y ficha del estudiante
+export const COLUMNAS_DIRECCION_USUARIO = {
+  calle : "Usuario_Direccion_Calle",
+  numero: "Usuario_Direccion_Numero",
+  depto : "Usuario_Direccion_Depto",
+  comuna: "Usuario_Direccion_Comuna",
+};
+export const COLUMNAS_DIRECCION_ESTUDIANTE = {
+  calle : "Estudiante_Calle",
+  numero: "Estudiante_Numero",
+  depto : "Estudiante_Depto",
+  comuna: "Estudiante_Comuna",
+};
+
+// "Calle Número, Depto X, Comuna" a partir de las columnas del usuario (o del estudiante)
+export function formatearDireccion(registro, columnas = COLUMNAS_DIRECCION_USUARIO) {
+  if (!registro?.[columnas.calle]) return "";
+  const calleNumero = [registro[columnas.calle], registro[columnas.numero]].filter(Boolean).join(" ");
+  return [calleNumero, registro[columnas.depto], registro[columnas.comuna]].filter(Boolean).join(", ");
 }
 
 export { DOMINIO_INSTITUCIONAL };

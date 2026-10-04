@@ -218,6 +218,10 @@ CREATE TABLE `estudiante` (
   `Curso_Id` int unsigned NOT NULL,
   `Apoderado_Usuario_Id` int unsigned DEFAULT NULL,
   `Estudiante_Fecha_Eliminacion` datetime DEFAULT NULL,
+  `Estudiante_Calle` varchar(100) DEFAULT NULL,
+  `Estudiante_Numero` varchar(10) DEFAULT NULL,
+  `Estudiante_Depto` varchar(20) DEFAULT NULL,
+  `Estudiante_Comuna` varchar(60) DEFAULT NULL,
   PRIMARY KEY (`Estudiante_Id`),
   UNIQUE KEY `Estudiante_RUT_UNIQUE` (`Estudiante_RUT`),
   KEY `fk_Estudiante_Curso_idx` (`Curso_Id`),
@@ -233,7 +237,7 @@ CREATE TABLE `estudiante` (
 
 LOCK TABLES `estudiante` WRITE;
 /*!40000 ALTER TABLE `estudiante` DISABLE KEYS */;
-INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4,NULL),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4,NULL),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8,NULL),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9,NULL),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8,NULL),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10,NULL);
+INSERT INTO `estudiante` VALUES (222222222,'Diego Martin Perez Castro','268283655','Regular',222,4,NULL,NULL,NULL,NULL,NULL),(222222223,'Valentina Paz Ramos González','212345678-9','Regular',222,4,NULL,NULL,NULL,NULL,NULL),(222222224,'Matías Alejandro Vera López','223456789-0','Regular',223,8,NULL,NULL,NULL,NULL,NULL),(222222225,'Isabella Fernanda Campos Silva','234567890-1','Regular',223,9,NULL,NULL,NULL,NULL,NULL),(222222226,'Sebastián Andrés Torres Díaz','245678901-2','Regular',224,8,NULL,NULL,NULL,NULL,NULL),(222222227,'Catalina Ignacia Morales Vega','256789012-3','Irregular',225,10,NULL,NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `estudiante` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -605,10 +609,10 @@ CREATE TABLE `usuario` (
   `Administrador_Tipo` varchar(20) DEFAULT NULL,
   `Administrador_Correo_Institucional` varchar(100) DEFAULT NULL,
   `Es_Apoderado` tinyint(1) NOT NULL,
-  `Apoderado_Direccion_Calle` varchar(100) DEFAULT NULL,
-  `Apoderado_Direccion_Numero` varchar(10) DEFAULT NULL,
-  `Apoderado_Direccion_Depto` varchar(20) DEFAULT NULL,
-  `Apoderado_Direccion_Comuna` varchar(60) DEFAULT NULL,
+  `Usuario_Direccion_Calle` varchar(100) DEFAULT NULL,
+  `Usuario_Direccion_Numero` varchar(10) DEFAULT NULL,
+  `Usuario_Direccion_Depto` varchar(20) DEFAULT NULL,
+  `Usuario_Direccion_Comuna` varchar(60) DEFAULT NULL,
   `Apoderado_Correo_Natural` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`Usuario_Id`),
   UNIQUE KEY `Usuario_RUT_UNIQUE` (`Usuario_RUT`),

@@ -3,7 +3,14 @@
 // no tiene login. Es solo una ficha con información académica.
 
 const db = require('../config/db');
-const { validarRut, validarNombreCompleto } = require('../middleware/validation');
+const {
+  validarRut,
+  validarNombreCompleto,
+  validarDireccion,
+  direccionDesdeColumnas,
+  columnasDireccion,
+  CAMPOS_DIRECCION_ESTUDIANTE,
+} = require('../middleware/validation');
 
 const MENSAJE_NOMBRE_INVALIDO = 'El nombre completo debe contener solo letras y espacios (nombre y apellido, máx. 100 caracteres)';
 
@@ -42,7 +49,8 @@ const getEstudiantes = async (req, res) => {
       const cursoIds = cursos.map((c) => c.Curso_Id);
       let sql = `
         SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre,
+               e.Estudiante_Calle, e.Estudiante_Numero, e.Estudiante_Depto, e.Estudiante_Comuna
         FROM estudiante e
         JOIN curso c ON c.Curso_Id = e.Curso_Id
         WHERE e.Curso_Id IN (?) AND e.Estudiante_Fecha_Eliminacion IS NULL
@@ -64,7 +72,8 @@ const getEstudiantes = async (req, res) => {
     } else {
       let sql = `
         SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+               e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre,
+               e.Estudiante_Calle, e.Estudiante_Numero, e.Estudiante_Depto, e.Estudiante_Comuna
         FROM estudiante e
         JOIN curso c ON c.Curso_Id = e.Curso_Id
         WHERE e.Estudiante_Fecha_Eliminacion IS NULL
@@ -146,7 +155,8 @@ const buscarEstudiantes = async (req, res) => {
       const cursoIds = cursos.map((c) => c.Curso_Id);
       [rows] = await db.query(
         `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre,
+                e.Estudiante_Calle, e.Estudiante_Numero, e.Estudiante_Depto, e.Estudiante_Comuna
          FROM estudiante e
          JOIN curso c ON c.Curso_Id = e.Curso_Id
          WHERE e.Curso_Id IN (?) AND e.Estudiante_Fecha_Eliminacion IS NULL
@@ -157,7 +167,8 @@ const buscarEstudiantes = async (req, res) => {
     } else {
       [rows] = await db.query(
         `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre
+                e.Estudiante_Estado_Academico, e.Curso_Id, e.Apoderado_Usuario_Id, c.Curso_Nombre,
+                e.Estudiante_Calle, e.Estudiante_Numero, e.Estudiante_Depto, e.Estudiante_Comuna
          FROM estudiante e
          JOIN curso c ON c.Curso_Id = e.Curso_Id
          WHERE e.Estudiante_Fecha_Eliminacion IS NULL
@@ -219,6 +230,13 @@ const createEstudiante = async (req, res) => {
     return res.status(400).json({ mensaje: MENSAJE_NOMBRE_INVALIDO });
   }
 
+  // Incremento 3: dirección separada (calle, número y comuna obligatorios; depto opcional)
+  const direccion = direccionDesdeColumnas(req.body, CAMPOS_DIRECCION_ESTUDIANTE);
+  const errorDireccion = validarDireccion(direccion);
+  if (errorDireccion) {
+    return res.status(400).json({ mensaje: errorDireccion });
+  }
+
   try {
     // Verificar RUT duplicado
     const [existe] = await db.query(
@@ -241,14 +259,19 @@ const createEstudiante = async (req, res) => {
         Estudiante_RUT,
         Curso_Id,
         Estudiante_Estado_Academico,
-        Apoderado_Usuario_Id
-      ) VALUES (?, ?, ?, ?, ?)`,
+        Apoderado_Usuario_Id,
+        Estudiante_Calle,
+        Estudiante_Numero,
+        Estudiante_Depto,
+        Estudiante_Comuna
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         Estudiante_Nombre_Completo,
         Estudiante_RUT,
         Curso_Id,
         Estudiante_Estado_Academico,
         Apoderado_Usuario_Id || null,
+        ...columnasDireccion(direccion, CAMPOS_DIRECCION_ESTUDIANTE).map(([, valor]) => valor),
       ]
     );
 
@@ -269,6 +292,7 @@ const CAMPOS_EDITABLES_ESTUDIANTE = new Set([
   'Curso_Id',
   'Estudiante_Estado_Academico',
   'Apoderado_Usuario_Id',
+  ...Object.values(CAMPOS_DIRECCION_ESTUDIANTE),
 ]);
 
 // CU38: Editar curso asociado y estado académico (y otros campos editables) de un estudiante
@@ -290,6 +314,16 @@ const updateEstudiante = async (req, res) => {
       return res.status(400).json({ mensaje: MENSAJE_NOMBRE_INVALIDO });
     }
     datosFiltrados.Estudiante_Nombre_Completo = datosFiltrados.Estudiante_Nombre_Completo.trim();
+  }
+
+  // Dirección: solo se validan los campos enviados; los vacíos se guardan como NULL
+  const direccionEnviada = direccionDesdeColumnas(datosFiltrados, CAMPOS_DIRECCION_ESTUDIANTE);
+  const errorDireccion = validarDireccion(direccionEnviada, { parcial: true });
+  if (errorDireccion) {
+    return res.status(400).json({ mensaje: errorDireccion });
+  }
+  for (const [columna, valor] of columnasDireccion(direccionEnviada, CAMPOS_DIRECCION_ESTUDIANTE)) {
+    if (datosFiltrados[columna] !== undefined) datosFiltrados[columna] = valor;
   }
 
   try {
@@ -701,7 +735,8 @@ const getDetalleEstudiante = async (req, res) => {
 
     const [estudiante] = await db.query(
       `SELECT e.Estudiante_Id, e.Estudiante_Nombre_Completo, e.Estudiante_RUT,
-              e.Estudiante_Estado_Academico, c.Curso_Nombre
+              e.Estudiante_Estado_Academico, c.Curso_Nombre,
+              e.Estudiante_Calle, e.Estudiante_Numero, e.Estudiante_Depto, e.Estudiante_Comuna
        FROM estudiante e
        JOIN curso c ON c.Curso_Id = e.Curso_Id
        WHERE e.Estudiante_Id = ? AND e.Apoderado_Usuario_Id = ?`,
