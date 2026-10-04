@@ -69,7 +69,7 @@ CREATE TABLE `asignatura` (
 
 LOCK TABLES `asignatura` WRITE;
 /*!40000 ALTER TABLE `asignatura` DISABLE KEYS */;
-INSERT INTO `asignatura` VALUES (2222,'Matemáticas','Alta'),(2223,'Lenguaje y Comunicación','Alta'),(2224,'Historia','Media'),(2225,'Ciencias Naturales','Media'),(2226,'Inglés','Media');
+INSERT INTO `asignatura` VALUES (2222,'Matemática','Alta'),(2223,'Lenguaje y Comunicación','Alta'),(2224,'Historia, Geografía y Ciencias Sociales','Media'),(2225,'Ciencias Naturales','Media'),(2226,'Inglés','Media');
 /*!40000 ALTER TABLE `asignatura` ENABLE KEYS */;
 UNLOCK TABLES;
 
