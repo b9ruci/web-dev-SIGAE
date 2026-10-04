@@ -17,29 +17,52 @@ SIGAE es una plataforma web para la gestión académica y escolar, con módulos 
 
 ---
 
-## 🚀 Primeros pasos (GitHub Codespaces)
+## 🚀 Primeros pasos
 
-### 1. Setup automático
+Hay un script de setup por sistema. Ambos hacen lo mismo: crean la base de datos y el usuario `sigae`, importan `SIGAE.sql`, instalan las dependencias del backend y del frontend, escriben `webSIGAE/BackEnd/.env` y hashean las contraseñas de prueba. Se pueden correr cuantas veces quieras; también sirven para **dejar todo al día** cuando algo deja de funcionar.
 
-Al abrir el codespace por primera vez, se ejecutará automáticamente `.devcontainer/setup.sh`. Este script instala MariaDB, las dependencias del backend y del frontend, crea el archivo `.env` y prepara la base de datos.
+| Dónde trabajas | Script |
+| --- | --- |
+| GitHub Codespaces, Linux o macOS | `bash .devcontainer/setup.sh` |
+| Windows | `bash win_setup.sh` (desde **Git Bash**) |
+
+### 🐧 GitHub Codespaces / Linux / macOS
+
+En un codespace, `setup.sh` se ejecuta **solo** al abrirlo por primera vez.
 
 > **El proceso tarda entre 2 y 5 minutos.** Si presionas F5 antes de que termine, el proyecto no arrancará correctamente.
 
-Si no esperaste el tiempo suficiente o hubo un error, puedes correr el setup manualmente:
+Si no esperaste lo suficiente, hubo un error o estás en tu propio Linux/macOS, córrelo a mano desde la raíz del repo:
 
 ```bash
 bash .devcontainer/setup.sh
 ```
 
-### 2. Verificar que todo esté listo (opcional)
+Si MariaDB no está instalado, el script lo instala (con `apt`, `dnf` o `brew`). Si tu usuario root de MariaDB/MySQL tiene contraseña: `DB_ROOT_PASSWORD=tu_clave bash .devcontainer/setup.sh`.
+
+### 🪟 Windows
+
+**1. Instala esto una sola vez** (si ya lo tienes, sáltatelo):
+
+- [Git para Windows](https://git-scm.com/download/win) (trae **Git Bash**).
+- [Node.js LTS](https://nodejs.org).
+- [MySQL Server 8](https://dev.mysql.com/downloads/installer/). Anota la contraseña de root que eliges al instalarlo.
+
+Después de instalar, **cierra y vuelve a abrir VS Code**.
+
+**2. Abre una terminal de Git Bash en VS Code** (`` Ctrl+` ``). El repo ya configura Git Bash como terminal por defecto en Windows. Si igual se abre PowerShell, haz clic en la flecha **˅** al lado del **+** y elige **Git Bash**.
+
+> 🚫 **No uses PowerShell ni CMD** para correr los scripts: no son Bash y fallan.
+
+**3. Corre el setup desde la raíz del repo** y escribe la contraseña de root de MySQL cuando te la pida:
 
 ```bash
-ls webSIGAE/BackEnd/node_modules/dotenv # debe listar archivos
-ls webSIGAE/FrontEnd/node_modules/vite # debe listar archivos
-sudo service mariadb status # debe mostrar "Uptime"
+bash win_setup.sh
 ```
 
-### 3. Iniciar el proyecto
+Si algo falla, el script dice qué pasó (contraseña incorrecta, MySQL apagado, no encontró MySQL, etc.).
+
+### ▶️ Iniciar el proyecto
 
 Presiona **F5** o ve al bicho triángulo _Run › Start Debugging_ (`Run All`). Esto levanta el backend y el frontend al mismo tiempo.
 
@@ -73,6 +96,9 @@ Presiona **F5** o ve al bicho triángulo _Run › Start Debugging_ (`Run All`). 
 
 ```
 web-dev-SIGAE/
+├── .devcontainer/
+│   └── setup.sh       # Setup para Codespaces / Linux / macOS
+├── win_setup.sh       # Setup para Windows (correr desde Git Bash)
 ├── docs/              # Documentación del proyecto (ver abajo)
 └── webSIGAE/
     ├── BackEnd/       # API Node.js + Express
@@ -94,7 +120,7 @@ Toda la documentación, salvo este README, está en `docs/`. No agregues archivo
 
 ## 🔧 Variables de entorno
 
-El archivo `.env` se crea automáticamente en `webSIGAE/BackEnd/` durante el setup. Si necesitas recrearlo manualmente:
+El archivo `webSIGAE/BackEnd/.env` viene en el repo y los scripts de setup lo reescriben con estos valores (si tenías uno distinto, queda respaldado en `.env.bak`). Como el setup crea el usuario `sigae` en la base de datos, **no hace falta editarlo**, tampoco en Windows. Su contenido:
 
 ```env
 JWT_SECRET=un_secreto_muy_largo_y_seguro
@@ -118,22 +144,20 @@ Importar `SIGAE.sql` borra y vuelve a crear todas las tablas de `sigae` (crea la
 
 > ⚠️ Lo único que se pierde son los datos que hayas agregado **a mano** en tu base local (usuarios, estudiantes, horarios de prueba, etc.).
 
-Después de importar, **siempre** corre el script de hasheo: el dump trae las contraseñas en texto plano y el login no funciona hasta hashearlas.
+### Cómo reimportar
 
-### 🐧 Codespaces / Linux / macOS
+**La forma fácil:** vuelve a correr el setup de tu sistema (`bash .devcontainer/setup.sh` o, en Windows, `bash win_setup.sh` desde Git Bash). Reimporta la base y hashea las contraseñas.
 
-La base se importa automáticamente durante `setup.sh`. Para reimportarla a mano:
+**A mano**, si solo quieres la base de datos. Después de importar, **siempre** corre el script de hasheo: el dump trae las contraseñas en texto plano y el login no funciona hasta hashearlas.
+
+Codespaces / Linux / macOS:
 
 ```bash
 sudo mariadb -u root < webSIGAE/Database/SIGAE.sql
 node webSIGAE/BackEnd/hashPasswords.js
 ```
 
-### 🪟 Windows (Visual Studio Code)
-
-> 🚫 **No uses PowerShell** (la terminal que abre VS Code por defecto) para estos comandos: PowerShell no entiende el `<` y falla con _"El operador '<' está reservado para uso futuro"_. Tampoco existe `sudo` en Windows.
-
-Usa **Git Bash**, que viene incluido con Git para Windows. En VS Code: abre la terminal (`` Ctrl+` ``), haz clic en la flecha **˅** al lado del **+** y elige **Git Bash**. Desde la raíz del repo:
+Windows, **desde Git Bash** (PowerShell no entiende el `<` y falla con _"El operador '<' está reservado para uso futuro"_):
 
 ```bash
 mysql -u root -p"TU_CONTRASEÑA_DE_ROOT" < webSIGAE/Database/SIGAE.sql
@@ -141,13 +165,12 @@ node webSIGAE/BackEnd/hashPasswords.js
 ```
 
 - Va **sin espacio** entre `-p` y la contraseña. Si la escribes aparte (solo `-p`), Git Bash a veces se queda pegado sin pedirla.
-- Si instalaste MariaDB en vez de MySQL, cambia `mysql` por `mariadb`.
-- Si sale `mysql: command not found`, el programa no está en el PATH. Usa la ruta completa, por ejemplo:
+- Si sale `mysql: command not found`, usa la ruta completa, por ejemplo:
   `"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe" -u root -p"TU_CONTRASEÑA_DE_ROOT" < webSIGAE/Database/SIGAE.sql`
-- `hashPasswords.js` se conecta con los datos de `webSIGAE/BackEnd/.env`. En Windows ese archivo no se crea solo: créalo como en [Variables de entorno](#-variables-de-entorno), con el usuario y la contraseña de **tu** MySQL local.
+- `hashPasswords.js` usa el usuario `sigae` del `.env`, que crea `win_setup.sh`. Si nunca lo corriste, córrelo primero.
 
 <details>
-<summary>¿No tienes Git Bash? Otras opciones</summary>
+<summary>¿No tienes Git Bash? Otras opciones en Windows</summary>
 
 - **CMD (Símbolo del sistema)**: el mismo comando `mysql ... < webSIGAE\Database\SIGAE.sql` funciona tal cual.
 - **PowerShell**: usa `source` en vez de `<`:

@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 *.swp
 .azure
 backups/
+
+# Respaldo del .env que dejan setup.sh / win_setup.sh
+.env.bak
