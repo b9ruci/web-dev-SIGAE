@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch, getAsignacionesDocente, getCitaciones, getConversaciones } from "../../services/api";
 import EstadoCitacionBadge from "../../components/citaciones/EstadoCitacionBadge";
+import { MOSTRAR_MIS_CURSOS } from "../../config/funcionalidades";
 import { esCancelada, fechaISO, formatearFecha, hoyISO } from "../../utils/citaciones";
 
 /* ── Grupo de navegación ───────────────────────────── */
@@ -209,6 +210,9 @@ function ResumenComunicaciones({ rol }) {
 const bloquesActivos = (a) => a.bloques.filter((b) => b.estado === "Activo").length;
 const formatearBloques = (n) => `${n} ${n === 1 ? "bloque" : "bloques"}`;
 
+// Cada tarjeta abre Mis Cursos solo si esa vista está habilitada
+const TarjetaCurso = MOSTRAR_MIS_CURSOS ? Link : "div";
+
 function AsignaturasPorCurso({ docenteId }) {
   const [cursos, setCursos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -240,7 +244,7 @@ function AsignaturasPorCurso({ docenteId }) {
     <div className="quick-actions">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", flexWrap: "wrap" }}>
         <h2>Mis asignaturas por curso</h2>
-        {cursos.length > 0 && <Link to="/mis-cursos">Ver Mis Cursos →</Link>}
+        {MOSTRAR_MIS_CURSOS && cursos.length > 0 && <Link to="/mis-cursos">Ver Mis Cursos →</Link>}
       </div>
 
       {loading && <p>Cargando asignaturas...</p>}
@@ -250,9 +254,9 @@ function AsignaturasPorCurso({ docenteId }) {
       {cursos.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "1rem", marginTop: "1rem" }}>
           {cursos.map((c) => (
-            <Link
+            <TarjetaCurso
               key={c.cursoId}
-              to={`/mis-cursos?curso=${c.cursoId}`}
+              {...(MOSTRAR_MIS_CURSOS && { to: `/mis-cursos?curso=${c.cursoId}` })}
               style={{
                 display: "block", textDecoration: "none", color: "inherit",
                 background: "#fff", borderRadius: 12, padding: "1rem 1.1rem",
@@ -276,7 +280,7 @@ function AsignaturasPorCurso({ docenteId }) {
                   </li>
                 ))}
               </ul>
-            </Link>
+            </TarjetaCurso>
           ))}
         </div>
       )}
@@ -294,7 +298,7 @@ function DashboardDocente({ nombre, docenteId }) {
       <div className="quick-actions">
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
-          <Link to="/mis-cursos">Mis Cursos</Link>
+          {MOSTRAR_MIS_CURSOS && <Link to="/mis-cursos">Mis Cursos</Link>}
           <Link to="/mi-horario">Mi Horario</Link>
           <Link to="/estudiantes">Estudiantes</Link>
           <Link to="/citaciones">Mis Citaciones</Link>
