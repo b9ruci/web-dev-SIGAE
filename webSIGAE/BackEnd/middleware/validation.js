@@ -53,14 +53,24 @@ function validarFortalezaContrasena(pwd) {
   return null;
 }
 
-// Dirección particular del apoderado: calle, número y comuna obligatorios; depto/casa opcional.
+// Dirección particular: calle, número y comuna obligatorios; depto/casa opcional.
+// Aplica a todo usuario (Super Admin, Administrador, Docente y Apoderado) y a la
+// ficha del estudiante, cada uno con sus propias columnas.
 // Con { parcial: true } solo se validan los campos presentes (edición campo a campo).
 // Devuelve el mensaje de error o null si es válida.
 const CAMPOS_DIRECCION = {
-  calle : 'Apoderado_Direccion_Calle',
-  numero: 'Apoderado_Direccion_Numero',
-  depto : 'Apoderado_Direccion_Depto',
-  comuna: 'Apoderado_Direccion_Comuna',
+  calle : 'Usuario_Direccion_Calle',
+  numero: 'Usuario_Direccion_Numero',
+  depto : 'Usuario_Direccion_Depto',
+  comuna: 'Usuario_Direccion_Comuna',
+};
+
+// Incremento 3 (sección 3.3): dirección separada del estudiante
+const CAMPOS_DIRECCION_ESTUDIANTE = {
+  calle : 'Estudiante_Calle',
+  numero: 'Estudiante_Numero',
+  depto : 'Estudiante_Depto',
+  comuna: 'Estudiante_Comuna',
 };
 
 function validarDireccion({ calle, numero, depto, comuna } = {}, { parcial = false } = {}) {
@@ -87,13 +97,19 @@ function validarDireccion({ calle, numero, depto, comuna } = {}, { parcial = fal
 }
 
 // Extrae la dirección desde un objeto con las columnas de la BD
-function direccionDesdeColumnas(obj = {}) {
-  return {
-    calle : obj.Apoderado_Direccion_Calle,
-    numero: obj.Apoderado_Direccion_Numero,
-    depto : obj.Apoderado_Direccion_Depto,
-    comuna: obj.Apoderado_Direccion_Comuna,
-  };
+// (por defecto las del usuario; CAMPOS_DIRECCION_ESTUDIANTE para la ficha estudiantil)
+function direccionDesdeColumnas(obj = {}, campos = CAMPOS_DIRECCION) {
+  return Object.fromEntries(Object.entries(campos).map(([clave, columna]) => [clave, obj[columna]]));
+}
+
+// Convierte { calle, numero, depto, comuna } en pares columna/valor para el UPDATE/INSERT.
+// Los valores vacíos se guardan como NULL.
+function columnasDireccion(direccion = {}, campos = CAMPOS_DIRECCION) {
+  return Object.entries(campos).map(([clave, columna]) => {
+    const valor = direccion[clave];
+    const limpio = valor === undefined || valor === null ? null : String(valor).trim();
+    return [columna, limpio === '' ? null : limpio];
+  });
 }
 
 const validateLogin = [
@@ -156,12 +172,11 @@ const validateCrearUsuario = [
       }
       return true;
     }),
-  body('Es_Apoderado')
+  // La dirección es obligatoria para todo usuario, sin importar su rol
+  body('Usuario_Direccion_Calle')
     .custom((value, { req }) => {
-      if (value) {
-        const error = validarDireccion(direccionDesdeColumnas(req.body));
-        if (error) throw new Error(error);
-      }
+      const error = validarDireccion(direccionDesdeColumnas(req.body));
+      if (error) throw new Error(error);
       return true;
     }),
   body('Docente_Correo_Institucional')
@@ -202,5 +217,7 @@ module.exports = {
   validarFortalezaContrasena,
   validarDireccion,
   direccionDesdeColumnas,
+  columnasDireccion,
   CAMPOS_DIRECCION,
+  CAMPOS_DIRECCION_ESTUDIANTE,
 };

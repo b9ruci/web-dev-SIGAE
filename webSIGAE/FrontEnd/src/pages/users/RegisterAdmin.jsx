@@ -4,7 +4,9 @@ import { registrarAdmin } from "../../services/api";
 import {
   validarRut, normalizarRut, validarNombreCompleto, validarCorreoInstitucional, DOMINIO_INSTITUCIONAL,
   validarTelefonoChileno, validarFortalezaContrasena, MENSAJE_TELEFONO, MAX_NOMBRE_COMPLETO,
+  validarDireccion,
 } from "../../utils/validaciones";
+import CamposDireccion, { CAMPOS_DIRECCION, errorCampoDireccion } from "../../components/CamposDireccion";
 
 function RegisterAdmin() {
 
@@ -15,6 +17,10 @@ function RegisterAdmin() {
     rut: "",
     correo: "",
     telefono: "",
+    calle: "",
+    numero: "",
+    depto: "",
+    comuna: "",
     password: "",
     estado: "Activo",
   });
@@ -24,7 +30,8 @@ function RegisterAdmin() {
   const [error, setError] = useState(null);
 
 
-  const validarCampo = (name, value) => {
+  const validarCampo = (name, value, datos = formData) => {
+    if (CAMPOS_DIRECCION.includes(name)) return errorCampoDireccion(name, value, datos);
     switch (name) {
       case "nombre":
         return value && !validarNombreCompleto(value)
@@ -65,6 +72,7 @@ function RegisterAdmin() {
       correo: validarCampo("correo", formData.correo),
       telefono: validarCampo("telefono", formData.telefono),
       password: validarCampo("password", formData.password),
+      ...validarDireccion(formData),
     };
 
     if (Object.values(nuevosErrores).some((msg) => msg)) {
@@ -189,6 +197,10 @@ function RegisterAdmin() {
             />
             {errores.telefono && <span className="input-error-msg">{errores.telefono}</span>}
           </div>
+
+
+          <CamposDireccion valores={formData} errores={errores} onChange={handleChange} />
+
 
 
           <div>

@@ -22,7 +22,20 @@ const getHorarios = async (req, res) => {
         ha.Asignatura_Id,
         a.Asignatura_Nombre               AS asignatura,
         ha.Usuario_Id,
-        u.Usuario_Nombre_Completo         AS docente
+        u.Usuario_Nombre_Completo         AS docente,
+        -- RF42 (CU65/CU66): próxima fecha en que el bloque queda suspendido por un
+        -- evento institucional (tabla afecta) que cae en el mismo día de la semana
+        (
+          SELECT CONCAT(DATE_FORMAT(ei.Evento_Institucional_Fecha, '%Y-%m-%d'), '|', ei.Evento_Institucional_Nombre)
+          FROM afecta af
+          JOIN evento_institucional ei ON ei.Evento_Institucional_Id = af.Evento_Institucional_Id
+          WHERE af.Bloque_Horario_Id = ha.Bloque_Horario_Id
+            AND ei.Evento_Institucional_Fecha >= CURDATE()
+            AND ELT(DAYOFWEEK(ei.Evento_Institucional_Fecha),
+                    'Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado') = ha.Horario_Asignatura_Dia_Semana
+          ORDER BY ei.Evento_Institucional_Fecha
+          LIMIT 1
+        )                                 AS suspension_evento
       FROM horario_asignatura ha
       JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
@@ -45,7 +58,11 @@ const getHorarios = async (req, res) => {
     query += ' ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, "Lunes","Martes","Miércoles","Jueves","Viernes"), bh.Bloque_Horario_Hora_Inicio';
 
     const [rows] = await pool.execute(query, params);
-    res.json(rows);
+    res.json(rows.map(({ suspension_evento, ...fila }) => {
+      if (!suspension_evento) return { ...fila, suspension_evento: null };
+      const [fecha, ...nombre] = String(suspension_evento).split('|');
+      return { ...fila, suspension_evento: { fecha, nombre: nombre.join('|') } };
+    }));
   } catch (error) {
     console.error('Error en getHorarios:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -1742,6 +1759,215 @@ const modificarMultiplesBloques = async (req, res) => {
   }
 };
 
+// ══════════════════════════════════════════════════════════════════
+// CU65 / CU66 — Suspensión de bloques por evento institucional
+// ══════════════════════════════════════════════════════════════════
+//
+// La suspensión se registra en la tabla `afecta`, que vincula cada
+// bloque horario con el evento institucional que lo suspende en la
+// fecha de ese evento (bloque_horario no tiene columna de estado).
+//
+//   CU65 → el administrador elige bloques concretos y un evento
+//          existente o nuevo. El evento queda con impacto
+//          "Suspensión parcial" para que CU71 conserve la selección.
+//   CU66 → el administrador define fecha y jornada; se crea el evento
+//          y se suspenden todos los bloques 'Clase' de esa jornada.
+
+const { registrarBloquesAfectados } = require('./bloquesController');
+
+const MSG_CU65 = {
+  incompletos: 'Seleccione bloques y un evento institucional',
+  restriccion: 'Los bloques no existen o no pueden ser suspendidos',
+  exito: 'Bloques suspendidos por evento institucional',
+};
+const MSG_CU66 = {
+  incompletos: 'Complete la jornada y el evento institucional',
+  restriccion: 'La jornada no existe o tiene restricciones críticas activas',
+  exito: 'Jornada suspendida correctamente',
+};
+
+const IMPACTO_POR_JORNADA = {
+  'Mañana': 'Suspensión jornada mañana',
+  'Tarde': 'Salida anticipada',
+  'Completa': 'Suspensión total',
+};
+
+const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function eventoNuevoValido(ev) {
+  return ev && typeof ev === 'object' &&
+    String(ev.nombre || '').trim() && String(ev.descripcion || '').trim() &&
+    FECHA_RE.test(String(ev.fecha || ''));
+}
+
+// POST /api/horarios/suspender-bloques — CU65
+// body: { bloques_id: number[], evento_id?: number,
+//         evento?: { nombre, fecha: 'YYYY-MM-DD', descripcion } }
+const suspenderBloques = async (req, res) => {
+  const { bloques_id, evento_id, evento } = req.body || {};
+  const ids = Array.isArray(bloques_id)
+    ? [...new Set(bloques_id.map(Number).filter((n) => Number.isInteger(n) && n > 0))]
+    : [];
+
+  // Excepción 1: no se seleccionan bloques o no se especifica el evento
+  if (ids.length === 0 || (!evento_id && !eventoNuevoValido(evento))) {
+    return res.status(400).json({ error: MSG_CU65.incompletos });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Validación de bloques: deben existir y ser de tipo 'Clase'
+    const marcas = ids.map(() => '?').join(', ');
+    const [bloques] = await conn.execute(
+      `SELECT Bloque_Horario_Id FROM bloque_horario
+        WHERE Bloque_Horario_Id IN (${marcas}) AND Bloque_Horario_Tipo = 'Clase'`,
+      ids
+    );
+    if (bloques.length !== ids.length) {
+      await conn.rollback();
+      return res.status(409).json({ error: MSG_CU65.restriccion, detalle: 'Hay bloques inexistentes o que no son de clase' });
+    }
+
+    // Evento: existente o nuevo
+    let eventoId = evento_id ? Number(evento_id) : null;
+    if (eventoId) {
+      const [ev] = await conn.execute(
+        `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Id = ?`,
+        [eventoId]
+      );
+      if (ev.length === 0) {
+        await conn.rollback();
+        return res.status(404).json({ error: MSG_CU65.incompletos, detalle: 'El evento seleccionado no existe' });
+      }
+    } else {
+      // Mismo criterio que CU70: un solo evento institucional por fecha
+      const [mismaFecha] = await conn.execute(
+        `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Fecha = ?`,
+        [evento.fecha]
+      );
+      if (mismaFecha.length > 0) {
+        await conn.rollback();
+        return res.status(409).json({ error: MSG_CU65.restriccion, detalle: 'Ya existe un evento institucional en esa fecha; selecciónelo en lugar de crear uno nuevo' });
+      }
+      const [ins] = await conn.execute(
+        `INSERT INTO evento_institucional
+           (Evento_Institucional_Nombre, Evento_Institucional_Fecha,
+            Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases)
+         VALUES (?, ?, ?, 'Suspensión parcial')`,
+        [evento.nombre.trim(), evento.fecha, evento.descripcion.trim()]
+      );
+      eventoId = ins.insertId;
+    }
+
+    // Excepción 2: bloques con una suspensión vigente en la fecha del evento
+    const [vigentes] = await conn.execute(
+      `SELECT DISTINCT af.Bloque_Horario_Id
+         FROM afecta af
+         JOIN evento_institucional ei ON ei.Evento_Institucional_Id = af.Evento_Institucional_Id
+        WHERE ei.Evento_Institucional_Fecha = (
+                SELECT Evento_Institucional_Fecha FROM evento_institucional WHERE Evento_Institucional_Id = ?
+              )
+          AND af.Bloque_Horario_Id IN (${marcas})`,
+      [eventoId, ...ids]
+    );
+    if (vigentes.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: MSG_CU65.restriccion,
+        detalle: 'Algunos bloques ya tienen una suspensión vigente en la fecha del evento',
+        bloques: vigentes.map((v) => v.Bloque_Horario_Id),
+      });
+    }
+
+    const valores = ids.map(() => '(?, ?, ?)').join(', ');
+    const params = [];
+    ids.forEach((id) => params.push('Suspendido', id, eventoId));
+    await conn.execute(
+      `INSERT INTO afecta (Estado_Bloque, Bloque_Horario_Id, Evento_Institucional_Id) VALUES ${valores}`,
+      params
+    );
+
+    // La selección pasa a ser manual: CU71 no debe recalcularla
+    await conn.execute(
+      `UPDATE evento_institucional SET Evento_Institucional_Impacto_Clases = 'Suspensión parcial'
+        WHERE Evento_Institucional_Id = ?`,
+      [eventoId]
+    );
+
+    await conn.commit();
+    return res.status(201).json({ mensaje: MSG_CU65.exito, evento_id: eventoId, bloques_suspendidos: ids });
+  } catch (err) {
+    await conn.rollback();
+    console.error('suspenderBloques:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    conn.release();
+  }
+};
+
+// POST /api/horarios/suspender-jornada — CU66
+// body: { fecha: 'YYYY-MM-DD', jornada: 'Mañana' | 'Tarde' | 'Completa', nombre, descripcion }
+const suspenderJornadaCompleta = async (req, res) => {
+  const { fecha, jornada, nombre, descripcion } = req.body || {};
+  const impacto = IMPACTO_POR_JORNADA[jornada];
+
+  // Excepción 1: falta la jornada o los datos del evento
+  if (!impacto || !FECHA_RE.test(String(fecha || '')) ||
+      !String(nombre || '').trim() || !String(descripcion || '').trim()) {
+    return res.status(400).json({ error: MSG_CU66.incompletos });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Excepción 2a: la jornada no tiene bloques de clase configurados
+    let qBloques = `SELECT Bloque_Horario_Id FROM bloque_horario WHERE Bloque_Horario_Tipo = 'Clase'`;
+    const pBloques = [];
+    if (jornada !== 'Completa') {
+      qBloques += ' AND Bloque_Horario_Jornada = ?';
+      pBloques.push(jornada);
+    }
+    const [bloques] = await conn.execute(qBloques, pBloques);
+    if (bloques.length === 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: MSG_CU66.restriccion, detalle: 'La jornada no tiene bloques de clase configurados' });
+    }
+
+    // Excepción 2b: restricción crítica, ya existe un evento en esa fecha
+    const [mismaFecha] = await conn.execute(
+      `SELECT Evento_Institucional_Id FROM evento_institucional WHERE Evento_Institucional_Fecha = ?`,
+      [fecha]
+    );
+    if (mismaFecha.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: MSG_CU66.restriccion, detalle: 'Ya existe un evento institucional registrado en esa fecha' });
+    }
+
+    const [ins] = await conn.execute(
+      `INSERT INTO evento_institucional
+         (Evento_Institucional_Nombre, Evento_Institucional_Fecha,
+          Evento_Institucional_Descripcion, Evento_Institucional_Impacto_Clases)
+       VALUES (?, ?, ?, ?)`,
+      [String(nombre).trim(), fecha, String(descripcion).trim(), impacto]
+    );
+    const eventoId = ins.insertId;
+    const suspendidos = await registrarBloquesAfectados(conn, eventoId, impacto);
+
+    await conn.commit();
+    return res.status(201).json({ mensaje: MSG_CU66.exito, evento_id: eventoId, impacto, bloques_suspendidos: suspendidos });
+  } catch (err) {
+    await conn.rollback();
+    console.error('suspenderJornadaCompleta:', err);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    conn.release();
+  }
+};
+
+
 module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
@@ -1755,4 +1981,6 @@ module.exports = {
   getOpcionesEdicion, // CU64
   validarReasignacion, reasignarDocente, // CU63
   validarCambiosMultiples, modificarMultiplesBloques, // CU64
+  suspenderBloques, // CU65
+  suspenderJornadaCompleta, // CU66
 };

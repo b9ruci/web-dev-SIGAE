@@ -48,26 +48,40 @@ describe('Pruebas Unitarias - CU19: Editando Datos Personales del Propio Perfil'
     const apoderadoActual = {
       Usuario_Id: 4, Usuario_Nombre_Completo: 'Maria Apoderada', Usuario_RUT: '44444444-4',
       Es_Administrador: 0, Es_Docente: 0, Es_Apoderado: 1,
-      Apoderado_Direccion_Calle: 'Calle Vieja', Apoderado_Direccion_Numero: '123',
-      Apoderado_Direccion_Depto: null, Apoderado_Direccion_Comuna: 'Santiago',
+      Usuario_Direccion_Calle: 'Calle Vieja', Usuario_Direccion_Numero: '123',
+      Usuario_Direccion_Depto: null, Usuario_Direccion_Comuna: 'Santiago',
     };
     db.query
       .mockResolvedValueOnce([[apoderadoActual]])
       .mockResolvedValueOnce([{ affectedRows: 1 }])
-      .mockResolvedValueOnce([[{ ...apoderadoActual, Apoderado_Direccion_Calle: 'Calle Nueva' }]]);
+      .mockResolvedValueOnce([[{ ...apoderadoActual, Usuario_Direccion_Calle: 'Calle Nueva' }]]);
 
     await usuarioController.editarPerfilPropio(req, res);
 
     const [sql, valores] = db.query.mock.calls[1];
-    expect(sql).toContain('Apoderado_Direccion_Calle = ?');
-    expect(sql).toContain('Apoderado_Direccion_Numero = ?');
-    expect(sql).toContain('Apoderado_Direccion_Depto = ?');
-    expect(sql).toContain('Apoderado_Direccion_Comuna = ?');
+    expect(sql).toContain('Usuario_Direccion_Calle = ?');
+    expect(sql).toContain('Usuario_Direccion_Numero = ?');
+    expect(sql).toContain('Usuario_Direccion_Depto = ?');
+    expect(sql).toContain('Usuario_Direccion_Comuna = ?');
     // El depto vacío se guarda como NULL
     expect(valores).toEqual(['Calle Nueva', '456', null, 'Ñuñoa', 4]);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ mensaje: 'Cambios guardados correctamente' })
     );
+  });
+
+  test('Un Docente también puede registrar su dirección particular', async () => {
+    req.body = { direccion: { calle: 'Los Aromos', numero: '45', depto: '3B', comuna: 'Ñuñoa' } };
+    db.query
+      .mockResolvedValueOnce([[docenteActual]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([[{ ...docenteActual, Usuario_Direccion_Calle: 'Los Aromos' }]]);
+
+    await usuarioController.editarPerfilPropio(req, res);
+
+    const [sql, valores] = db.query.mock.calls[1];
+    expect(sql).toContain('Usuario_Direccion_Calle = ?');
+    expect(valores).toEqual(['Los Aromos', '45', '3B', 'Ñuñoa', 5]);
   });
 
   test('Excepción "Formato de datos incorrecto": dirección sin comuna rechazada sin tocar la BD', async () => {

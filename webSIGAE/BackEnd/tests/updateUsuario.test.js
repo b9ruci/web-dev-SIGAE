@@ -25,10 +25,10 @@ describe('updateUsuario - validaciones del Glosario 6.1.2', () => {
   test('normaliza el teléfono +56 a 9 dígitos y actualiza la dirección estructurada', async () => {
     req.body = {
       Usuario_Telefono: '+56945678901',
-      Apoderado_Direccion_Calle: 'Calle Los Pinos',
-      Apoderado_Direccion_Numero: '456',
-      Apoderado_Direccion_Depto: '',
-      Apoderado_Direccion_Comuna: 'Santiago',
+      Usuario_Direccion_Calle: 'Calle Los Pinos',
+      Usuario_Direccion_Numero: '456',
+      Usuario_Direccion_Depto: '',
+      Usuario_Direccion_Comuna: 'Santiago',
     };
     db.query
       .mockResolvedValueOnce(objetivo())
@@ -39,7 +39,7 @@ describe('updateUsuario - validaciones del Glosario 6.1.2', () => {
 
     const [sql, valores] = db.query.mock.calls[1];
     expect(sql).toContain('Usuario_Telefono = ?');
-    expect(sql).toContain('Apoderado_Direccion_Comuna = ?');
+    expect(sql).toContain('Usuario_Direccion_Comuna = ?');
     expect(valores).toEqual(['945678901', 'Calle Los Pinos', '456', null, 'Santiago', '8']);
     expect(res.status).not.toHaveBeenCalled();
   });
@@ -48,7 +48,7 @@ describe('updateUsuario - validaciones del Glosario 6.1.2', () => {
     [{ Usuario_Telefono: '9456-78901' }, 'El número telefónico debe tener 9 dígitos, opcionalmente con prefijo +56'],
     [{ Usuario_Nombre_Completo: 'Luis' }, 'El nombre completo debe contener solo letras y espacios (nombre y apellido, máx. 100 caracteres)'],
     [{ Apoderado_Correo_Natural: 'luis@' }, 'El correo del apoderado debe tener el formato usuario@dominio'],
-    [{ Apoderado_Direccion_Comuna: '' }, 'La comuna es obligatoria'],
+    [{ Usuario_Direccion_Comuna: '' }, 'La comuna es obligatoria'],
   ])('rechaza %p sin ejecutar el UPDATE', async (body, mensaje) => {
     req.body = body;
     db.query.mockResolvedValueOnce(objetivo());
@@ -60,8 +60,8 @@ describe('updateUsuario - validaciones del Glosario 6.1.2', () => {
     expect(res.json).toHaveBeenCalledWith({ mensaje });
   });
 
-  test('ignora los campos de dirección si el usuario no es apoderado', async () => {
-    req.body = { Usuario_Telefono: '912345678', Apoderado_Direccion_Calle: '', Apoderado_Direccion_Comuna: '' };
+  test('actualiza la dirección de un usuario que no es apoderado', async () => {
+    req.body = { Usuario_Direccion_Calle: 'Los Aromos', Usuario_Direccion_Numero: '45', Usuario_Direccion_Comuna: 'Ñuñoa' };
     db.query
       .mockResolvedValueOnce(objetivo({ Es_Apoderado: 0 }))
       .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -70,7 +70,8 @@ describe('updateUsuario - validaciones del Glosario 6.1.2', () => {
     await usuarioController.updateUsuario(req, res);
 
     const [sql, valores] = db.query.mock.calls[1];
-    expect(sql).not.toContain('Apoderado_Direccion');
-    expect(valores).toEqual(['912345678', '8']);
+    expect(sql).toContain('Usuario_Direccion_Calle = ?');
+    expect(sql).toContain('Usuario_Direccion_Comuna = ?');
+    expect(valores).toEqual(['Los Aromos', '45', 'Ñuñoa', '8']);
   });
 });

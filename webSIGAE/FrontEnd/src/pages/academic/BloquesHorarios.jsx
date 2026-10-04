@@ -5,7 +5,13 @@ const API = "/api/bloques";
 
 const JORNADAS     = ["Mañana", "Tarde"];
 const TIPOS_BLOQUE = ["Clase", "Recreo"];
-const IMPACTOS     = ["Sin impacto", "Salida anticipada", "Suspensión total"];
+const IMPACTOS     = ["Sin impacto", "Salida anticipada", "Suspensión jornada mañana", "Suspensión total"];
+// "Suspensión parcial" solo se origina desde CU65 (bloques elegidos en la grilla de Horarios)
+const JORNADAS_SUSPENSION = [
+  { valor: "Mañana",   etiqueta: "Jornada de la mañana" },
+  { valor: "Tarde",    etiqueta: "Jornada de la tarde" },
+  { valor: "Completa", etiqueta: "Día completo" },
+];
 
 function authHeaders() {
   return {
@@ -57,6 +63,8 @@ function ImpactoChip({ impacto }) {
     "Sin impacto":       { bg: "#f0fdf4", color: "#166534" },
     "Salida anticipada": { bg: "#fef9c3", color: "#92400e" },
     "Suspensión total":  { bg: "#fee2e2", color: "#991b1b" },
+    "Suspensión jornada mañana": { bg: "#ffedd5", color: "#9a3412" },
+    "Suspensión parcial": { bg: "#ede9fe", color: "#5b21b6" },
   };
   const c = map[impacto] || { bg: "#f3f4f6", color: "#374151" };
   return (
@@ -815,6 +823,7 @@ function TabEventos() {
   // CU70/71 — detalle de bloques afectados por el evento en edición
   const [bloquesAfectados, setBloquesAfectados] = useState([]);
   const [cargandoAfectados, setCargandoAfectados] = useState(false);
+  const [modalJornada, setModalJornada] = useState(false); // CU66
 
   /* Colapsar sidebar mientras el panel esté abierto */
   useEffect(() => {
@@ -944,6 +953,7 @@ function TabEventos() {
                 color: vista === "lista" ? "#fff" : "#6b7280",
                 fontSize: "0.82rem", fontWeight: 500 }}>☰ Lista</button>
           </div>
+          <button style={s.btnSecundario} onClick={() => setModalJornada(true)}>⏸ Suspender jornada completa</button>
           <button className="btn-primary" onClick={abrirCrear}>+ Nuevo evento</button>
         </div>
       </div>
@@ -1117,7 +1127,7 @@ function TabEventos() {
 
                 <label style={{ ...s.labelPanel, marginTop: "0.85rem" }}>Impacto en clases *</label>
                 <div style={{ display: "flex", gap: "0.4rem", flexDirection: "column", marginBottom: "0.5rem" }}>
-                  {IMPACTOS.map((imp) => {
+                  {(form.Evento_Institucional_Impacto_Clases === "Suspensión parcial" ? [...IMPACTOS, "Suspensión parcial"] : IMPACTOS).map((imp) => {
                     const col    = IMPACTO_COLORES[imp];
                     const activo = form.Evento_Institucional_Impacto_Clases === imp;
                     return (
@@ -1174,6 +1184,92 @@ function TabEventos() {
             </div>
           </div>
       )}
+
+      {/* CU66 — Suspendiendo jornada completa por evento institucional */}
+      {modalJornada && (
+        <SuspenderJornadaModal
+          onClose={() => setModalJornada(false)}
+          onExito={(mensaje) => {
+            setModalJornada(false);
+            setExito(mensaje);
+            setTimeout(() => setExito(""), 3500);
+            cargar();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* CU66 — Suspendiendo jornada completa por evento institucional */
+function SuspenderJornadaModal({ onClose, onExito }) {
+  const [form, setForm] = useState({ fecha: "", jornada: "", nombre: "", descripcion: "" });
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState("");
+  const [detalle, setDetalle] = useState("");
+
+  const set = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
+
+  const confirmar = async (e) => {
+    e.preventDefault();
+    setError("");
+    setDetalle("");
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/horarios/suspender-jornada", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "No fue posible suspender la jornada");
+        setDetalle(data.detalle || "");
+        return;
+      }
+      onExito(data.mensaje || "Jornada suspendida correctamente");
+    } catch {
+      setError("No fue posible conectar con el servidor");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>Suspender jornada completa</h2>
+          <button className="btn-cerrar" onClick={onClose} title="Cerrar">✕</button>
+        </div>
+        <form onSubmit={confirmar} style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+          <label style={s.label}>Fecha *</label>
+          <input type="date" style={s.input} value={form.fecha} onChange={set("fecha")} />
+          <label style={s.label}>Jornada *</label>
+          <select style={s.input} value={form.jornada} onChange={set("jornada")}>
+            <option value="">— Selecciona la jornada —</option>
+            {JORNADAS_SUSPENSION.map((j) => <option key={j.valor} value={j.valor}>{j.etiqueta}</option>)}
+          </select>
+          <label style={s.label}>Nombre del evento institucional *</label>
+          <input style={s.input} value={form.nombre} onChange={set("nombre")} />
+          <label style={s.label}>Descripción *</label>
+          <textarea style={{ ...s.input, minHeight: 70 }} value={form.descripcion} onChange={set("descripcion")} />
+
+          {error && (
+            <div style={s.errorBanner}>
+              <strong>{error}</strong>
+              {detalle && <div style={{ marginTop: 4 }}>{detalle}</div>}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.75rem" }}>
+            <button type="button" style={{ ...s.btnSecundario, flex: 1 }} onClick={onClose} disabled={enviando}>Cancelar</button>
+            <button type="submit" className="btn-primary" style={{ flex: 2 }} disabled={enviando}>
+              {enviando ? "Suspendiendo..." : "Confirmar suspensión"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -1185,6 +1281,8 @@ const IMPACTO_COLORES = {
   "Sin impacto":       { bg: "#f0fdf4", borde: "#22c55e", acento: "#166534", icono: "✅" },
   "Salida anticipada": { bg: "#fefce8", borde: "#eab308", acento: "#92400e", icono: "⚠" },
   "Suspensión total":  { bg: "#fef2f2", borde: "#ef4444", acento: "#991b1b", icono: "🚫" },
+  "Suspensión jornada mañana": { bg: "#fff7ed", borde: "#f97316", acento: "#9a3412", icono: "⏸" },
+  "Suspensión parcial": { bg: "#f5f3ff", borde: "#8b5cf6", acento: "#5b21b6", icono: "⏸" },
 };
 
 const DIAS_ES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];

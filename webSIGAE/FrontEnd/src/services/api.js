@@ -86,8 +86,19 @@ export async function actualizarFotoPerfil(archivo) {
   return handleResponse(res);
 }
 
+
+// Dirección particular de cualquier usuario (Incremento 3): depto vacío se envía como null
+function columnasDireccionUsuario({ calle, numero, depto, comuna }) {
+  return {
+    Usuario_Direccion_Calle : calle,
+    Usuario_Direccion_Numero: numero,
+    Usuario_Direccion_Depto : depto || null,
+    Usuario_Direccion_Comuna: comuna,
+  };
+}
+
 // ── ADMINISTRADOR ────────────────────────────
-export async function registrarAdmin({ nombre, rut, correo, telefono, password, estado }) {
+export async function registrarAdmin({ nombre, rut, correo, telefono, password, estado, calle, numero, depto, comuna }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
     method : 'POST',
     headers: authHeaders(),
@@ -100,6 +111,7 @@ export async function registrarAdmin({ nombre, rut, correo, telefono, password, 
       Es_Administrador                   : 1,
       Administrador_Tipo                 : 'Administrador Normal',
       Administrador_Correo_Institucional : correo,
+      ...columnasDireccionUsuario({ calle, numero, depto, comuna }),
       Es_Docente                         : 0,
       Es_Apoderado                       : 0,
     }),
@@ -108,7 +120,7 @@ export async function registrarAdmin({ nombre, rut, correo, telefono, password, 
 }
 
 // ── DOCENTE ──────────────────────────────────
-export async function registrarDocente({ nombre, rut, correo, telefono, password, especialidad, cargaHoraria, estado }) {
+export async function registrarDocente({ nombre, rut, correo, telefono, password, especialidad, cargaHoraria, estado, calle, numero, depto, comuna }) {
   const res = await fetch(`${BASE_URL}/usuarios`, {
     method : 'POST',
     headers: authHeaders(),
@@ -122,6 +134,7 @@ export async function registrarDocente({ nombre, rut, correo, telefono, password
       Docente_Especialidad         : especialidad,
       Docente_Carga_Horaria_Maxima : parseInt(cargaHoraria, 10),
       Docente_Correo_Institucional : correo,
+      ...columnasDireccionUsuario({ calle, numero, depto, comuna }),
       Es_Administrador             : 0,
       Es_Apoderado                 : 0,
     }),
@@ -141,10 +154,7 @@ export async function registrarApoderado({ nombre, rut, correo, telefono, calle,
       Usuario_Contraseña      : password,
       Usuario_Estado_Cuenta   : estado === 'Activo' ? 1 : 0,
       Es_Apoderado            : 1,
-      Apoderado_Direccion_Calle : calle,
-      Apoderado_Direccion_Numero: numero,
-      Apoderado_Direccion_Depto : depto || null,
-      Apoderado_Direccion_Comuna: comuna,
+      ...columnasDireccionUsuario({ calle, numero, depto, comuna }),
       Apoderado_Correo_Natural: correo,
       Es_Docente              : 0,
       Es_Administrador        : 0,
@@ -161,7 +171,7 @@ export async function verificarRutEstudiante(rut) {
   return handleResponse(res);
 }
 
-export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico }) {
+export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico, calle, numero, depto, comuna }) {
   const res = await fetch(`${BASE_URL}/estudiantes`, {
     method : 'POST',
     headers: authHeaders(),
@@ -171,6 +181,10 @@ export async function registrarEstudiante({ nombre, rut, curso, estadoAcademico 
       Curso_Id                    : curso,
       Estudiante_Estado_Academico : estadoAcademico,
       Apoderado_Usuario_Id        : null,
+      Estudiante_Calle            : calle,
+      Estudiante_Numero           : numero,
+      Estudiante_Depto            : depto || null,
+      Estudiante_Comuna           : comuna,
     }),
   });
   return handleResponse(res);

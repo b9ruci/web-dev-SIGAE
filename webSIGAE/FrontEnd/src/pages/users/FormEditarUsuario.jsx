@@ -4,12 +4,13 @@ import {
   validarTelefonoChileno, validarDireccion, MENSAJE_TELEFONO, MAX_NOMBRE_COMPLETO,
 } from "../../utils/validaciones";
 
-// Columnas de la dirección estructurada ↔ claves que usa validarDireccion
+// Columnas de la dirección estructurada ↔ claves que usa validarDireccion.
+// La dirección particular aplica a todo usuario, sin importar su rol.
 const COLUMNAS_DIRECCION = {
-  Apoderado_Direccion_Calle : "calle",
-  Apoderado_Direccion_Numero: "numero",
-  Apoderado_Direccion_Depto : "depto",
-  Apoderado_Direccion_Comuna: "comuna",
+  Usuario_Direccion_Calle : "calle",
+  Usuario_Direccion_Numero: "numero",
+  Usuario_Direccion_Depto : "depto",
+  Usuario_Direccion_Comuna: "comuna",
 };
 
 const direccionDesdeForm = (f) =>
@@ -19,7 +20,7 @@ const direccionDesdeForm = (f) =>
 const CAMPOS_POR_ROL = {
   Es_Administrador: ["Administrador_Correo_Institucional"],
   Es_Docente: ["Docente_Correo_Institucional", "Docente_Especialidad", "Docente_Carga_Horaria_Maxima"],
-  Es_Apoderado: ["Apoderado_Correo_Natural", ...Object.keys(COLUMNAS_DIRECCION)],
+  Es_Apoderado: ["Apoderado_Correo_Natural"],
 };
 
 function FormEditarUsuario({ datos, onGuardado }) {
@@ -30,10 +31,10 @@ function FormEditarUsuario({ datos, onGuardado }) {
     Docente_Carga_Horaria_Maxima:     datos.Docente_Carga_Horaria_Maxima     || "",
     Docente_Correo_Institucional:     datos.Docente_Correo_Institucional     || "",
     Administrador_Correo_Institucional: datos.Administrador_Correo_Institucional || "",
-    Apoderado_Direccion_Calle:  datos.Apoderado_Direccion_Calle  || "",
-    Apoderado_Direccion_Numero: datos.Apoderado_Direccion_Numero || "",
-    Apoderado_Direccion_Depto:  datos.Apoderado_Direccion_Depto  || "",
-    Apoderado_Direccion_Comuna: datos.Apoderado_Direccion_Comuna || "",
+    Usuario_Direccion_Calle:  datos.Usuario_Direccion_Calle  || "",
+    Usuario_Direccion_Numero: datos.Usuario_Direccion_Numero || "",
+    Usuario_Direccion_Depto:  datos.Usuario_Direccion_Depto  || "",
+    Usuario_Direccion_Comuna: datos.Usuario_Direccion_Comuna || "",
     Apoderado_Correo_Natural: datos.Apoderado_Correo_Natural || "",
   });
   const [errores, setErrores] = useState({});
@@ -41,9 +42,15 @@ function FormEditarUsuario({ datos, onGuardado }) {
   const [msgError, setMsgError] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  // La dirección es obligatoria para el apoderado; en los demás roles se valida y
+  // envía solo si se ingresó (cuentas antiguas pueden no tenerla registrada)
+  const incluyeDireccion =
+    datos.Es_Apoderado || Object.keys(COLUMNAS_DIRECCION).some((col) => String(form[col]).trim() !== "");
+
   const camposAplicables = [
     "Usuario_Nombre_Completo",
     "Usuario_Telefono",
+    ...(incluyeDireccion ? Object.keys(COLUMNAS_DIRECCION) : []),
     ...Object.entries(CAMPOS_POR_ROL).flatMap(([rol, campos]) => (datos[rol] ? campos : [])),
   ];
 
@@ -209,26 +216,28 @@ function FormEditarUsuario({ datos, onGuardado }) {
               <span className="input-error-msg">{errores.Apoderado_Correo_Natural}</span>
             )}
           </div>
-          {[
-            { name: "Apoderado_Direccion_Calle",  label: "Calle",                   maxLength: 100 },
-            { name: "Apoderado_Direccion_Numero", label: "Número",                  maxLength: 7 },
-            { name: "Apoderado_Direccion_Depto",  label: "Depto./Casa (opcional)",  maxLength: 20 },
-            { name: "Apoderado_Direccion_Comuna", label: "Comuna",                  maxLength: 60 },
-          ].map((campo) => (
-            <div className="campo-pwd" key={campo.name}>
-              <label>{campo.label}</label>
-              <input
-                name={campo.name}
-                maxLength={campo.maxLength}
-                value={form[campo.name]}
-                onChange={handleChange}
-                className={errores[campo.name] ? "input-invalid" : ""}
-              />
-              {errores[campo.name] && <span className="input-error-msg">{errores[campo.name]}</span>}
-            </div>
-          ))}
         </>
       )}
+
+      {/* Dirección particular: todo usuario (Incremento 3) */}
+      {[
+        { name: "Usuario_Direccion_Calle",  label: "Calle",                   maxLength: 100 },
+        { name: "Usuario_Direccion_Numero", label: "Número",                  maxLength: 7 },
+        { name: "Usuario_Direccion_Depto",  label: "Depto./Casa (opcional)",  maxLength: 20 },
+        { name: "Usuario_Direccion_Comuna", label: "Comuna",                  maxLength: 60 },
+      ].map((campo) => (
+        <div className="campo-pwd" key={campo.name}>
+          <label>{campo.label}</label>
+          <input
+            name={campo.name}
+            maxLength={campo.maxLength}
+            value={form[campo.name]}
+            onChange={handleChange}
+            className={errores[campo.name] ? "input-invalid" : ""}
+          />
+          {errores[campo.name] && <span className="input-error-msg">{errores[campo.name]}</span>}
+        </div>
+      ))}
 
       {msgExito && <div className="msg-exito">{msgExito}</div>}
       {msgError && <div className="msg-error-form">{msgError}</div>}

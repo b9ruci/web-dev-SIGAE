@@ -8,6 +8,19 @@ import {
   getApoderados,
   editarAsociacionEstudiante,
 } from "../../services/api";
+import {
+  validarDireccion,
+  formatearDireccion,
+  COLUMNAS_DIRECCION_ESTUDIANTE,
+} from "../../utils/validaciones";
+
+// Campos de la dirección separada del estudiante (Incremento 3)
+const CAMPOS_DIRECCION_FICHA = [
+  { clave: "calle",  label: "Calle",                  maxLength: 100 },
+  { clave: "numero", label: "Número",                 maxLength: 7 },
+  { clave: "depto",  label: "Depto./Casa (opcional)", maxLength: 20 },
+  { clave: "comuna", label: "Comuna",                 maxLength: 60 },
+];
 
 const ESTADOS_ACADEMICOS = ["Regular", "Irregular", "Retirado", "Egresado"];
 
@@ -30,7 +43,9 @@ function Estudiantes() {
   // CU38: edición de curso asociado y estado académico — exclusivo de Administrador/Super Admin
   const [cursosOpciones, setCursosOpciones] = useState([]);
   const [editando, setEditando] = useState(null);
-  const [form, setForm] = useState({ Curso_Id: "", Estudiante_Estado_Academico: "" });
+  const [form, setForm] = useState({
+    Curso_Id: "", Estudiante_Estado_Academico: "", calle: "", numero: "", depto: "", comuna: "",
+  });
   const [guardando, setGuardando] = useState(false);
   const [msgErrorForm, setMsgErrorForm] = useState("");
   const [msgExitoForm, setMsgExitoForm] = useState("");
@@ -134,6 +149,10 @@ function Estudiantes() {
     setForm({
       Curso_Id: estudiante.Curso_Id ?? "",
       Estudiante_Estado_Academico: estudiante.Estudiante_Estado_Academico ?? "",
+      calle:  estudiante.Estudiante_Calle  ?? "",
+      numero: estudiante.Estudiante_Numero ?? "",
+      depto:  estudiante.Estudiante_Depto  ?? "",
+      comuna: estudiante.Estudiante_Comuna ?? "",
     });
     setMsgErrorForm("");
     setMsgExitoForm("");
@@ -145,11 +164,25 @@ function Estudiantes() {
     e.preventDefault();
     setMsgErrorForm("");
     setMsgExitoForm("");
+
+    // Dirección: se valida y envía si se ingresó (fichas antiguas pueden no tenerla)
+    const incluyeDireccion = CAMPOS_DIRECCION_FICHA.some(({ clave }) => String(form[clave]).trim() !== "");
+    if (incluyeDireccion) {
+      const erroresDireccion = Object.values(validarDireccion(form));
+      if (erroresDireccion.length > 0) {
+        setMsgErrorForm(erroresDireccion[0]);
+        return;
+      }
+    }
+
     setGuardando(true);
     try {
       const data = await editarEstudiante(editando.Estudiante_Id, {
         Curso_Id: Number(form.Curso_Id),
         Estudiante_Estado_Academico: form.Estudiante_Estado_Academico,
+        ...(incluyeDireccion && Object.fromEntries(
+          CAMPOS_DIRECCION_FICHA.map(({ clave }) => [COLUMNAS_DIRECCION_ESTUDIANTE[clave], form[clave]])
+        )),
       });
       // CU38 - Excepción "Sin modificaciones": el backend responde sin objeto "estudiante"
       setMsgExitoForm(data.mensaje || "Ficha actualizada correctamente");
@@ -289,6 +322,7 @@ function Estudiantes() {
                   <th style={{ cursor: "pointer" }} onClick={() => alternarOrden("Estudiante_Estado_Academico")}>
                     Estado{flechaOrden("Estudiante_Estado_Academico")}
                   </th>
+                  <th>Dirección</th>
                   {esAdmin && <th>Acciones</th>}
                 </tr>
               </thead>
@@ -306,6 +340,7 @@ function Estudiantes() {
                         <span className="badge-inactivo">{e.Estudiante_Estado_Academico}</span>
                       )}
                     </td>
+                    <td>{formatearDireccion(e, COLUMNAS_DIRECCION_ESTUDIANTE) || "—"}</td>
                     {esAdmin && (
                       <td>
                         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
@@ -374,6 +409,18 @@ function Estudiantes() {
                   ))}
                 </select>
               </div>
+
+              {/* Incremento 3: dirección separada del estudiante */}
+              {CAMPOS_DIRECCION_FICHA.map(({ clave, label, maxLength }) => (
+                <div className="campo-pwd" key={clave}>
+                  <label>{label}</label>
+                  <input
+                    maxLength={maxLength}
+                    value={form[clave]}
+                    onChange={(e) => setForm((f) => ({ ...f, [clave]: e.target.value }))}
+                  />
+                </div>
+              ))}
 
               {msgExitoForm && <div className="msg-exito">{msgExitoForm}</div>}
               {msgErrorForm && <div className="msg-error-form">{msgErrorForm}</div>}

@@ -11,19 +11,11 @@ const {
   validarCorreo,
   validarDireccion,
   direccionDesdeColumnas,
+  columnasDireccion,
   CAMPOS_DIRECCION,
 } = require('../middleware/validation');
 
 const MENSAJE_TELEFONO_INVALIDO = 'El número telefónico debe tener 9 dígitos, opcionalmente con prefijo +56';
-
-// Convierte { calle, numero, depto, comuna } en pares columna/valor para el UPDATE/INSERT
-function columnasDireccion(direccion) {
-  return Object.entries(CAMPOS_DIRECCION).map(([clave, columna]) => {
-    const valor = direccion[clave];
-    const limpio = valor === undefined || valor === null ? null : String(valor).trim();
-    return [columna, limpio === '' ? null : limpio];
-  });
-}
 
 // Obtener todos los usuarios
 const getUsuarios = async (req, res) => {
@@ -145,8 +137,8 @@ const editarPerfilPropio = async (req, res) => {
       campos.push('Usuario_Telefono = ?');
       valores.push(normalizarTelefono(telefono));
     }
-    // La dirección solo existe como campo para el rol Apoderado
-    if (direccion !== undefined && actual.Es_Apoderado) {
+    // La dirección particular aplica a todo usuario, sin importar su rol
+    if (direccion !== undefined) {
       for (const [columna, valor] of columnasDireccion(direccion)) {
         campos.push(`${columna} = ?`);
         valores.push(valor);
@@ -328,8 +320,8 @@ const createUsuario = async (req, res) => {
         Usuario_Estado_Cuenta, Usuario_Contraseña, Usuario_Foto_Perfil,
         Es_Docente, Docente_Carga_Horaria_Maxima, Docente_Especialidad, Docente_Correo_Institucional,
         Es_Administrador, Administrador_Tipo, Administrador_Correo_Institucional,
-        Es_Apoderado, Apoderado_Direccion_Calle, Apoderado_Direccion_Numero,
-        Apoderado_Direccion_Depto, Apoderado_Direccion_Comuna, Apoderado_Correo_Natural
+        Es_Apoderado, Usuario_Direccion_Calle, Usuario_Direccion_Numero,
+        Usuario_Direccion_Depto, Usuario_Direccion_Comuna, Apoderado_Correo_Natural
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         Usuario_RUT,
@@ -346,7 +338,7 @@ const createUsuario = async (req, res) => {
         Administrador_Tipo              || null,
         Administrador_Correo_Institucional || null,
         Es_Apoderado    ? 1 : 0,
-        ...columnasDireccion(Es_Apoderado ? direccionDesdeColumnas(req.body) : {}).map(([, valor]) => valor),
+        ...columnasDireccion(direccionDesdeColumnas(req.body)).map(([, valor]) => valor),
         Apoderado_Correo_Natural        || null,
       ]
     );
@@ -410,10 +402,6 @@ const updateUsuario = async (req, res) => {
     const otrosDatos = Object.fromEntries(
       Object.entries(camposRaw).filter(([k]) => CAMPOS_EDITABLES_USUARIO.has(k))
     );
-    // La dirección solo existe para el rol Apoderado
-    if (!objetivo.Es_Apoderado) {
-      Object.values(CAMPOS_DIRECCION).forEach((col) => delete otrosDatos[col]);
-    }
 
     // Validar dominio de correos institucionales si se están actualizando
     if (otrosDatos.Docente_Correo_Institucional && !validarCorreoInstitucional(otrosDatos.Docente_Correo_Institucional)) {
@@ -441,8 +429,8 @@ const updateUsuario = async (req, res) => {
     if (errorDireccion) {
       return res.status(400).json({ mensaje: errorDireccion });
     }
-    if (otrosDatos.Apoderado_Direccion_Depto !== undefined && String(otrosDatos.Apoderado_Direccion_Depto ?? '').trim() === '') {
-      otrosDatos.Apoderado_Direccion_Depto = null;
+    if (otrosDatos.Usuario_Direccion_Depto !== undefined && String(otrosDatos.Usuario_Direccion_Depto ?? '').trim() === '') {
+      otrosDatos.Usuario_Direccion_Depto = null;
     }
 
     let hash = null;
@@ -918,10 +906,10 @@ const getApoderados = async (req, res) => {
         u.Usuario_Nombre_Completo,
         u.Usuario_Telefono,
         u.Apoderado_Correo_Natural,
-        u.Apoderado_Direccion_Calle,
-        u.Apoderado_Direccion_Numero,
-        u.Apoderado_Direccion_Depto,
-        u.Apoderado_Direccion_Comuna,
+        u.Usuario_Direccion_Calle,
+        u.Usuario_Direccion_Numero,
+        u.Usuario_Direccion_Depto,
+        u.Usuario_Direccion_Comuna,
         u.Usuario_Estado_Cuenta,
         u.Es_Docente,
         u.Es_Apoderado,
