@@ -1,5 +1,17 @@
 # Tarea 1: Validación y Documentación del Modelo Físico de Base de Datos
 
+> 📦 **Documento de entrega (septiembre 2026), conservado como registro histórico.** No se
+> mantiene al día con el código. Diferencias conocidas con la implementación actual:
+> - **CU9** hoy es *eliminar todas las asociaciones de un apoderado*
+>   (`DELETE /api/estudiantes/apoderado/:apoderadoId/todas`) y **CU10** es *eliminar una
+>   asociación específica* (`DELETE /api/estudiantes/:estudianteId/apoderado`). El endpoint
+>   `desvincular-masivo` y las funciones `desvincularApoderado*` ya no existen.
+> - `GET /api/usuarios/docentes` y `GET /api/usuarios/apoderados` (CU30–CU33) exigen rol de
+>   administrador.
+>
+> Ante cualquier duda, manda el código en `webSIGAE/BackEnd/`.
+
+
 ## Casos de Uso: CU9, CU10, CU30, CU31, CU32, CU33
 Este documento valida la compatibilidad y correspondencia de la estructura de tablas y atributos definida en `SIGAE.sql` con las reglas de negocio implementadas en el backend.
 

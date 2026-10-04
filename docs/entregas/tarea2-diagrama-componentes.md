@@ -1,5 +1,17 @@
 # Tarea 2: Diagrama de Componentes (Vista de Desarrollo)
 
+> 📦 **Documento de entrega (septiembre 2026), conservado como registro histórico.** No se
+> mantiene al día con el código. Diferencias conocidas con la implementación actual:
+> - **CU9** hoy es *eliminar todas las asociaciones de un apoderado*
+>   (`DELETE /api/estudiantes/apoderado/:apoderadoId/todas`) y **CU10** es *eliminar una
+>   asociación específica* (`DELETE /api/estudiantes/:estudianteId/apoderado`). El endpoint
+>   `desvincular-masivo` y las funciones `desvincularApoderado*` ya no existen.
+> - `GET /api/usuarios/docentes` y `GET /api/usuarios/apoderados` (CU30–CU33) exigen rol de
+>   administrador.
+>
+> Ante cualquier duda, manda el código en `webSIGAE/BackEnd/`.
+
+
 ## Arquitectura de Módulos - CU9, CU10, CU30, CU31, CU32, CU33
 Este documento representa la estructura interna de los componentes del backend implementados bajo Node.js y Express, su separación de responsabilidades en capas y su conexión con la persistencia.
 
