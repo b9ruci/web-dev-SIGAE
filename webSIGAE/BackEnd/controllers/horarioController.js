@@ -1326,6 +1326,14 @@ const getBloquesLibres = async (req, res) => {
 // ── GET /api/horarios/bloque-detalle/:id ── CU69 / CU71 / RF45: Detalle de bloque horario
 const getDetalleBloqueHorario = async (req, res) => {
   try {
+    const roles = req.user?.roles || [];
+    const esAdmin = roles.includes('Administrador');
+
+    // Solo Admin, o un docente sobre sus propias clases (se valida tras la consulta)
+    if (!esAdmin && !roles.includes('Docente')) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
+
     const id = Number(req.params.id);
 
     // CU69 - Excepción 1: identificador inválido equivale a bloque inexistente
@@ -1367,6 +1375,10 @@ const getDetalleBloqueHorario = async (req, res) => {
     }
 
     const detalle = rows[0];
+
+    if (!esAdmin && Number(detalle.docenteId) !== Number(req.user.id)) {
+      return res.status(403).json({ mensaje: 'No tienes permiso para consultar esta información' });
+    }
 
     // RF42/RF45: próximos eventos institucionales que suspenden este bloque
     // (tabla afecta) en una fecha que cae el mismo día de la semana.

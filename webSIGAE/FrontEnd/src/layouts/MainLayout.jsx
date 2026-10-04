@@ -293,10 +293,6 @@ function MainLayout() {
                   Mi Horario
                 </Link>
 
-                <Link to="/consulta-horarios">
-                  Consulta de Horarios
-                </Link>
-
                 <Link to="/citaciones">
                   Citaciones
                 </Link>

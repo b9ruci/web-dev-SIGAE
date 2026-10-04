@@ -131,11 +131,11 @@ function AppRouter() {
               </RoleRoute>
             }
           />
-          {/* CU67, CU68, CU69: consultas y filtros de horario (bloques libres solo Admin) */}
+          {/* CU67, CU68, CU69: consultas y filtros de horario — solo Super Admin/Admin */}
           <Route
             path="/consulta-horarios"
             element={
-              <RoleRoute roles={["Docente", "Administrador"]}>
+              <RoleRoute roles={["Administrador"]}>
                 <ConsultaHorarios />
               </RoleRoute>
             }
