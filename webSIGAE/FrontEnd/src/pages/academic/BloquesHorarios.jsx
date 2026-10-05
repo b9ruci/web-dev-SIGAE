@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PanelConflictos from "../../components/horarios/PanelConflictos";
 
@@ -111,7 +112,12 @@ export default function BloquesHorarios() {
   const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
 
-  const [tab, setTab] = useState("parametros");
+  // ?tab=bloques | eventos abre directamente esa pestaña (accesos del dashboard)
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const pedido = searchParams.get("tab");
+    return ["parametros", "bloques", "eventos"].includes(pedido) ? pedido : "parametros";
+  });
 
   // Panel de clases por reubicar (compartido por las pestañas)
   const [senalConflictos, setSenalConflictos] = useState(0);
