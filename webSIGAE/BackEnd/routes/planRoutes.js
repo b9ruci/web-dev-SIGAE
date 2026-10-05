@@ -4,6 +4,7 @@ const {
   getPlanes,
   getPlanById,
   crearPlan,
+  editarPlan,
   clonarPlan,
   getNivelesSinPlan,
   getAsignaturas,
@@ -23,5 +24,6 @@ router.get('/',                   verifyAdmin, getPlanes);
 router.get('/:id',                verifyAdmin, getPlanById);
 router.post('/clonar',            verifyAdmin, clonarPlan);
 router.post('/',                  verifyAdmin, crearPlan);
+router.put('/:id',                verifyAdmin, editarPlan);
 
 module.exports = router;

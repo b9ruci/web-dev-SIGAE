@@ -97,12 +97,14 @@ describe('Reubicación de clases tras redefinir la jornada o los bloques', () =>
       .mockResolvedValueOnce([[]])                  // choque docente
       .mockResolvedValueOnce([{ affectedRows: 1 }]) // UPDATE
       .mockResolvedValueOnce([[{ Desajustado: 1, Clases: 0, Eventos: 0 }]]) // bloque viejo
+      .mockResolvedValueOnce([{ affectedRows: 0 }]) // DELETE clases eliminadas del bloque viejo
       .mockResolvedValueOnce([{ affectedRows: 1 }]); // DELETE bloque viejo
 
     await conflictos.migrarClase(req, res);
 
     expect(conn.query.mock.calls[4][1]).toEqual([11111115, 222222]);
-    expect(conn.query.mock.calls[6][1]).toEqual([11111111]);
+    expect(conn.query.mock.calls[6][1]).toEqual([[11111111], 'Eliminado']);
+    expect(conn.query.mock.calls[7][1]).toEqual([11111111]);
     expect(conn.commit).toHaveBeenCalled();
     expect(conn.release).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({ mensaje: 'Clase migrada al nuevo bloque', bloqueEliminado: true });

@@ -1,6 +1,7 @@
 // Módulo de citaciones (CU74–CU79 / RF48–RF53).
 // Cada función sigue los diagramas de secuencia del Incremento 3 (C_Citaciones → C_MySQL).
 const pool = require('../config/db');
+const { claseVigente } = require('../utils/clasesEliminadas');
 
 const ESTADO_PENDIENTE  = 'Pendiente de confirmación';
 const ESTADO_CONFIRMADA = 'Confirmada';
@@ -298,7 +299,7 @@ const crearCitacion = async (req, res) => {
          FROM estudiante e
          WHERE e.Estudiante_Id = ?
            AND e.Estudiante_Fecha_Eliminacion IS NULL
-           AND e.Curso_Id IN (SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?)`,
+           AND e.Curso_Id IN (SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ? AND ${claseVigente('horario_asignatura')})`,
         [estudianteId, docenteId]
       );
     if (estudiantes.length === 0) {
@@ -563,7 +564,7 @@ const getHistorialCitaciones = async (req, res) => {
     }
     if (!autorizado && roles.includes('Docente')) {
       const [cursos] = await pool.query(
-        'SELECT 1 FROM horario_asignatura WHERE Usuario_Id = ? AND Curso_Id = ? LIMIT 1',
+        `SELECT 1 FROM horario_asignatura WHERE Usuario_Id = ? AND Curso_Id = ? AND ${claseVigente('horario_asignatura')} LIMIT 1`,
         [userId, estudiante.Curso_Id]
       );
       autorizado = cursos.length > 0;

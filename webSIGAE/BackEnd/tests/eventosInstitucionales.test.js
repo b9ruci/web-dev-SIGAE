@@ -229,3 +229,60 @@ describe('Pruebas Unitarias - CU72: Eliminando Eventos Institucionales', () => {
     expect(res.json).toHaveBeenCalledWith({ error: 'No fue posible completar la eliminación solicitada' });
   });
 });
+
+describe('Listado y detalle de eventos institucionales', () => {
+  let req;
+  let res;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    req = { params: { id: '10' } };
+    res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockReturnThis(),
+    };
+  });
+
+  test('El listado entrega la fecha como texto YYYY-MM-DD (evita "fecha inválida" en el frontend)', async () => {
+    pool.execute.mockResolvedValueOnce([[]]);
+
+    await bloquesController.getEventos(req, res);
+
+    expect(pool.execute.mock.calls[0][0]).toContain(
+      "DATE_FORMAT(ei.Evento_Institucional_Fecha, '%Y-%m-%d') AS Evento_Institucional_Fecha"
+    );
+    expect(pool.execute.mock.calls[0][0]).not.toContain('ei.*');
+  });
+
+  test('Detalle: retorna 404 si el evento no existe', async () => {
+    pool.execute.mockResolvedValueOnce([[]]);
+
+    await bloquesController.getEventoDetalle(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: 'El evento no existe o fue eliminado' });
+  });
+
+  test('Detalle: incluye bloques afectados y las clases vigentes del día de la semana del evento', async () => {
+    const evento = {
+      Evento_Institucional_Id: 10,
+      Evento_Institucional_Nombre: 'Acto Patrio',
+      Evento_Institucional_Fecha: '2026-09-17',
+      Evento_Institucional_Descripcion: 'Celebración',
+      Evento_Institucional_Impacto_Clases: 'Salida anticipada',
+      dia_semana: 'Jueves',
+    };
+    const bloques = [{ Afecta_Id: 1, Bloque_Horario_Id: 7 }];
+    const clases = [{ Horario_Asignatura_Id: 3, Curso_Nombre: '1A', Asignatura_Nombre: 'Lenguaje' }];
+    pool.execute
+      .mockResolvedValueOnce([[evento]])
+      .mockResolvedValueOnce([bloques])
+      .mockResolvedValueOnce([clases]);
+
+    await bloquesController.getEventoDetalle(req, res);
+
+    expect(pool.execute.mock.calls[2][1]).toEqual(['10', 'Jueves']);
+    expect(pool.execute.mock.calls[2][0]).toContain("ha.Horario_Asignatura_Estado <> 'Eliminado'");
+    expect(res.json).toHaveBeenCalledWith({ ...evento, bloques, clases });
+  });
+});

@@ -11,6 +11,8 @@ const {
   createHorario,
   updateHorario,
   cambiarEstado,
+  eliminarHorario,
+  restaurarHorario,
   getResumenCursos,
   getAsignacionesDocente,
   getHorarioDocente,
@@ -98,5 +100,8 @@ router.get('/',            getHorarios);
 router.post('/',           verifyAdmin, createHorario);
 router.put('/:id',         verifyAdmin, updateHorario);
 router.patch('/:id/estado', verifyAdmin, cambiarEstado);
+// Eliminar una clase la deja en el listado de eliminadas; desde ahí se restaura
+router.delete('/:id',          verifyAdmin, eliminarHorario);
+router.patch('/:id/restaurar', verifyAdmin, restaurarHorario);
 
 module.exports = router;

@@ -104,7 +104,7 @@ function FilaAsignatura({ asig, onChange, onRemove }) {
   );
 }
 
-function ModalDetallePlan({ planId, onClose }) {
+function ModalDetallePlan({ planId, onClose, onEditar }) {
   const [plan, setPlan] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
@@ -137,7 +137,13 @@ function ModalDetallePlan({ planId, onClose }) {
         ) : error ? (
           <p className="msg-error">{error}</p>
         ) : (
-          <TablaAsignaturas asignaturas={plan.asignaturas} />
+          <>
+            <TablaAsignaturas asignaturas={plan.asignaturas} />
+            <div className="modal-actions" style={{ marginTop: "1.25rem" }}>
+              <button type="button" className="btn-secundario" onClick={onClose}>Cerrar</button>
+              <button type="button" className="btn-primary" onClick={() => onEditar(planId)}>Editar plan</button>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -279,6 +285,164 @@ function FormCrearPlan({ onExito, onCancelar, periodoPropuesto }) {
         <button type="button" className="btn-secundario" onClick={onCancelar}>Cancelar</button>
         <button type="submit" className="btn-primary" disabled={enviando || seleccionadas.length === 0}>
           {enviando ? "Registrando..." : "Crear Plan"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function FormEditarPlan({ planId, onExito, onCancelar }) {
+  const [niveles, setNiveles]         = useState([]);
+  const [todasAsig, setTodasAsig]     = useState([]);
+  const [nivelId, setNivelId]         = useState("");
+  const [periodo, setPeriodo]         = useState("");
+  const [asignaturas, setAsignaturas] = useState([]);
+  const [asigBuscada, setAsigBuscada] = useState("");
+  const [error, setError]             = useState("");
+  const [cargando, setCargando]       = useState(true);
+  const [enviando, setEnviando]       = useState(false);
+
+  useEffect(() => {
+    const cargar = async () => {
+      try {
+        const h = { Authorization: `Bearer ${TOKEN()}` };
+        const [rPlan, rNiveles, rAsig] = await Promise.all([
+          fetch(`/api/planes/${planId}`, { headers: h }),
+          fetch("/api/cursos/niveles", { headers: h }),
+          fetch("/api/planes/asignaturas", { headers: h }),
+        ]);
+        const plan = await rPlan.json();
+        if (!rPlan.ok) { setError(plan.error || "Error al cargar el plan"); return; }
+        const niv = await rNiveles.json();
+        const asig = await rAsig.json();
+        setNiveles(Array.isArray(niv) ? niv : []);
+        setTodasAsig(Array.isArray(asig) ? asig : []);
+        setNivelId(String(plan.Nivel_Educativo_Id));
+        setPeriodo(plan.Plan_Educativo_Periodo_Lectivo);
+        setAsignaturas(
+          plan.asignaturas.map((a) => ({
+            Asignatura_Id                 : a.Asignatura_Id,
+            Asignatura_Nombre             : a.Asignatura_Nombre,
+            Asignatura_Prioridad_Academica: a.Asignatura_Prioridad_Academica,
+            tipo                          : a.Tipo,
+            horas_semanales               : a.Horas_Semanales_Requeridas,
+          }))
+        );
+      } catch {
+        setError("Error al conectar con el servidor");
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargar();
+  }, [planId]);
+
+  const agregarAsig = (asig) => {
+    if (asignaturas.find((a) => a.Asignatura_Id === asig.Asignatura_Id)) return;
+    setAsignaturas((prev) => [...prev, { ...asig, tipo: "Obligatorio", horas_semanales: 2 }]);
+    setAsigBuscada("");
+  };
+
+  const actualizarAsig = (asigId, campo, valor) => {
+    setAsignaturas((prev) =>
+      prev.map((a) => (a.Asignatura_Id === asigId ? { ...a, [campo]: campo === "horas_semanales" ? Number(valor) : valor } : a))
+    );
+  };
+
+  const quitarAsig = (asigId) => {
+    setAsignaturas((prev) => prev.filter((a) => a.Asignatura_Id !== asigId));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!nivelId) return setError("Debe seleccionar un nivel educativo");
+    if (!periodo.trim()) return setError("Debe indicar el periodo lectivo");
+    if (asignaturas.length === 0) return setError("El plan debe contener al menos una asignatura");
+
+    const payload = {
+      nivel_educativo_id: Number(nivelId),
+      periodo_lectivo   : periodo,
+      asignaturas       : asignaturas.map((a) => ({
+        asignatura_id  : a.Asignatura_Id,
+        tipo           : a.tipo,
+        horas_semanales: a.horas_semanales,
+      })),
+    };
+
+    setEnviando(true);
+    try {
+      const res = await fetch(`/api/planes/${planId}`, { method: "PUT", headers: authH(), body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) setError(data.error);
+      else onExito([data.mensaje, ...(data.advertencias || [])].join(" · "));
+    } catch {
+      setError("Error al conectar con el servidor");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const asigNoSeleccionadas = todasAsig.filter(
+    (a) =>
+      !asignaturas.find((s) => s.Asignatura_Id === a.Asignatura_Id) &&
+      (asigBuscada === "" || a.Asignatura_Nombre.toLowerCase().includes(asigBuscada.toLowerCase()))
+  );
+
+  if (cargando) return <div className="form-card"><p>Cargando plan...</p></div>;
+
+  return (
+    <form onSubmit={handleSubmit} className="form-card">
+      <h2>Editar Plan Educativo</h2>
+      {error && <p className="msg-error">{error}</p>}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+        <div>
+          <label>Periodo Lectivo</label>
+          <input
+            type="text"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value)}
+            placeholder="Ej: 2026"
+            required
+          />
+        </div>
+        <div>
+          <label>Nivel Educativo</label>
+          <select value={nivelId} onChange={(e) => setNivelId(e.target.value)} required>
+            <option value="">Seleccionar nivel...</option>
+            {niveles.map((n) => (
+              <option key={n.Nivel_Educativo_Id} value={n.Nivel_Educativo_Id}>
+                {n.Nivel_Educativo_Nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <label style={{ marginTop: "1rem" }}>Agregar asignatura al plan</label>
+      <SelectorAsignaturas
+        disponibles={asigNoSeleccionadas}
+        busqueda={asigBuscada}
+        onBuscar={setAsigBuscada}
+        onAgregar={agregarAsig}
+        maxHeight="200px"
+      />
+
+      <label style={{ marginTop: "1rem" }}>Asignaturas del plan ({asignaturas.length})</label>
+      {asignaturas.length === 0 ? (
+        <p className="empty-state-text">El plan debe tener al menos una asignatura. Agrégala desde la lista de arriba.</p>
+      ) : (
+        <div className="asignaturas-lista">
+          {asignaturas.map((a) => (
+            <FilaAsignatura key={a.Asignatura_Id} asig={a} onChange={actualizarAsig} onRemove={quitarAsig} />
+          ))}
+        </div>
+      )}
+
+      <div className="modal-actions" style={{ marginTop: "1.5rem" }}>
+        <button type="button" className="btn-secundario" onClick={onCancelar}>Cancelar</button>
+        <button type="submit" className="btn-primary" disabled={enviando || asignaturas.length === 0}>
+          {enviando ? "Guardando..." : "Guardar cambios"}
         </button>
       </div>
     </form>
@@ -481,6 +645,7 @@ function PlanEducativo() {
   const [exito, setExito]                 = useState("");
   const [vista, setVista]                 = useState("lista");
   const [planDetalleId, setPlanDetalleId] = useState(null);
+  const [planEditarId, setPlanEditarId]   = useState(null);
 
   const cargarPlanes = useCallback(async () => {
     setCargando(true);
@@ -501,8 +666,16 @@ function PlanEducativo() {
   const handleExito = (msg) => {
     setExito(msg);
     setVista("lista");
+    setPlanEditarId(null);
     cargarPlanes();
     setTimeout(() => setExito(""), 5000);
+  };
+
+  const abrirEditar = (planId) => {
+    setError("");
+    setPlanDetalleId(null);
+    setPlanEditarId(planId);
+    setVista("editar");
   };
 
   const planesAgrupados = planes.reduce((acc, plan) => {
@@ -549,6 +722,15 @@ function PlanEducativo() {
           onExito={handleExito}
           onCancelar={() => setVista("lista")}
           periodoPropuesto={new Date().getFullYear().toString()}
+        />
+      )}
+
+      {vista === "editar" && planEditarId && (
+        <FormEditarPlan
+          key={planEditarId}
+          planId={planEditarId}
+          onExito={handleExito}
+          onCancelar={() => { setPlanEditarId(null); setVista("lista"); }}
         />
       )}
 
@@ -601,7 +783,16 @@ function PlanEducativo() {
                         </div>
                       </div>
                     </div>
-                    <div className="curso-card-footer">
+                    <div className="curso-card-footer" style={{ justifyContent: "space-between", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="btn-secundario"
+                        style={{ padding: "4px 12px", fontSize: "0.75rem" }}
+                        onClick={(e) => { e.stopPropagation(); abrirEditar(plan.Plan_Educativo_Id); }}
+                        title="Editar plan"
+                      >
+                        ✏ Editar
+                      </button>
                       <span className="curso-link">Ver asignaturas →</span>
                     </div>
                   </div>
@@ -613,7 +804,7 @@ function PlanEducativo() {
       )}
 
       {planDetalleId && (
-        <ModalDetallePlan planId={planDetalleId} onClose={() => setPlanDetalleId(null)} />
+        <ModalDetallePlan planId={planDetalleId} onClose={() => setPlanDetalleId(null)} onEditar={abrirEditar} />
       )}
     </div>
   );

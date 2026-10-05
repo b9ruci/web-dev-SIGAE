@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { condicionDesajustado, motivoDesajuste } = require('../utils/bloquesDesajustados');
+const { claseVigente, purgarClasesEliminadas } = require('../utils/clasesEliminadas');
 
 // Las horas llegan como "HH:MM" desde el formulario y MySQL las devuelve como
 // "HH:MM:SS". Se normalizan antes de compararlas como texto: sin esto,
@@ -100,7 +101,8 @@ const getBloques = async (req, res) => {
               pi.Parametro_Institucional_Fin_Jornada    AS jornada_fin,
               ${condicionDesajustado('bh')} AS desajustado,
               ${motivoDesajuste('bh')} AS motivo_desajuste,
-              (SELECT COUNT(*) FROM horario_asignatura x WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id) AS clases
+              (SELECT COUNT(*) FROM horario_asignatura x
+                WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id AND ${claseVigente('x')}) AS clases
        FROM bloque_horario bh
        JOIN parametro_institucional pi ON pi.Parametro_Institucional_Id = bh.Parametro_Institucional_Id
        ORDER BY bh.Bloque_Horario_Hora_Inicio`
@@ -144,7 +146,8 @@ const createBloque = async (req, res) => {
     // Los bloques ya desajustados no cuentan: están a la espera de reubicar sus clases.
     const [conflicto] = await pool.execute(
       `SELECT b.Bloque_Horario_Id, b.Bloque_Horario_Hora_Inicio, b.Bloque_Horario_Hora_Fin, b.Bloque_Horario_Tipo,
-              (SELECT COUNT(*) FROM horario_asignatura x WHERE x.Bloque_Horario_Id = b.Bloque_Horario_Id) AS clases,
+              (SELECT COUNT(*) FROM horario_asignatura x
+                WHERE x.Bloque_Horario_Id = b.Bloque_Horario_Id AND ${claseVigente('x')}) AS clases,
               (SELECT COUNT(*) FROM afecta af WHERE af.Bloque_Horario_Id = b.Bloque_Horario_Id) AS eventos
        FROM bloque_horario b
        WHERE b.Bloque_Horario_Hora_Inicio < ? AND b.Bloque_Horario_Hora_Fin > ?
@@ -185,6 +188,7 @@ const createBloque = async (req, res) => {
       // clases quedan desajustados hasta que el administrador las reubique.
       for (const b of conflicto) {
         if (Number(b.clases) === 0 && Number(b.eventos) === 0) {
+          await purgarClasesEliminadas(conn, b.Bloque_Horario_Id);
           await conn.execute('DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?', [b.Bloque_Horario_Id]);
         } else {
           clasesPendientes += Number(b.clases);
@@ -272,7 +276,8 @@ const deleteBloque = async (req, res) => {
     // CU50 - Excepción "Bloque posee asignaciones": el panel de avisos permite
     // migrar o eliminar esas clases antes de quitar el bloque.
     const [enHorario] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Bloque_Horario_Id = ?`, [id]
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+       WHERE ha.Bloque_Horario_Id = ? AND ${claseVigente('ha')}`, [id]
     );
     if (enHorario.length > 0) {
       return res.status(409).json({
@@ -288,6 +293,8 @@ const deleteBloque = async (req, res) => {
     if (enEvento.length > 0) {
       return res.status(409).json({ error: 'No se puede eliminar: el bloque está asociado a un evento institucional' });
     }
+
+    await purgarClasesEliminadas(pool, id);
 
     // CU50 - Excepción "Bloque horario no existe"
     const [result] = await pool.execute(`DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?`, [id]);
@@ -330,7 +337,7 @@ const deleteMultiplesBloques = async (req, res) => {
     // CU51 - Excepción "Tienen asignaciones o restricciones"
     const [enHorario] = await conn.query(
       `SELECT Horario_Asignatura_Id FROM horario_asignatura
-       WHERE Bloque_Horario_Id IN (?) AND Horario_Asignatura_Estado = 'Activo' LIMIT 1`,
+       WHERE Bloque_Horario_Id IN (?) AND ${claseVigente('horario_asignatura')} LIMIT 1`,
       [bloques_id]
     );
     if (enHorario.length > 0) {
@@ -347,6 +354,7 @@ const deleteMultiplesBloques = async (req, res) => {
       return res.status(409).json({ error: 'Uno o más bloques poseen asignaciones activas o restricciones asociadas' });
     }
 
+    await purgarClasesEliminadas(conn, bloques_id);
     await conn.query(`DELETE FROM bloque_horario WHERE Bloque_Horario_Id IN (?)`, [bloques_id]);
 
     await conn.commit();
@@ -413,11 +421,20 @@ async function registrarBloquesAfectados(conn, eventoId, impacto) {
   return bloques.map((b) => b.Bloque_Horario_Id);
 }
 
+// La fecha se entrega como texto 'YYYY-MM-DD': un DATE leído por mysql2 llega
+// como Date y, serializado a JSON, como '2026-12-10T03:00:00.000Z', que el
+// frontend no logra interpretar ("fecha inválida") y puede correrse un día.
+const COLUMNAS_EVENTO = `ei.Evento_Institucional_Id,
+              ei.Evento_Institucional_Nombre,
+              DATE_FORMAT(ei.Evento_Institucional_Fecha, '%Y-%m-%d') AS Evento_Institucional_Fecha,
+              ei.Evento_Institucional_Descripcion,
+              ei.Evento_Institucional_Impacto_Clases`;
+
 // GET /api/bloques/eventos — incluye el conteo de bloques afectados por evento
 const getEventos = async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      `SELECT ei.*,
+      `SELECT ${COLUMNAS_EVENTO},
               COUNT(af.Afecta_Id) AS bloques_afectados_count
        FROM evento_institucional ei
        LEFT JOIN afecta af ON af.Evento_Institucional_Id = ei.Evento_Institucional_Id
@@ -447,6 +464,55 @@ const getBloquesAfectadosPorEvento = async (req, res) => {
     res.json(rows);
   } catch (err) {
     console.error('getBloquesAfectadosPorEvento:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// GET /api/bloques/eventos/:id — detalle de un evento: sus datos, los bloques
+// afectados y las clases que se suspenden ese día (las del mismo día de la semana)
+const getEventoDetalle = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [[evento]] = await pool.execute(
+      `SELECT ${COLUMNAS_EVENTO},
+              ELT(DAYOFWEEK(ei.Evento_Institucional_Fecha),
+                  'Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado') AS dia_semana
+       FROM evento_institucional ei
+       WHERE ei.Evento_Institucional_Id = ?`,
+      [id]
+    );
+    if (!evento) return res.status(404).json({ error: 'El evento no existe o fue eliminado' });
+
+    const [bloques] = await pool.execute(
+      `SELECT af.Afecta_Id, af.Estado_Bloque, bh.Bloque_Horario_Id,
+              bh.Bloque_Horario_Hora_Inicio, bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Jornada
+       FROM afecta af
+       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = af.Bloque_Horario_Id
+       WHERE af.Evento_Institucional_Id = ?
+       ORDER BY bh.Bloque_Horario_Hora_Inicio`,
+      [id]
+    );
+
+    const [clases] = await pool.execute(
+      `SELECT ha.Horario_Asignatura_Id, c.Curso_Nombre, a.Asignatura_Nombre,
+              u.Usuario_Nombre_Completo AS Docente_Nombre,
+              bh.Bloque_Horario_Hora_Inicio, bh.Bloque_Horario_Hora_Fin
+       FROM afecta af
+       JOIN bloque_horario     bh ON bh.Bloque_Horario_Id = af.Bloque_Horario_Id
+       JOIN horario_asignatura ha ON ha.Bloque_Horario_Id = af.Bloque_Horario_Id
+       JOIN curso              c  ON c.Curso_Id           = ha.Curso_Id
+       JOIN asignatura         a  ON a.Asignatura_Id      = ha.Asignatura_Id
+       LEFT JOIN usuario       u  ON u.Usuario_Id         = ha.Usuario_Id
+       WHERE af.Evento_Institucional_Id = ?
+         AND ha.Horario_Asignatura_Dia_Semana = ?
+         AND ${claseVigente('ha')}
+       ORDER BY bh.Bloque_Horario_Hora_Inicio, c.Curso_Nombre`,
+      [id, evento.dia_semana]
+    );
+
+    res.json({ ...evento, bloques, clases });
+  } catch (err) {
+    console.error('getEventoDetalle:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -600,6 +666,6 @@ module.exports = {
   getParametros, updateParametros,
   getBloques, createBloque, updateBloque, deleteBloque, deleteMultiplesBloques,
   getEventos, createEvento, updateEvento, deleteEvento,
-  getBloquesAfectadosPorEvento,
+  getBloquesAfectadosPorEvento, getEventoDetalle,
   registrarBloquesAfectados, // reutilizado por CU66 (horarioController)
 };

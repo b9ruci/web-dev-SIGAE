@@ -3,6 +3,7 @@
 // no tiene login. Es solo una ficha con información académica.
 
 const db = require('../config/db');
+const { claseVigente } = require('../utils/clasesEliminadas');
 const {
   validarRut,
   validarNombreCompleto,
@@ -34,7 +35,7 @@ const getEstudiantes = async (req, res) => {
     if (esDocente) {
       // Un Docente solo ve estudiantes de los cursos donde tiene asignaturas asignadas
       const [cursos] = await db.query(
-        'SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?',
+        `SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ? AND ${claseVigente('horario_asignatura')}`,
         [userId]
       );
 
@@ -140,7 +141,7 @@ const buscarEstudiantes = async (req, res) => {
     if (esDocente) {
       // Un Docente solo puede buscar entre estudiantes de sus propios cursos
       const [cursos] = await db.query(
-        'SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ?',
+        `SELECT DISTINCT Curso_Id FROM horario_asignatura WHERE Usuario_Id = ? AND ${claseVigente('horario_asignatura')}`,
         [userId]
       );
 
@@ -785,7 +786,7 @@ const getEstudiantesCursoDocente = async (req, res) => {
     // Un docente solo puede ver los cursos en los que tiene clases asignadas
     if (!esAdmin) {
       const [asignado] = await db.query(
-        'SELECT 1 FROM horario_asignatura WHERE Usuario_Id = ? AND Curso_Id = ? LIMIT 1',
+        `SELECT 1 FROM horario_asignatura WHERE Usuario_Id = ? AND Curso_Id = ? AND ${claseVigente('horario_asignatura')} LIMIT 1`,
         [userId, cursoId]
       );
       if (asignado.length === 0) {
