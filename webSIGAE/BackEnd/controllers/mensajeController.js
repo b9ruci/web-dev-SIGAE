@@ -1,5 +1,6 @@
 // Módulo de mensajería interna docente-apoderado (CU73 / RF47).
 const pool = require('../config/db');
+const { claseVigente } = require('../utils/clasesEliminadas');
 
 const ROLES_MENSAJERIA = ['Docente', 'Apoderado'];
 
@@ -97,7 +98,7 @@ async function buscarContactos(usuarioId, rol, contactoId = null) {
         AND e.Curso_Id IN (
           SELECT DISTINCT Curso_Id
           FROM horario_asignatura
-          WHERE Usuario_Id = ?
+          WHERE Usuario_Id = ? AND ${claseVigente('horario_asignatura')}
         )
         ${contactoId ? 'AND u.Usuario_Id = ?' : ''}
       ORDER BY u.Usuario_Nombre_Completo, e.Estudiante_Nombre_Completo
@@ -114,7 +115,7 @@ async function buscarContactos(usuarioId, rol, contactoId = null) {
         cu.Curso_Nombre
       FROM estudiante e
       INNER JOIN horario_asignatura ha
-        ON ha.Curso_Id = e.Curso_Id
+        ON ha.Curso_Id = e.Curso_Id AND ${claseVigente('ha')}
       INNER JOIN usuario u
         ON u.Usuario_Id = ha.Usuario_Id
       LEFT JOIN curso cu
@@ -576,6 +577,7 @@ const obtenerDetalleContacto = async (req, res) => {
       INNER JOIN curso cu
         ON cu.Curso_Id = ha.Curso_Id
       WHERE ha.Usuario_Id = ?
+        AND ${claseVigente('ha')}
         AND ha.Curso_Id IN (
           SELECT Curso_Id
           FROM estudiante

@@ -8,6 +8,7 @@
 // hasta que el administrador las resuelva y elimine el bloque.
 const pool = require('../config/db');
 const { condicionDesajustado, motivoDesajuste } = require('../utils/bloquesDesajustados');
+const { claseVigente, purgarClasesEliminadas } = require('../utils/clasesEliminadas');
 
 const ORDEN_DIAS = `FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes')`;
 
@@ -72,7 +73,8 @@ const getConflictos = async (req, res) => {
          JOIN curso c           ON c.Curso_Id           = ha.Curso_Id
          JOIN asignatura a      ON a.Asignatura_Id      = ha.Asignatura_Id
          LEFT JOIN usuario u    ON u.Usuario_Id         = ha.Usuario_Id
-        WHERE ${condicionDesajustado('bh')} OR bh.Bloque_Horario_Id = ?
+        WHERE (${condicionDesajustado('bh')} OR bh.Bloque_Horario_Id = ?)
+          AND ${claseVigente('ha')}
         ORDER BY bh.Bloque_Horario_Hora_Inicio, ${ORDEN_DIAS}, c.Curso_Nombre`,
       [bloqueAEliminar || 0, bloqueAEliminar || 0]
     );
@@ -110,7 +112,7 @@ async function obtenerClasePendiente(conn, horarioId, bloqueAEliminar, res) {
             ${condicionDesajustado('bh')} AS Desajustado
        FROM horario_asignatura ha
        JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
-      WHERE ha.Horario_Asignatura_Id = ?
+      WHERE ha.Horario_Asignatura_Id = ? AND ${claseVigente('ha')}
       FOR UPDATE`,
     [horarioId]
   );
@@ -136,7 +138,8 @@ async function obtenerClasePendiente(conn, horarioId, bloqueAEliminar, res) {
 async function limpiarBloqueVacio(conn, bloqueId) {
   const [[bloque]] = await conn.query(
     `SELECT ${condicionDesajustado('bh')} AS Desajustado,
-            (SELECT COUNT(*) FROM horario_asignatura x WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id) AS Clases,
+            (SELECT COUNT(*) FROM horario_asignatura x
+              WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id AND ${claseVigente('x')}) AS Clases,
             (SELECT COUNT(*) FROM afecta af WHERE af.Bloque_Horario_Id = bh.Bloque_Horario_Id) AS Eventos
        FROM bloque_horario bh
       WHERE bh.Bloque_Horario_Id = ?`,
@@ -147,6 +150,7 @@ async function limpiarBloqueVacio(conn, bloqueId) {
     return false;
   }
 
+  await purgarClasesEliminadas(conn, bloqueId);
   await conn.query('DELETE FROM bloque_horario WHERE Bloque_Horario_Id = ?', [bloqueId]);
   return true;
 }
@@ -193,6 +197,7 @@ const migrarClase = async (req, res) => {
          JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
          JOIN asignatura a      ON a.Asignatura_Id      = ha.Asignatura_Id
         WHERE ha.Curso_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+          AND ${claseVigente('ha')}
           AND ha.Horario_Asignatura_Id <> ?
           AND bh.Bloque_Horario_Hora_Inicio < ? AND bh.Bloque_Horario_Hora_Fin > ?
         LIMIT 1`,
@@ -288,7 +293,8 @@ const getImpactoParametros = async (req, res) => {
     const [bloques] = await pool.query(
       `SELECT bh.Bloque_Horario_Id, bh.Bloque_Horario_Hora_Inicio, bh.Bloque_Horario_Hora_Fin,
               bh.Bloque_Horario_Jornada, bh.Bloque_Horario_Tipo,
-              (SELECT COUNT(*) FROM horario_asignatura x WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id) AS Clases
+              (SELECT COUNT(*) FROM horario_asignatura x
+                WHERE x.Bloque_Horario_Id = bh.Bloque_Horario_Id AND ${claseVigente('x')}) AS Clases
          FROM bloque_horario bh
         WHERE (bh.Bloque_Horario_Hora_Inicio < ? OR bh.Bloque_Horario_Hora_Fin > ?)
           AND NOT ${condicionDesajustado('bh')}

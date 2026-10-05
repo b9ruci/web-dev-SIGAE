@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const { claseVigente } = require('../utils/clasesEliminadas');
 
 // ── GET /api/planes  ─────────────────────────────────────────────
 const getPlanes = async (req, res) => {
@@ -277,7 +278,7 @@ const clonarPlan = async (req, res) => {
        JOIN asignatura a  ON a.Asignatura_Id = ha.Asignatura_Id
        JOIN curso      c  ON c.Curso_Id      = ha.Curso_Id
        JOIN incluyeasig ia ON ia.Asignatura_Id = ha.Asignatura_Id AND ia.Plan_Educativo_Id = ?
-       WHERE (u.Es_Docente = 0 OR u.Usuario_Estado_Cuenta = 0)`,
+       WHERE (u.Es_Docente = 0 OR u.Usuario_Estado_Cuenta = 0) AND ${claseVigente('ha')}`,
       [plan_origen_id]
     );
 
@@ -299,6 +300,154 @@ const clonarPlan = async (req, res) => {
   } catch (err) {
     await conn.rollback();
     console.error('clonarPlan:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    conn.release();
+  }
+};
+
+// ── PUT /api/planes/:id  ── editar un plan existente
+// Permite cambiar nivel, periodo y asignaturas (tipo y horas). Las asignaturas
+// que se mantienen conservan su registro en incluyeasig; las quitadas se borran.
+const editarPlan = async (req, res) => {
+  const { id } = req.params;
+  const { nivel_educativo_id, periodo_lectivo, asignaturas } = req.body;
+
+  if (!nivel_educativo_id || !periodo_lectivo?.toString().trim()) {
+    return res.status(400).json({ error: 'El nivel educativo y el periodo lectivo son obligatorios' });
+  }
+  if (!Array.isArray(asignaturas) || asignaturas.length === 0) {
+    return res.status(400).json({ error: 'El plan debe incluir al menos una asignatura' });
+  }
+  for (const a of asignaturas) {
+    if (!a.asignatura_id || !a.tipo || !a.horas_semanales) {
+      return res.status(400).json({ error: 'Cada asignatura requiere asignatura_id, tipo y horas_semanales' });
+    }
+    const horas = Number(a.horas_semanales);
+    if (!Number.isInteger(horas) || horas < 1) {
+      return res.status(400).json({ error: 'Las horas semanales deben ser un número entero mayor a 0' });
+    }
+    if (!['Obligatorio', 'Complementario'].includes(a.tipo)) {
+      return res.status(400).json({ error: 'El tipo debe ser "Obligatorio" o "Complementario"' });
+    }
+  }
+  const idsAsig = asignaturas.map(a => Number(a.asignatura_id));
+  if (new Set(idsAsig).size !== idsAsig.length) {
+    return res.status(400).json({ error: 'No puede incluir la misma asignatura más de una vez en el plan' });
+  }
+
+  const periodo = periodo_lectivo.toString().trim();
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[plan]] = await conn.execute(
+      'SELECT Plan_Educativo_Id FROM plan_educativo WHERE Plan_Educativo_Id = ? FOR UPDATE',
+      [id]
+    );
+    if (!plan) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Plan educativo no encontrado' });
+    }
+
+    const [[nivel]] = await conn.execute(
+      'SELECT Nivel_Educativo_Nombre FROM nivel_educativo WHERE Nivel_Educativo_Id = ?',
+      [nivel_educativo_id]
+    );
+    if (!nivel) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Nivel educativo no encontrado' });
+    }
+
+    // Otro plan con asignaturas para el mismo nivel y periodo
+    const [duplicado] = await conn.execute(`
+      SELECT pe.Plan_Educativo_Id
+      FROM plan_educativo pe
+      WHERE pe.Nivel_Educativo_Id = ? AND pe.Plan_Educativo_Periodo_Lectivo = ?
+        AND pe.Plan_Educativo_Id <> ?
+        AND EXISTS (SELECT 1 FROM incluyeasig ia WHERE ia.Plan_Educativo_Id = pe.Plan_Educativo_Id)
+    `, [nivel_educativo_id, periodo, id]);
+    if (duplicado.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({
+        error: `Ya existe un plan educativo para ${nivel.Nivel_Educativo_Nombre} en el periodo ${periodo}`
+      });
+    }
+
+    const placeholders = idsAsig.map(() => '?').join(',');
+    const [asigExistentes] = await conn.execute(
+      `SELECT Asignatura_Id FROM asignatura WHERE Asignatura_Id IN (${placeholders})`,
+      idsAsig
+    );
+    if (asigExistentes.length !== idsAsig.length) {
+      await conn.rollback();
+      return res.status(400).json({ error: 'Una o más asignaturas seleccionadas no existen en el sistema' });
+    }
+
+    await conn.execute(
+      'UPDATE plan_educativo SET Plan_Educativo_Periodo_Lectivo = ?, Nivel_Educativo_Id = ? WHERE Plan_Educativo_Id = ?',
+      [periodo, nivel_educativo_id, id]
+    );
+
+    const [actuales] = await conn.execute(
+      `SELECT ia.IncluyeAsig_Id, ia.Asignatura_Id, a.Asignatura_Nombre
+       FROM incluyeasig ia
+       JOIN asignatura a ON a.Asignatura_Id = ia.Asignatura_Id
+       WHERE ia.Plan_Educativo_Id = ?`,
+      [id]
+    );
+    const actualPorAsig = new Map(actuales.map(r => [Number(r.Asignatura_Id), r]));
+
+    for (const a of asignaturas) {
+      const existente = actualPorAsig.get(Number(a.asignatura_id));
+      if (existente) {
+        await conn.execute(
+          'UPDATE incluyeasig SET Horas_Semanales_Requeridas = ?, Tipo = ? WHERE IncluyeAsig_Id = ?',
+          [Number(a.horas_semanales), a.tipo, existente.IncluyeAsig_Id]
+        );
+      } else {
+        await conn.execute(
+          'INSERT INTO incluyeasig (Horas_Semanales_Requeridas, Tipo, Asignatura_Id, Plan_Educativo_Id) VALUES (?, ?, ?, ?)',
+          [Number(a.horas_semanales), a.tipo, a.asignatura_id, id]
+        );
+      }
+    }
+
+    const quitadas = actuales.filter(r => !idsAsig.includes(Number(r.Asignatura_Id)));
+    if (quitadas.length > 0) {
+      await conn.execute(
+        `DELETE FROM incluyeasig WHERE IncluyeAsig_Id IN (${quitadas.map(() => '?').join(',')})`,
+        quitadas.map(r => r.IncluyeAsig_Id)
+      );
+    }
+
+    // Asignaturas quitadas que aún tienen clases programadas en cursos del nivel
+    let advertencias = [];
+    if (quitadas.length > 0) {
+      const [conClases] = await conn.execute(
+        `SELECT DISTINCT a.Asignatura_Nombre
+         FROM horario_asignatura ha
+         JOIN curso      c ON c.Curso_Id      = ha.Curso_Id
+         JOIN asignatura a ON a.Asignatura_Id = ha.Asignatura_Id
+         WHERE c.Nivel_Educativo_Id = ? AND ${claseVigente('ha')}
+           AND ha.Asignatura_Id IN (${quitadas.map(() => '?').join(',')})
+         ORDER BY a.Asignatura_Nombre`,
+        [nivel_educativo_id, ...quitadas.map(r => r.Asignatura_Id)]
+      );
+      advertencias = conClases.map(r =>
+        `"${r.Asignatura_Nombre}" ya no está en el plan, pero aún tiene clases programadas en el horario`
+      );
+    }
+
+    await conn.commit();
+    res.json({
+      mensaje: `Plan educativo de ${nivel.Nivel_Educativo_Nombre} – ${periodo} actualizado correctamente`,
+      ...(advertencias.length > 0 && { advertencias }),
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error('editarPlan:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   } finally {
     conn.release();
@@ -437,6 +586,6 @@ const editarAsignatura = async (req, res) => {
 };
 
 module.exports = {
-  getPlanes, getPlanById, crearPlan, clonarPlan, getNivelesSinPlan,
+  getPlanes, getPlanById, crearPlan, editarPlan, clonarPlan, getNivelesSinPlan,
   getAsignaturas, crearAsignatura, editarAsignatura,
 };

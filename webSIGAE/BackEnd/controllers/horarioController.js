@@ -1,12 +1,16 @@
 const pool = require('../config/db');
 const { condicionDesajustado, motivoDesajuste } = require('../utils/bloquesDesajustados');
+const { ESTADO_ELIMINADO, claseVigente } = require('../utils/clasesEliminadas');
 
 // ── GET /api/horarios?curso_id=X  (admin ve todo, docente solo el suyo) ──
+// Las clases eliminadas solo se incluyen con ?incluir_eliminadas=1 y para
+// administradores: el creador de horarios las muestra en su listado.
 const getHorarios = async (req, res) => {
   try {
-    const { curso_id } = req.query;
+    const { curso_id, incluir_eliminadas } = req.query;
     const { id: userId, roles } = req.user;
     const esDocente = roles.includes('Docente') && !roles.includes('Administrador');
+    const conEliminadas = ['1', 'true'].includes(String(incluir_eliminadas)) && roles.includes('Administrador');
 
     let query = `
       SELECT
@@ -45,6 +49,10 @@ const getHorarios = async (req, res) => {
       WHERE 1=1
     `;
     const params = [];
+
+    if (!conEliminadas) {
+      query += ` AND ${claseVigente('ha')}`;
+    }
 
     if (esDocente) {
       query += ' AND ha.Usuario_Id = ?';
@@ -353,8 +361,9 @@ const createHorario = async (req, res) => {
 
     // Excepción 4 — conflicto de bloque (mismo curso, día y horario)
     const [existe] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura
-       WHERE Curso_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?`,
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+       WHERE ha.Curso_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+         AND ${claseVigente('ha')}`,
       [Curso_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana]
     );
     if (existe.length > 0) {
@@ -423,8 +432,9 @@ const createHorario = async (req, res) => {
 
     if (Usuario_Id) {
       const [conflictoDocente] = await pool.execute(
-        `SELECT Horario_Asignatura_Id FROM horario_asignatura
-         WHERE Usuario_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?`,
+        `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+         WHERE ha.Usuario_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+           AND ${claseVigente('ha')}`,
         [Usuario_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana]
       );
       if (conflictoDocente.length > 0) {
@@ -474,8 +484,9 @@ const createHorario = async (req, res) => {
       await conn.beginTransaction();
 
       const [existeFinal] = await conn.execute(
-        `SELECT Horario_Asignatura_Id FROM horario_asignatura
-         WHERE Curso_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?
+        `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+         WHERE ha.Curso_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+           AND ${claseVigente('ha')}
          FOR UPDATE`,
         [Curso_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana]
       );
@@ -486,8 +497,9 @@ const createHorario = async (req, res) => {
 
       if (Usuario_Id) {
         const [conflictoDocenteFinal] = await conn.execute(
-          `SELECT Horario_Asignatura_Id FROM horario_asignatura
-           WHERE Usuario_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?
+          `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+           WHERE ha.Usuario_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+             AND ${claseVigente('ha')}
            FOR UPDATE`,
           [Usuario_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana]
         );
@@ -538,20 +550,28 @@ const updateHorario = async (req, res) => {
     Usuario_Id,
   } = req.body;
 
+  if (Horario_Asignatura_Estado === ESTADO_ELIMINADO) {
+    return res.status(400).json({ error: 'Para eliminar una clase usa la opción Eliminar' });
+  }
+
   try {
     const [existe] = await pool.execute(
-      `SELECT Horario_Asignatura_Id, Bloque_Horario_Id FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
+      `SELECT Horario_Asignatura_Id, Bloque_Horario_Id, Horario_Asignatura_Estado
+       FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
       [id]
     );
     if (existe.length === 0) {
       return res.status(404).json({ error: 'Entrada de horario no encontrada' });
     }
+    if (existe[0].Horario_Asignatura_Estado === ESTADO_ELIMINADO) {
+      return res.status(409).json({ error: 'La clase fue eliminada; restáurala desde el listado antes de editarla' });
+    }
 
     // Verificar conflicto de bloque (excluyendo el registro actual)
     const [conflictoCurso] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura
-       WHERE Curso_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?
-         AND Horario_Asignatura_Id != ?`,
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+       WHERE ha.Curso_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+         AND ${claseVigente('ha')} AND ha.Horario_Asignatura_Id != ?`,
       [Curso_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana, id]
     );
     if (conflictoCurso.length > 0) {
@@ -669,9 +689,9 @@ const updateHorario = async (req, res) => {
 
     if (Usuario_Id) {
       const [conflictoDocente] = await pool.execute(
-        `SELECT Horario_Asignatura_Id FROM horario_asignatura
-         WHERE Usuario_Id = ? AND Bloque_Horario_Id = ? AND Horario_Asignatura_Dia_Semana = ?
-           AND Horario_Asignatura_Id != ?`,
+        `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+         WHERE ha.Usuario_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+           AND ${claseVigente('ha')} AND ha.Horario_Asignatura_Id != ?`,
         [Usuario_Id, Bloque_Horario_Id, Horario_Asignatura_Dia_Semana, id]
       );
       if (conflictoDocente.length > 0) {
@@ -749,11 +769,14 @@ const cambiarEstado = async (req, res) => {
 
   try {
     const [existe] = await pool.execute(
-      `SELECT Horario_Asignatura_Id FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
+      `SELECT Horario_Asignatura_Id, Horario_Asignatura_Estado FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
       [id]
     );
     if (existe.length === 0) {
       return res.status(404).json({ error: 'Entrada de horario no encontrada' });
+    }
+    if (existe[0].Horario_Asignatura_Estado === ESTADO_ELIMINADO) {
+      return res.status(409).json({ error: 'La clase fue eliminada; restáurala desde el listado' });
     }
 
     await pool.execute(
@@ -765,6 +788,146 @@ const cambiarEstado = async (req, res) => {
   } catch (error) {
     console.error('Error en cambiarEstado:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── DELETE /api/horarios/:id  (eliminar clase desde el creador de horarios) ──
+// No borra la fila: la marca como eliminada para que libere su bloque y siga
+// figurando en el listado de clases del curso (ver utils/clasesEliminadas).
+const eliminarHorario = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [[clase]] = await pool.execute(
+      `SELECT Horario_Asignatura_Estado FROM horario_asignatura WHERE Horario_Asignatura_Id = ?`,
+      [id]
+    );
+    if (!clase) {
+      return res.status(404).json({ error: 'Entrada de horario no encontrada' });
+    }
+    if (clase.Horario_Asignatura_Estado === ESTADO_ELIMINADO) {
+      return res.status(409).json({ error: 'La clase ya fue eliminada' });
+    }
+
+    await pool.execute(
+      `UPDATE horario_asignatura SET Horario_Asignatura_Estado = ? WHERE Horario_Asignatura_Id = ?`,
+      [ESTADO_ELIMINADO, id]
+    );
+    res.json({ mensaje: 'Clase eliminada del horario. Sigue disponible en el listado de clases eliminadas.' });
+  } catch (error) {
+    console.error('Error en eliminarHorario:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// ── PATCH /api/horarios/:id/restaurar  (devolver una clase eliminada al horario) ──
+// Vuelve como 'Activo' si su bloque sigue libre para el curso y el docente, y
+// sin superar las horas semanales del plan ni el máximo de bloques diarios.
+const restaurarHorario = async (req, res) => {
+  const { id } = req.params;
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    const [[clase]] = await conn.execute(
+      `SELECT ha.Horario_Asignatura_Estado AS estado, ha.Curso_Id, ha.Usuario_Id, ha.Asignatura_Id,
+              ha.Bloque_Horario_Id, ha.Horario_Asignatura_Dia_Semana AS dia,
+              c.Nivel_Educativo_Id,
+              pi.Parametro_Institucional_Bloques_Maximos_Diarios AS maximo_diario,
+              TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600 AS duracion
+       FROM horario_asignatura ha
+       JOIN curso                   c  ON c.Curso_Id           = ha.Curso_Id
+       JOIN bloque_horario          bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+       JOIN parametro_institucional pi ON pi.Parametro_Institucional_Id = bh.Parametro_Institucional_Id
+       WHERE ha.Horario_Asignatura_Id = ?
+       FOR UPDATE`,
+      [id]
+    );
+    if (!clase) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Entrada de horario no encontrada' });
+    }
+    if (clase.estado !== ESTADO_ELIMINADO) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'La clase no está eliminada' });
+    }
+
+    const [ocupadoCurso] = await conn.execute(
+      `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+       WHERE ha.Curso_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+         AND ${claseVigente('ha')}
+       FOR UPDATE`,
+      [clase.Curso_Id, clase.Bloque_Horario_Id, clase.dia]
+    );
+    if (ocupadoCurso.length > 0) {
+      await conn.rollback();
+      return res.status(409).json({ error: 'El curso ya tiene otra clase en ese día y bloque horario' });
+    }
+
+    if (clase.Usuario_Id) {
+      const [ocupadoDocente] = await conn.execute(
+        `SELECT Horario_Asignatura_Id FROM horario_asignatura ha
+         WHERE ha.Usuario_Id = ? AND ha.Bloque_Horario_Id = ? AND ha.Horario_Asignatura_Dia_Semana = ?
+           AND ${claseVigente('ha')}
+         FOR UPDATE`,
+        [clase.Usuario_Id, clase.Bloque_Horario_Id, clase.dia]
+      );
+      if (ocupadoDocente.length > 0) {
+        await conn.rollback();
+        return res.status(409).json({ error: 'El docente ya tiene otra clase en ese día y bloque horario' });
+      }
+    }
+
+    const [[{ total_dia }]] = await conn.execute(
+      `SELECT COUNT(*) AS total_dia FROM horario_asignatura
+       WHERE Curso_Id = ? AND Horario_Asignatura_Dia_Semana = ? AND Horario_Asignatura_Estado = 'Activo'`,
+      [clase.Curso_Id, clase.dia]
+    );
+    if (Number(total_dia) >= Number(clase.maximo_diario)) {
+      await conn.rollback();
+      return res.status(422).json({
+        error: `El curso ya alcanzó el máximo de ${clase.maximo_diario} bloque(s) diarios establecido por la institución`
+      });
+    }
+
+    const [[plan]] = await conn.execute(
+      `SELECT ia.Horas_Semanales_Requeridas
+       FROM incluyeasig ia
+       JOIN plan_educativo pe ON pe.Plan_Educativo_Id = ia.Plan_Educativo_Id
+       WHERE pe.Nivel_Educativo_Id = ? AND ia.Asignatura_Id = ?
+       ORDER BY pe.Plan_Educativo_Periodo_Lectivo DESC LIMIT 1`,
+      [clase.Nivel_Educativo_Id, clase.Asignatura_Id]
+    );
+    if (plan) {
+      const [[{ horas }]] = await conn.execute(
+        `SELECT COALESCE(SUM(
+           TIME_TO_SEC(TIMEDIFF(bh.Bloque_Horario_Hora_Fin, bh.Bloque_Horario_Hora_Inicio)) / 3600
+         ), 0) AS horas
+         FROM horario_asignatura ha
+         JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
+         WHERE ha.Curso_Id = ? AND ha.Asignatura_Id = ? AND ha.Horario_Asignatura_Estado = 'Activo'`,
+        [clase.Curso_Id, clase.Asignatura_Id]
+      );
+      if (Number(horas) + Number(clase.duracion) > Number(plan.Horas_Semanales_Requeridas)) {
+        await conn.rollback();
+        return res.status(422).json({
+          error: `La asignatura ya tiene ${Number(horas).toFixed(1)}h de las ${plan.Horas_Semanales_Requeridas}h ` +
+                 'semanales del plan educativo; restaurar esta clase excedería el límite',
+        });
+      }
+    }
+
+    await conn.execute(
+      `UPDATE horario_asignatura SET Horario_Asignatura_Estado = 'Activo' WHERE Horario_Asignatura_Id = ?`,
+      [id]
+    );
+    await conn.commit();
+    res.json({ mensaje: 'Clase restaurada en el horario' });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error en restaurarHorario:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  } finally {
+    conn.release();
   }
 };
 
@@ -871,7 +1034,7 @@ const getAsignacionesDocente = async (req, res) => {
       JOIN nivel_educativo ne ON ne.Nivel_Educativo_Id = c.Nivel_Educativo_Id
       JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
-      WHERE ha.Usuario_Id = ?
+      WHERE ha.Usuario_Id = ? AND ${claseVigente('ha')}
       ORDER BY c.Curso_Nombre, a.Asignatura_Nombre`,
       [docenteId]
     );
@@ -960,7 +1123,7 @@ const getHorarioDocente = async (req, res) => {
       JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
       JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
-      WHERE ha.Usuario_Id = ?
+      WHERE ha.Usuario_Id = ? AND ${claseVigente('ha')}
       ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'),
                bh.Bloque_Horario_Hora_Inicio`,
       [docenteId]
@@ -1028,7 +1191,7 @@ const getHorarioEstudiante = async (req, res) => {
       JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
       JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
       LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
-      WHERE ha.Curso_Id = ?
+      WHERE ha.Curso_Id = ? AND ${claseVigente('ha')}
       ORDER BY FIELD(ha.Horario_Asignatura_Dia_Semana, 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'),
                bh.Bloque_Horario_Hora_Inicio`,
       [estudiante.Curso_Id]
@@ -1134,6 +1297,8 @@ const filtrarHorarios = async (req, res) => {
     if (estado && estado !== 'Todos') {
       query += ' AND ha.Horario_Asignatura_Estado = ?';
       params.push(estado);
+    } else {
+      query += ` AND ${claseVigente('ha')}`;
     }
     if (docente_id) {
       query += ' AND ha.Usuario_Id = ?';
@@ -1507,7 +1672,7 @@ async function analizarCambiosHorario(db, ids, cambios, { bloquear = false } = {
      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
      JOIN asignatura     a  ON a.Asignatura_Id      = ha.Asignatura_Id
      LEFT JOIN usuario   u  ON u.Usuario_Id         = ha.Usuario_Id
-     WHERE ha.Horario_Asignatura_Id IN (?)${forUpdate}`,
+     WHERE ha.Horario_Asignatura_Id IN (?) AND ${claseVigente('ha')}${forUpdate}`,
     [ids]
   );
   if (seleccionados.length !== ids.length) return { invalido: true };
@@ -1593,6 +1758,7 @@ async function analizarCambiosHorario(db, ids, cambios, { bloquear = false } = {
      JOIN curso          c  ON c.Curso_Id          = ha.Curso_Id
      JOIN bloque_horario bh ON bh.Bloque_Horario_Id = ha.Bloque_Horario_Id
      WHERE (ha.Curso_Id IN (?) OR ha.Usuario_Id IN (?))
+       AND ${claseVigente('ha')}
        AND ha.Horario_Asignatura_Id NOT IN (?)${forUpdate}`,
     [cursoIds, docenteIds.length > 0 ? docenteIds : [0], ids]
   );
@@ -2069,6 +2235,7 @@ module.exports = {
   getHorarios, getCursos, getBloques, getAsignaturas, getAsignaturasCurso,
   getDocentes, getDocentesDisponibles,
   createHorario, updateHorario, cambiarEstado, getResumenCursos,
+  eliminarHorario, restaurarHorario,
   getAsignacionesDocente, // CU42
   getHorarioDocente, // CU43 / CU58
   getHorarioEstudiante,

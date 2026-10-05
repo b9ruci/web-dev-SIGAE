@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PanelConflictos from "../../components/horarios/PanelConflictos";
 
@@ -22,6 +23,14 @@ function authHeaders() {
 }
 
 function hhmm(t) { return t ? String(t).slice(0, 5) : ""; }
+
+// Fecha 'YYYY-MM-DD' de un evento en formato legible. Se arma con la hora local
+// al mediodía para que la zona horaria no la corra un día.
+function formatearFechaEvento(fecha, opciones = { day: "2-digit", month: "short", year: "numeric" }) {
+  const iso = String(fecha || "").slice(0, 10);
+  const d = new Date(`${iso}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("es-CL", opciones);
+}
 
 function calcDuracion(inicio, fin) {
   if (!inicio || !fin) return 0;
@@ -103,7 +112,12 @@ export default function BloquesHorarios() {
   const esSuperAdmin = usuario?.administradorTipo === "Super Admin";
   const esAdmin = rolEfectivo === "Administrador" || esSuperAdmin || usuario?.roles?.includes("Administrador");
 
-  const [tab, setTab] = useState("parametros");
+  // ?tab=bloques | eventos abre directamente esa pestaña (accesos del dashboard)
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(() => {
+    const pedido = searchParams.get("tab");
+    return ["parametros", "bloques", "eventos"].includes(pedido) ? pedido : "parametros";
+  });
 
   // Panel de clases por reubicar (compartido por las pestañas)
   const [senalConflictos, setSenalConflictos] = useState(0);
@@ -972,6 +986,7 @@ function TabEventos() {
   const [bloquesAfectados, setBloquesAfectados] = useState([]);
   const [cargandoAfectados, setCargandoAfectados] = useState(false);
   const [modalJornada, setModalJornada] = useState(false); // CU66
+  const [detalleId,    setDetalleId]    = useState(null);
 
   /* Colapsar sidebar mientras el panel esté abierto */
   useEffect(() => {
@@ -1071,7 +1086,7 @@ function TabEventos() {
     }
   };
 
-  const hoy      = new Date().toISOString().slice(0, 10);
+  const hoy      = toISODate(new Date());
   const proximos = eventos.filter((ev) => ev.Evento_Institucional_Fecha?.slice(0, 10) >= hoy);
   const pasados  = eventos.filter((ev) => ev.Evento_Institucional_Fecha?.slice(0, 10)  < hoy);
 
@@ -1127,6 +1142,7 @@ function TabEventos() {
           {vista === "calendario" ? (
             <VistaCalendarioEventos
               eventos={eventos}
+              onVerDetalle={(ev) => setDetalleId(ev.Evento_Institucional_Id)}
               onEditar={abrirEditar}
               onEliminar={handleEliminar}
               eliminando={eliminando}
@@ -1156,10 +1172,7 @@ function TabEventos() {
                             color: "#9ca3af", fontWeight: 400 }}>Pasado</span>}
                         </td>
                         <td style={s.td}>
-                          {ev.Evento_Institucional_Fecha
-                            ? new Date(ev.Evento_Institucional_Fecha + "T12:00:00").toLocaleDateString("es-CL",
-                                { day: "2-digit", month: "short", year: "numeric" })
-                            : "—"}
+                          {formatearFechaEvento(ev.Evento_Institucional_Fecha)}
                         </td>
                         <td style={s.td}>
                           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap" }}>
@@ -1171,7 +1184,8 @@ function TabEventos() {
                           {ev.Evento_Institucional_Descripcion}
                         </td>
                         <td style={{ ...s.td, whiteSpace: "nowrap" }}>
-                          <button onClick={() => abrirEditar(ev)} style={s.btnAccion}>✏ Editar</button>
+                          <button onClick={() => setDetalleId(ev.Evento_Institucional_Id)} style={s.btnAccion}>👁 Ver detalle</button>
+                          <button onClick={() => abrirEditar(ev)} style={{ ...s.btnAccion, marginLeft: "0.4rem" }}>✏ Editar</button>
                           <button
                             onClick={() => { if (window.confirm("¿Eliminar este evento? Los bloques que quedaron marcados como afectados se liberarán.")) handleEliminar(ev.Evento_Institucional_Id); }}
                             style={{ ...s.btnAccion, marginLeft: "0.4rem", background: "#fee2e2", color: "#991b1b", borderColor: "#fecaca" }}
@@ -1333,6 +1347,14 @@ function TabEventos() {
           </div>
       )}
 
+      {detalleId && (
+        <DetalleEventoModal
+          eventoId={detalleId}
+          onClose={() => setDetalleId(null)}
+          onEditar={(ev) => { setDetalleId(null); abrirEditar(ev); }}
+        />
+      )}
+
       {/* CU66 — Suspendiendo jornada completa por evento institucional */}
       {modalJornada && (
         <SuspenderJornadaModal
@@ -1345,6 +1367,130 @@ function TabEventos() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/* Detalle de un evento institucional: datos, bloques afectados y clases suspendidas */
+function DetalleEventoModal({ eventoId, onClose, onEditar }) {
+  const [evento,   setEvento]   = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [error,    setError]    = useState("");
+
+  useEffect(() => {
+    let vigente = true;
+    fetch(`${API}/eventos/${eventoId}`, { headers: authHeaders() })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!vigente) return;
+        if (!res.ok) setError(data.error || "No fue posible cargar el evento");
+        else setEvento(data);
+      })
+      .catch(() => { if (vigente) setError("No fue posible conectar con el servidor"); })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, [eventoId]);
+
+  const col = IMPACTO_COLORES[evento?.Evento_Institucional_Impacto_Clases] || IMPACTO_COLORES["Sin impacto"];
+  const esPasado = evento && evento.Evento_Institucional_Fecha < toISODate(new Date());
+  const fechaLarga = evento
+    ? formatearFechaEvento(evento.Evento_Institucional_Fecha, { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+    : "";
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-card" style={{ maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2>{evento ? evento.Evento_Institucional_Nombre : "Detalle del evento"}</h2>
+          <button className="btn-cerrar" onClick={onClose} title="Cerrar">✕</button>
+        </div>
+
+        {cargando ? (
+          <p style={s.loadingText}>Cargando...</p>
+        ) : error ? (
+          <div style={s.errorBanner}>{error}</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 600, color: "#1e3a5f" }}>
+                📅 {fechaLarga.charAt(0).toUpperCase() + fechaLarga.slice(1)}
+              </span>
+              {esPasado && <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>Pasado</span>}
+              <ImpactoChip impacto={evento.Evento_Institucional_Impacto_Clases} />
+            </div>
+
+            <div>
+              <div style={s.label}>Descripción</div>
+              <p style={{ margin: 0, color: "#374151", whiteSpace: "pre-wrap" }}>
+                {evento.Evento_Institucional_Descripcion}
+              </p>
+            </div>
+
+            <div>
+              <div style={s.label}>Bloques horarios afectados ({evento.bloques.length})</div>
+              {evento.bloques.length === 0 ? (
+                <p style={{ margin: 0, fontSize: "0.85rem", color: "#9ca3af" }}>Este evento no afecta ningún bloque horario.</p>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {evento.bloques.map((b) => (
+                    <span key={b.Afecta_Id} style={{
+                      fontSize: "0.75rem", padding: "2px 8px", borderRadius: 10,
+                      background: col.bg, color: col.acento, border: `1px solid ${col.borde}`,
+                    }}>
+                      {hhmm(b.Bloque_Horario_Hora_Inicio)}–{hhmm(b.Bloque_Horario_Hora_Fin)} ({b.Bloque_Horario_Jornada})
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {evento.bloques.length > 0 && (
+              <div>
+                <div style={s.label}>
+                  Clases suspendidas el {evento.dia_semana?.toLowerCase()} ({evento.clases.length})
+                </div>
+                {evento.clases.length === 0 ? (
+                  <p style={{ margin: 0, fontSize: "0.85rem", color: "#9ca3af" }}>
+                    No hay clases programadas en esos bloques ese día de la semana.
+                  </p>
+                ) : (
+                  <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+                    <table style={s.tabla}>
+                      <thead>
+                        <tr style={s.theadRow}>
+                          <th style={s.th}>Horario</th>
+                          <th style={s.th}>Curso</th>
+                          <th style={s.th}>Asignatura</th>
+                          <th style={s.th}>Docente</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {evento.clases.map((c) => (
+                          <tr key={c.Horario_Asignatura_Id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                            <td style={{ ...s.td, whiteSpace: "nowrap" }}>
+                              {hhmm(c.Bloque_Horario_Hora_Inicio)}–{hhmm(c.Bloque_Horario_Hora_Fin)}
+                            </td>
+                            <td style={s.td}>{c.Curso_Nombre}</td>
+                            <td style={s.td}>{c.Asignatura_Nombre}</td>
+                            <td style={{ ...s.td, color: c.Docente_Nombre ? "#374151" : "#9ca3af" }}>
+                              {c.Docente_Nombre || "Sin docente"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "0.75rem", justifyContent: "flex-end" }}>
+              <button type="button" style={s.btnSecundario} onClick={onClose}>Cerrar</button>
+              <button type="button" className="btn-primary" onClick={() => onEditar(evento)}>✏ Editar evento</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1447,7 +1593,7 @@ function toISODate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function VistaCalendarioEventos({ eventos, onEditar, onEliminar, eliminando }) {
+function VistaCalendarioEventos({ eventos, onVerDetalle, onEditar, onEliminar, eliminando }) {
   const [lunes,   setLunes]   = useState(() => lunesDe(new Date()));
   const [hovered, setHovered] = useState(null);
 
@@ -1524,7 +1670,8 @@ function VistaCalendarioEventos({ eventos, onEditar, onEliminar, eliminando }) {
                     <div key={ev.Evento_Institucional_Id}
                       onMouseEnter={() => setHovered(ev.Evento_Institucional_Id)}
                       onMouseLeave={() => setHovered(null)}
-                      onClick={() => onEditar(ev)}
+                      onClick={() => onVerDetalle(ev)}
+                      title="Ver detalle"
                       style={{
                         background: col.bg, border: `1px solid ${col.borde}`,
                         borderLeft: `3px solid ${col.acento}`, borderRadius: 5,

@@ -26,6 +26,85 @@ function NavGroup({ titulo, icono, color, links }) {
 }
 
 /* ── Dashboard de Administrador ───────────────────── */
+// Mismos enlaces que el bloque "Administración" del sidebar (MainLayout.jsx),
+// más accesos directos a las pestañas de Bloques Horarios. Los marcados con
+// superAdmin solo los ve el Super Admin (rutas superAdminOnly o enlaces que el
+// sidebar le reserva).
+const MODULOS_ADMIN = [
+  {
+    titulo: "Registro de Usuarios",
+    icono: "✏",
+    color: "#4f46e5",
+    links: [
+      { label: "Registrar Administrador", to: "/registrar-admin", superAdmin: true },
+      { label: "Registrar Docente",       to: "/registrar-docente" },
+      { label: "Registrar Apoderado",     to: "/registrar-apoderado" },
+      { label: "Registrar Estudiante",    to: "/registrar-estudiante" },
+    ],
+  },
+  {
+    titulo: "Gestión de Usuarios",
+    icono: "👤",
+    color: "#0f766e",
+    links: [
+      { label: "Gestión de Usuarios",        to: "/usuarios" },
+      { label: "Buscar Usuarios",            to: "/buscar-usuarios" },
+      { label: "Gestión de Administradores", to: "/administradores", superAdmin: true },
+      { label: "Gestión de Roles",           to: "/gestion-roles", superAdmin: true },
+      { label: "Gestión de Docentes",        to: "/docentes" },
+      { label: "Gestión de Apoderados",      to: "/apoderados" },
+    ],
+  },
+  {
+    titulo: "Gestión Académica",
+    icono: "📚",
+    color: "#7c3aed",
+    links: [
+      { label: "Plan Educativo", to: "/plan-educativo" },
+      { label: "Asignaturas",    to: "/asignaturas" },
+      { label: "Cursos",         to: "/cursos" },
+      { label: "Estudiantes",    to: "/estudiantes" },
+    ],
+  },
+  {
+    titulo: "Horarios",
+    icono: "🕐",
+    color: "#0369a1",
+    links: [
+      { label: "Horarios (creador por curso)", to: "/horarios" },
+      { label: "Horario Maestro",              to: "/horario-maestro" },
+      { label: "Horario de Docente",           to: "/mi-horario" },
+      { label: "Consulta de Horarios",         to: "/consulta-horarios" },
+      { label: "Bloques Horarios",             to: "/bloques-horarios?tab=bloques" },
+      { label: "Eventos Institucionales",      to: "/bloques-horarios?tab=eventos" },
+    ],
+  },
+  {
+    titulo: "Citaciones y Reportes",
+    icono: "📨",
+    color: "#b45309",
+    links: [
+      { label: "Citaciones",              to: "/citaciones" },
+      { label: "Historial de Citaciones", to: "/citaciones/historial" },
+      { label: "Reportes",                to: "/reportes" },
+    ],
+  },
+];
+
+const ACCESOS_RAPIDOS_ADMIN = [
+  { label: "Gestión de Usuarios",        to: "/usuarios" },
+  { label: "Gestión de Administradores", to: "/administradores", superAdmin: true },
+  { label: "Registrar Administrador",    to: "/registrar-admin", superAdmin: true },
+  { label: "Registrar Docente",          to: "/registrar-docente" },
+  { label: "Registrar Estudiante",       to: "/registrar-estudiante" },
+  { label: "Plan Educativo",             to: "/plan-educativo" },
+  { label: "Horarios",                   to: "/horarios" },
+  { label: "Horario Maestro",            to: "/horario-maestro" },
+  { label: "Eventos Institucionales",    to: "/bloques-horarios?tab=eventos" },
+  { label: "Citaciones",                 to: "/citaciones" },
+  { label: "Reportes",                   to: "/reportes" },
+];
+
 function DashboardAdmin({ esSuperAdmin }) {
   const [stats, setStats] = useState({
     usuarios: 0, docentes: 0, apoderados: 0,
@@ -44,12 +123,17 @@ function DashboardAdmin({ esSuperAdmin }) {
       .finally(() => setLoading(false));
   }, []);
 
+  const visible = (link) => esSuperAdmin || !link.superAdmin;
+
   if (loading) return <h2>Cargando dashboard...</h2>;
 
   return (
     <div className="dashboard-container">
       <h1>Dashboard SIGAE</h1>
-      <p>Bienvenido al Sistema de Gestión Académica Escolar</p>
+      <p>
+        Bienvenido al Sistema de Gestión Académica Escolar
+        {esSuperAdmin ? " — Super Administrador" : " — Administrador"}
+      </p>
 
       <div className="dashboard-cards">
         <div className="card"><h3>Usuarios</h3><p>{stats.usuarios}</p></div>
@@ -63,14 +147,9 @@ function DashboardAdmin({ esSuperAdmin }) {
       <div className="quick-actions">
         <h2>Accesos Rápidos</h2>
         <div className="actions-grid">
-          <Link to="/usuarios">Gestión de Usuarios</Link>
-          {esSuperAdmin && <Link to="/administradores">Gestión de Administradores</Link>}
-          {esSuperAdmin && <Link to="/registrar-admin">Registrar Administrador</Link>}
-          <Link to="/registrar-docente">Registrar Docente</Link>
-          <Link to="/registrar-apoderado">Registrar Apoderado</Link>
-          <Link to="/plan-educativo">Plan Educativo</Link>
-          <Link to="/registrar-estudiante">Registrar Estudiante</Link>
-          <Link to="/citaciones">Ver Citaciones</Link>
+          {ACCESOS_RAPIDOS_ADMIN.filter(visible).map((link) => (
+            <Link key={link.to} to={link.to}>{link.label}</Link>
+          ))}
         </div>
       </div>
 
@@ -78,45 +157,15 @@ function DashboardAdmin({ esSuperAdmin }) {
       <div className="nav-sections">
         <h2>Módulos del sistema</h2>
         <div className="nav-sections-grid">
-
-          <NavGroup
-            titulo="Registro de Usuarios"
-            icono="✏"
-            color="#4f46e5"
-            links={[
-              { label: "Registrar Docente",       to: "/registrar-docente" },
-              { label: "Registrar Apoderado",      to: "/registrar-apoderado" },
-              esSuperAdmin && { label: "Registrar Administrador", to: "/registrar-admin" },
-            ]}
-          />
-
-          <NavGroup
-            titulo="Gestión de Usuarios"
-            icono="👤"
-            color="#0f766e"
-            links={[
-              { label: "Gestión de Usuarios",   to: "/usuarios" },
-              { label: "Gestión de Apoderados", to: "/apoderados" },
-              esSuperAdmin && { label: "Gestión de Administradores", to: "/administradores" },
-              esSuperAdmin && { label: "Gestión de Roles", to: "/gestion-roles" },
-            ]}
-          />
-
-          <NavGroup
-            titulo="Gestión Académica"
-            icono="📚"
-            color="#7c3aed"
-            links={[
-              { label: "Plan Educativo",        to: "/plan-educativo" },
-              { label: "Asignaturas",           to: "/asignaturas" },
-              { label: "Cursos",                to: "/cursos" },
-              { label: "Horarios",              to: "/horarios" },
-              { label: "Horario Maestro",       to: "/horario-maestro" },
-              { label: "Bloques Horarios",      to: "/bloques-horarios" },
-              { label: "Registrar Estudiante",  to: "/registrar-estudiante" },
-            ]}
-          />
-
+          {MODULOS_ADMIN.map((modulo) => (
+            <NavGroup
+              key={modulo.titulo}
+              titulo={modulo.titulo}
+              icono={modulo.icono}
+              color={modulo.color}
+              links={modulo.links.filter(visible)}
+            />
+          ))}
         </div>
       </div>
     </div>

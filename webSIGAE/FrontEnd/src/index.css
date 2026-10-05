@@ -1787,6 +1787,22 @@ select {
 }
 
 /* ===== PANEL HORARIOS: colapsa sidebar y empuja contenido ===== */
+/* Panel de clases por reubicar: tarjeta pospuesta ("Decidir más tarde").
+   Gris hasta que se interactúa con ella: mouse encima, foco de teclado, una acción
+   abierta (migrar/eliminar) o texto seleccionado. El foco que deja un clic no cuenta,
+   así la tarjeta vuelve a gris al apartar el mouse tras "Decidir más tarde". */
+.conflicto-pospuesta {
+  opacity: 0.55;
+  filter: grayscale(1);
+  transition: opacity 0.2s, filter 0.2s;
+}
+.conflicto-pospuesta:hover,
+.conflicto-pospuesta:has(:focus-visible),
+.conflicto-pospuesta.conflicto-activa {
+  opacity: 1;
+  filter: none;
+}
+
 @keyframes slideInRight {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }

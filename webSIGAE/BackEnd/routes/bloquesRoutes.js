@@ -4,7 +4,7 @@ const {
   getParametros, updateParametros,
   getBloques, createBloque, updateBloque, deleteBloque, deleteMultiplesBloques,
   getEventos, createEvento, updateEvento, deleteEvento,
-  getBloquesAfectadosPorEvento,
+  getBloquesAfectadosPorEvento, getEventoDetalle,
 } = require('../controllers/bloquesController');
 const {
   getConflictos, migrarClase, eliminarClase, getImpactoParametros,
@@ -37,6 +37,7 @@ router.delete('/:id',           verifyAdmin, deleteBloque);
 // Eventos institucionales (CU70, CU71, CU72) — solo admin para escritura
 router.get('/eventos',                    getEventos);
 router.get('/eventos/:id/afectados',      getBloquesAfectadosPorEvento);
+router.get('/eventos/:id',                getEventoDetalle);
 router.post('/eventos',                   verifyAdmin, createEvento);
 router.put('/eventos/:id',                verifyAdmin, updateEvento);
 router.delete('/eventos/:id',             verifyAdmin, deleteEvento);

@@ -8,7 +8,9 @@ import { COLORES_ASIGNATURA, COLOR_PENDIENTE, hhmm } from "../../utils/horarios"
 // Migrar y eliminar se guardan en la base, así que todos los administradores
 // ven el mismo listado (se refresca cada 30 s y al volver a la pestaña).
 // "Más tarde" es una preferencia personal: se guarda solo en este navegador y
-// deja la tarjeta gris, al fondo de la lista, durante 15 minutos.
+// deja la tarjeta gris, al fondo de la lista, durante 15 minutos. La tarjeta
+// recupera sus colores mientras se interactúa con ella: al pasar el mouse,
+// al enfocar o usar sus botones o al seleccionar su texto.
 
 const API = "/api/bloques/conflictos";
 const CLAVE_POSPUESTAS = "sigae.conflictosHorario.pospuestas";
@@ -69,6 +71,7 @@ export default function PanelConflictos({
   const [errorBloque, setErrorBloque] = useState("");
   const [pospuestas, setPospuestas] = useState(leerPospuestas);
   const [, setReloj] = useState(0);
+  const [conSeleccion, setConSeleccion] = useState(null); // tarjeta con texto seleccionado
   const cursosCargados = useRef(new Set());
   const bloqueId = bloqueAEliminar?.id || null;
 
@@ -110,6 +113,18 @@ export default function PanelConflictos({
       setReloj((n) => n + 1);
     }, 30_000);
     return () => clearInterval(t);
+  }, []);
+
+  // Una tarjeta pospuesta vuelve a verse a color mientras tenga texto seleccionado
+  useEffect(() => {
+    const alSeleccionar = () => {
+      const sel = window.getSelection();
+      const nodo = sel && !sel.isCollapsed ? sel.anchorNode : null;
+      const tarjeta = nodo && (nodo.nodeType === 1 ? nodo : nodo.parentElement)?.closest("[data-clase-id]");
+      setConSeleccion(tarjeta ? Number(tarjeta.dataset.claseId) : null);
+    };
+    document.addEventListener("selectionchange", alSeleccionar);
+    return () => document.removeEventListener("selectionchange", alSeleccionar);
   }, []);
 
   // Mismos colores por asignatura que el creador de horarios (orden del plan del curso)
@@ -228,6 +243,12 @@ export default function PanelConflictos({
     return (
       <div
         key={id}
+        data-clase-id={id}
+        className={
+          pospuesta
+            ? `conflicto-pospuesta${accion[id] || conSeleccion === id ? " conflicto-activa" : ""}`
+            : undefined
+        }
         style={{
           background: color.bg,
           border: `1px solid ${color.border}`,
@@ -235,9 +256,6 @@ export default function PanelConflictos({
           borderRadius: 10,
           padding: "0.7rem 0.8rem",
           marginBottom: "0.6rem",
-          opacity: pospuesta ? 0.55 : 1,
-          filter: pospuesta ? "grayscale(1)" : "none",
-          transition: "opacity 0.2s",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>

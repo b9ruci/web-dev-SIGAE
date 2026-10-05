@@ -37,6 +37,10 @@ function authHeaders() {
   };
 }
 
+// Las clases eliminadas no ocupan su bloque: solo figuran en el listado de clases
+const ESTADO_ELIMINADO = "Eliminado";
+const esEliminada = (h) => h.estado === ESTADO_ELIMINADO;
+
 function tipoIcon(tipo) {
   if (tipo === "Recreo") return "⛹";
   if (tipo === "Evento Académico") return "🎓";
@@ -86,6 +90,23 @@ function MiniGrid({ bloques, horarios, colorMap }) {
   );
 }
 
+/* Clases eliminadas de un curso, bajo la vista rápida del listado de cursos */
+function ClasesEliminadasMini({ clases }) {
+  if (clases.length === 0) return null;
+  return (
+    <div style={{ marginTop: 8, borderTop: "1px dashed #e2e8f0", paddingTop: 6 }}>
+      <div style={{ fontSize: "0.64rem", fontWeight: 700, color: "#991b1b", marginBottom: 3 }}>
+        🗑 Clases eliminadas ({clases.length})
+      </div>
+      {clases.map(c => (
+        <div key={c.Horario_Asignatura_Id} style={{ fontSize: "0.62rem", color: "#64748b", textDecoration: "line-through", lineHeight: 1.45 }}>
+          {c.dia.slice(0, 3)} {c.hora_inicio?.slice(0, 5)} · {c.asignatura}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 /*  ListadoCursosSidebar — panel that overlays the nav sidebar   */
 /* ═══════════════════════════════════════════════════════════════ */
@@ -105,7 +126,7 @@ function ListadoCursosSidebar({ cursos, bloques, onClose, onRefresh }) {
     try {
       const h = { Authorization: `Bearer ${localStorage.getItem("token")}` };
       const [rH, rA] = await Promise.all([
-        fetch(`/api/horarios?curso_id=${cursoId}`, { headers: h }).then(r => r.json()),
+        fetch(`/api/horarios?curso_id=${cursoId}&incluir_eliminadas=1`, { headers: h }).then(r => r.json()),
         fetch(`/api/horarios/asignaturas-curso?curso_id=${cursoId}`, { headers: h }).then(r => r.json()),
       ]);
       const colorMap = {};
@@ -166,7 +187,10 @@ function ListadoCursosSidebar({ cursos, bloques, onClose, onRefresh }) {
                   {vistaData === "loading" ? "Cargando..." : vistaAbierta ? "▲ Ocultar" : "▼ Vista rápida"}
                 </button>
                 {vistaAbierta && (
-                  <MiniGrid bloques={bloques} horarios={vistaData.horarios} colorMap={vistaData.colorMap} />
+                  <>
+                    <MiniGrid bloques={bloques} horarios={vistaData.horarios.filter(h => !esEliminada(h))} colorMap={vistaData.colorMap} />
+                    <ClasesEliminadasMini clases={vistaData.horarios.filter(esEliminada)} />
+                  </>
                 )}
               </div>
             );
@@ -255,7 +279,8 @@ export default function Horarios() {
     setLoading(true);
     setError("");
     try {
-      const url = cursoId ? `${API}/horarios?curso_id=${cursoId}` : `${API}/horarios`;
+      // Con curso (vista de administrador) se piden también las clases eliminadas para el listado
+      const url = cursoId ? `${API}/horarios?curso_id=${cursoId}&incluir_eliminadas=1` : `${API}/horarios`;
       const res = await fetch(url, { headers: authHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -417,6 +442,36 @@ export default function Horarios() {
     }
   };
 
+  const handleEliminarClase = async (h) => {
+    if (!window.confirm(`¿Eliminar la clase de ${h.asignatura} del ${h.dia} ${h.hora_inicio?.slice(0, 5)}? Seguirá en el listado de clases eliminadas.`)) return;
+    try {
+      const res = await fetch(`${API}/horarios/${h.Horario_Asignatura_Id}`, { method: "DELETE", headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      if (idEditando === h.Horario_Asignatura_Id) cerrarPanel();
+      cargarHorarios(cursoSeleccionado);
+      cargarAsignaturas(cursoSeleccionado);
+      setExito(data.mensaje || "Clase eliminada");
+      setTimeout(() => setExito(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error al eliminar la clase");
+    }
+  };
+
+  const handleRestaurarClase = async (h) => {
+    try {
+      const res = await fetch(`${API}/horarios/${h.Horario_Asignatura_Id}/restaurar`, { method: "PATCH", headers: authHeaders() });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      cargarHorarios(cursoSeleccionado);
+      cargarAsignaturas(cursoSeleccionado);
+      setExito(data.mensaje || "Clase restaurada");
+      setTimeout(() => setExito(""), 3500);
+    } catch (e) {
+      setError(e.message || "Error al restaurar la clase");
+    }
+  };
+
   const handleSuspenderTodo = async () => {
     if (!window.confirm(`¿Suspender ${bloquesActivos} bloque(s) activo(s)?`)) return;
     setSuspendiendo(true);
@@ -471,6 +526,7 @@ export default function Horarios() {
   if (esApoderado) return <AccesoDenegado />;
 
   const cursoObj = cursos.find((c) => String(c.Curso_Id) === String(cursoSeleccionado));
+  const horariosVigentes = horarios.filter((h) => !esEliminada(h));
   const bloquesActivos = horarios.filter((h) => h.estado === "Activo").length;
 
   const preview =
@@ -556,7 +612,7 @@ export default function Horarios() {
             </span>
           )}
           {/* CU63 / CU64 — activar casillas de selección en la grilla */}
-          {cursoSeleccionado && horarios.length > 0 && (
+          {cursoSeleccionado && horariosVigentes.length > 0 && (
             <button
               style={{ marginLeft: "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #c4b5fd", background: modoSeleccion ? "#5b21b6" : "#fff", color: modoSeleccion ? "#fff" : "#5b21b6", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
               onClick={toggleModoSeleccion}
@@ -565,7 +621,7 @@ export default function Horarios() {
             </button>
           )}
           <button
-            style={{ marginLeft: cursoSeleccionado && horarios.length > 0 ? 0 : "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #93c5fd", background: listadoAbierto ? "#4f46e5" : "#fff", color: listadoAbierto ? "#fff" : "#4f46e5", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
+            style={{ marginLeft: cursoSeleccionado && horariosVigentes.length > 0 ? 0 : "auto", padding: "0.35rem 0.85rem", borderRadius: "6px", border: "1px solid #93c5fd", background: listadoAbierto ? "#4f46e5" : "#fff", color: listadoAbierto ? "#fff" : "#4f46e5", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", whiteSpace: "nowrap", transition: "all 0.15s" }}
             onClick={() => setListadoAbierto(v => !v)}
           >
             📋 Desplegar listado
@@ -760,7 +816,7 @@ export default function Horarios() {
 
             <VistaBloqueGrid
               bloques={bloques}
-              horarios={horarios}
+              horarios={horariosVigentes}
               esAdmin={esAdmin}
               asignaturaActiva={asignaturaActiva}
               colorMap={colorMap}
@@ -768,11 +824,22 @@ export default function Horarios() {
               onCelda={esAdmin ? abrirDesdeGrid : null}
               onEditar={esAdmin ? abrirEditar : null}
               onCambiarEstado={esAdmin ? handleCambiarEstado : null}
+              onEliminar={esAdmin ? handleEliminarClase : null}
               modoSeleccion={esAdmin && modoSeleccion}
               seleccionados={seleccionados}
               onToggleSeleccion={toggleSeleccionado}
               onVerDetalle={(h) => setDetalleBloqueId(h.Horario_Asignatura_Id)}
             />
+
+            {/* Listado de clases del curso, incluidas las eliminadas (que no ocupan bloque) */}
+            {esAdmin && cursoSeleccionado && (
+              <ListadoClases
+                clases={horarios}
+                onEliminar={handleEliminarClase}
+                onRestaurar={handleRestaurarClase}
+                onVerDetalle={(h) => setDetalleBloqueId(h.Horario_Asignatura_Id)}
+              />
+            )}
           </div>
         </div>
       )}
@@ -790,6 +857,10 @@ export default function Horarios() {
           onChange={handleFormChange}
           onSubmit={handleGuardar}
           onClose={cerrarPanel}
+          onEliminar={() => {
+            const h = horarios.find((x) => x.Horario_Asignatura_Id === idEditando);
+            if (h) handleEliminarClase(h);
+          }}
         />
       )}
 
@@ -854,6 +925,7 @@ function VistaBloqueGrid({
   onCelda,
   onEditar,
   onCambiarEstado,
+  onEliminar,
   modoSeleccion = false,
   seleccionados = [],
   onToggleSeleccion,
@@ -1223,6 +1295,15 @@ function VistaBloqueGrid({
                           >
                             {h.estado === "Activo" ? "⏸" : "▶"}
                           </button>
+                          {onEliminar && (
+                            <button
+                              title="Eliminar clase"
+                              onClick={(e) => { e.stopPropagation(); onEliminar(h); }}
+                              style={{ ...s.cellBtn, background: "#7f1d1d" }}
+                            >
+                              🗑
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1285,6 +1366,117 @@ function VistaBloqueGrid({
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/*  ListadoClases — todas las clases del curso, con las eliminadas  */
+/*  (estas ya no aparecen en la grilla de bloques horarios)          */
+/* ═══════════════════════════════════════════════════════════════ */
+const ORDEN_DIA = Object.fromEntries(DIAS.map((d, i) => [d, i]));
+
+function ListadoClases({ clases, onEliminar, onRestaurar, onVerDetalle }) {
+  const [filtro, setFiltro] = useState("todas");
+  const eliminadas = clases.filter(esEliminada);
+  const visibles = (filtro === "eliminadas" ? eliminadas : clases)
+    .slice()
+    .sort((a, b) =>
+      (ORDEN_DIA[a.dia] ?? 9) - (ORDEN_DIA[b.dia] ?? 9) ||
+      String(a.hora_inicio).localeCompare(String(b.hora_inicio))
+    );
+
+  const estadoChip = (estado) => {
+    const c = estado === "Activo"
+      ? { bg: "#dcfce7", color: "#166534" }
+      : estado === "Suspendido"
+      ? { bg: "#fee2e2", color: "#991b1b" }
+      : { bg: "#e5e7eb", color: "#374151" };
+    return (
+      <span style={{ padding: "2px 8px", borderRadius: 10, fontSize: "0.7rem", fontWeight: 700, background: c.bg, color: c.color }}>
+        {estado}
+      </span>
+    );
+  };
+
+  const btnFiltro = (valor, etiqueta) => (
+    <button
+      type="button"
+      onClick={() => setFiltro(valor)}
+      style={{
+        padding: "0.3rem 0.7rem", border: "none", cursor: "pointer", fontSize: "0.78rem", fontWeight: 600,
+        background: filtro === valor ? "#1e3a5f" : "#f9fafb", color: filtro === valor ? "#fff" : "#6b7280",
+      }}
+    >
+      {etiqueta}
+    </button>
+  );
+
+  return (
+    <div style={s.listadoClases}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", flexWrap: "wrap", marginBottom: "0.6rem" }}>
+        <div>
+          <div style={{ fontWeight: 700, color: "#1e3a5f", fontSize: "0.95rem" }}>Listado de clases</div>
+          <div style={{ fontSize: "0.75rem", color: "#6b7280" }}>
+            Las clases eliminadas no ocupan su bloque horario; puedes restaurarlas desde aquí.
+          </div>
+        </div>
+        <div style={{ display: "flex", border: "1px solid #e5e7eb", borderRadius: 8, overflow: "hidden" }}>
+          {btnFiltro("todas", `Todas (${clases.length})`)}
+          {btnFiltro("eliminadas", `Eliminadas (${eliminadas.length})`)}
+        </div>
+      </div>
+
+      {visibles.length === 0 ? (
+        <p style={{ color: "#9ca3af", fontSize: "0.85rem", fontStyle: "italic", margin: "0.5rem 0" }}>
+          {filtro === "eliminadas" ? "No hay clases eliminadas en este curso." : "Este curso aún no tiene clases programadas."}
+        </p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+            <thead>
+              <tr style={{ background: "#f1f5f9", color: "#475569", textAlign: "left" }}>
+                <th style={s.listadoTh}>Día</th>
+                <th style={s.listadoTh}>Horario</th>
+                <th style={s.listadoTh}>Asignatura</th>
+                <th style={s.listadoTh}>Docente</th>
+                <th style={s.listadoTh}>Estado</th>
+                <th style={s.listadoTh}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibles.map((h) => {
+                const eliminada = esEliminada(h);
+                return (
+                  <tr key={h.Horario_Asignatura_Id} style={{ borderTop: "1px solid #f1f5f9", color: eliminada ? "#9ca3af" : "#111827" }}>
+                    <td style={s.listadoTd}>{h.dia}</td>
+                    <td style={{ ...s.listadoTd, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                      {h.hora_inicio?.slice(0, 5)} – {h.hora_fin?.slice(0, 5)}
+                    </td>
+                    <td style={{ ...s.listadoTd, fontWeight: 600, textDecoration: eliminada ? "line-through" : "none" }}>
+                      {h.asignatura}
+                    </td>
+                    <td style={s.listadoTd}>{h.docente || <span style={{ color: "#9ca3af" }}>Sin asignar</span>}</td>
+                    <td style={s.listadoTd}>{estadoChip(h.estado)}</td>
+                    <td style={{ ...s.listadoTd, textAlign: "right", whiteSpace: "nowrap" }}>
+                      <button type="button" style={s.btnListado} onClick={() => onVerDetalle(h)}>Detalle</button>
+                      {eliminada ? (
+                        <button type="button" style={{ ...s.btnListado, color: "#166534", borderColor: "#86efac" }} onClick={() => onRestaurar(h)}>
+                          ↺ Restaurar
+                        </button>
+                      ) : (
+                        <button type="button" style={{ ...s.btnListado, color: "#991b1b", borderColor: "#fecaca" }} onClick={() => onEliminar(h)}>
+                          🗑 Eliminar
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LegendItem({ color, border, dashed, label }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
@@ -1317,6 +1509,7 @@ function PanelForm({
   onChange,
   onSubmit,
   onClose,
+  onEliminar,
 }) {
   const [docentesInfo, setDocentesInfo] = useState([]);
   const [cargandoDoc, setCargandoDoc] = useState(false);
@@ -1635,6 +1828,16 @@ function PanelForm({
                   : "Agregar bloque"}
               </button>
             </div>
+            {modoEdicion && onEliminar && (
+              <button
+                type="button"
+                onClick={onEliminar}
+                disabled={guardando}
+                style={s.btnEliminarClase}
+              >
+                🗑 Eliminar clase
+              </button>
+            )}
           </form>
         </div>
       </div>
@@ -2344,6 +2547,38 @@ const s = {
     fontWeight: 600,
     fontSize: "0.78rem",
     textAlign: "center",
+  },
+  listadoClases: {
+    marginTop: "1rem",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+    background: "#fff",
+    padding: "0.85rem 1rem",
+  },
+  listadoTh: { padding: "0.45rem 0.6rem", fontWeight: 600, fontSize: "0.75rem" },
+  listadoTd: { padding: "0.45rem 0.6rem", verticalAlign: "middle" },
+  btnListado: {
+    marginLeft: 6,
+    padding: "0.2rem 0.55rem",
+    borderRadius: 6,
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    cursor: "pointer",
+    fontSize: "0.72rem",
+    fontWeight: 600,
+    color: "#374151",
+  },
+  btnEliminarClase: {
+    width: "100%",
+    marginTop: "0.75rem",
+    padding: "0.5rem",
+    borderRadius: 6,
+    border: "1px solid #fecaca",
+    background: "#fff5f5",
+    color: "#991b1b",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontSize: "0.85rem",
   },
   cellBtn: {
     width: 18,
