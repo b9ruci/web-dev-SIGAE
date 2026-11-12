@@ -28,7 +28,7 @@ Video breve en el que la dirección del Colegio Jacques Cousteau presenta el col
 
 | Texto hablado | En pantalla |
 | --- | --- |
-| "Para las notas, las matrículas y las fichas de los estudiantes usamos una plataforma que funciona bien. Pero hay tareas del día a día que quedaban fuera de cualquier sistema." | Secretaría, computador con planillas. |
+| "Hay tareas del día a día que no estaban cubiertas por ningún sistema y que dependían del papel y de mensajes sueltos." | Secretaría, computador con planillas. |
 | "Los horarios de clases se arman a mano, con borradores en papel, revisando uno por uno que no haya topes entre cursos y profesores. Las citaciones con apoderados se coordinan por WhatsApp o por correo, y con tantos mensajes al día, muchas se pierden." | Hojas de horario rayadas, celular con mensajes (difuminado). |
 
 ## 4. Por qué aceptamos el proyecto (≈ 35 s)
@@ -37,7 +37,7 @@ Video breve en el que la dirección del Colegio Jacques Cousteau presenta el col
 | --- | --- |
 | "Ese era nuestro dolor. Armar el horario del año siguiente nos tomaba alrededor de un mes. Incluso probamos un programa de horarios, pero era difícil de usar y había que corregir a mano lo que generaba: terminamos demorándonos el doble." | Calendario, imagen de trabajo manual. |
 | "Saber qué docente está disponible, cuántas horas tiene que cumplir o quién puede reemplazar una clase era siempre una búsqueda contra el tiempo." | |
-| "Por eso, cuando la Universidad Andrés Bello nos propuso ser la institución cliente de su curso de Ingeniería de Software, aceptamos de inmediato: era la oportunidad de tener una herramienta hecha a la medida de nuestras necesidades reales." | Logo UNAB y logo del colegio. |
+| "Por eso, cuando la Universidad Andrés Bello nos propuso ser la institución cliente de su curso de Ingeniería de Software, aceptamos: era la oportunidad de tener una herramienta hecha a la medida de nuestras necesidades reales." | Logo UNAB y logo del colegio. |
 
 ## 5. La solución: SIGAE (≈ 20 s)
 
@@ -50,17 +50,16 @@ Video breve en el que la dirección del Colegio Jacques Cousteau presenta el col
 
 | Texto hablado | En pantalla |
 | --- | --- |
-| "SIGAE se organiza en cuatro módulos." | Menú lateral de SIGAE. |
-| "El primero es **Gestión de Usuarios y Acceso**. Aquí la administración registra a docentes, apoderados y estudiantes, y cada persona entra con su RUT y una contraseña que recibe por correo. Además, permite asociar a cada estudiante con su apoderado titular y sus suplentes." | Gestión de Usuarios; ficha del estudiante con sus apoderados. |
-| "El segundo es **Gestión Académica**. Permite definir los planes educativos de cada nivel con sus asignaturas y horas, y llevar el cierre del año: registrar la situación final de cada estudiante y promoverlo al curso siguiente." | Plan Educativo; Situación Final. |
-| "El tercero es **Horarios**. Al asignar una clase, el sistema impide los topes y respeta la disponibilidad y la carga horaria de cada docente. Y nos entrega el horario maestro de todo el colegio, que podemos exportar a PDF o Excel." | Creador de Horario con la lista de docentes disponibles; Horario Maestro. |
-| "El cuarto es **Citaciones y Comunicación**. Los docentes citan a los apoderados dentro de su horario de atención, y los apoderados pueden confirmar o solicitar una reunión. También incluye mensajería interna entre docentes y apoderados, con avisos de cada novedad." | Citaciones; Mensajes; campana de notificaciones. |
+| "SIGAE se organiza en tres módulos." | Menú lateral de SIGAE. |
+| "El primero es **Gestión de Usuarios y Acceso**. La administración registra las cuentas de docentes y apoderados, que entran con su RUT y una contraseña que reciben por correo, y las fichas de los estudiantes, que se asocian a su apoderado titular y sus suplentes." | Gestión de Usuarios; ficha del estudiante con sus apoderados. |
+| "El segundo es **Gestión Académica y Horarios**. Al asignar una clase, el sistema impide los topes y respeta la disponibilidad y la carga horaria de cada docente, y entrega el horario maestro del colegio, exportable a PDF o Excel. Además, permite llevar el cierre del año: registrar la situación final de cada estudiante y promoverlo al curso siguiente." | Creador de Horario con la lista de docentes disponibles; Horario Maestro; Situación Final. |
+| "El tercero es **Citaciones y Comunicación**. Los docentes citan a los apoderados sin chocar con sus propias clases, y los apoderados pueden confirmar la citación o solicitar una reunión dentro del horario de atención de cada docente. También incluye mensajería interna entre docentes y apoderados, con avisos de cada novedad." | Citaciones; Mensajes; campana de notificaciones. |
 
 ## 7. Cómo se vive en el colegio (≈ 20 s)
 
 | Texto hablado | En pantalla |
 | --- | --- |
-| "En la práctica, la Unidad Técnico-Pedagógica arma los horarios en semanas y no en meses. Los profesores tienen su horario y sus citaciones a mano, y las familias saben cuándo y con quién se van a reunir. Y como dirección, por primera vez tenemos una vista completa y ordenada de todo el colegio." | Docente revisando Mi Horario; apoderado viendo una citación en el celular. |
+| "En la práctica, la Unidad Técnico-Pedagógica arma los horarios con el sistema validando los topes, en lugar de revisarlos a mano. Los profesores tienen su horario y sus citaciones en un solo lugar, y las familias saben cuándo y con quién se van a reunir, con un registro de cada citación." | Docente revisando Mi Horario; apoderado viendo una citación en el celular. |
 
 ## 8. El trabajo de los estudiantes (≈ 25 s)
 
