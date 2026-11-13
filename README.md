@@ -122,6 +122,7 @@ Toda la documentación, salvo este README, está en `docs/`. No agregues archivo
 | [`docs/respaldos-por-correo.md`](docs/respaldos-por-correo.md) | Respaldo diario de la base y copia del Excel del cierre de período enviados por correo a `respaldosigae@colegiojc.cl`: puesta en marcha, filtro de Gmail, copia a Drive y cómo cargar un respaldo. |
 | [`docs/mailer-smtp-produccion.md`](docs/mailer-smtp-produccion.md) | Cómo dejar funcionando el envío de códigos por correo en producción (Google Workspace, SPF/DKIM/DMARC, prueba desde la EC2 y diagnóstico de errores). |
 | [`docs/guion-recorrido-sistema.md`](docs/guion-recorrido-sistema.md) | Guion para presentar SIGAE como Super Administrador: primero en desarrollo (configuración, horarios, cierre de período) y luego en el servidor real (HTTPS y correos reales). |
+| [`docs/guion-recorrido-desarrolladores.md`](docs/guion-recorrido-desarrolladores.md) | Recorrido técnico del equipo: Super Admin por script, expiración del token, respaldo por script y correos reales con la cuenta de respaldos. |
 | [`docs/guion-video-aceptacion.md`](docs/guion-video-aceptacion.md) | Guion del video de aceptación del colegio: presentación, problema, solución por módulos, trabajo del equipo y agradecimientos. |
 | [`docs/decisiones-rf60-rf61-periodos.txt`](docs/decisiones-rf60-rf61-periodos.txt) | Acuerdos del Incremento 4 que van más allá del mockup: profesor jefe, situación final, promoción, períodos lectivos y limpieza de datos. |
 
