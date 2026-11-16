@@ -1,0 +1,216 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Vista de Desarrollo - Componentes" id="componentes-sigae">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1680" pageHeight="1420" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="pkg_clientes" value="Clientes Web: React, Vite y Tailwind CSS" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=290;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1120" height="540" as="geometry" />
+        </mxCell>
+        <mxCell id="c_nucleo" value="Núcleo de la aplicación&#10;AppRouter.jsx&#10;ProtectedRoute.jsx&#10;AuthContext.jsx&#10;MainLayout.jsx&#10;api.js · validaciones.js" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="135" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c_auth" value="Páginas de autenticación&#10;Login.jsx&#10;SelectRole.jsx&#10;ForgotPassword.jsx&#10;ResetPassword.jsx&#10;SessionExpired.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="242" y="135" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c_dash" value="Dashboard.jsx&#10;Reportes.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="424" y="135" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c_users1" value="Páginas de usuarios&#10;Usuarios.jsx · Apoderados.jsx&#10;Perfil.jsx · GestionRoles.jsx&#10;FormEditarUsuario.jsx&#10;RegisterAdmin.jsx&#10;RegisterTeacher.jsx&#10;RegisterGuardian.jsx&#10;RegisterStudent.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="606" y="135" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c_acad1" value="Páginas académicas&#10;Cursos.jsx&#10;Asignaturas.jsx&#10;PlanEducativo.jsx&#10;Horarios.jsx&#10;BloquesHorarios.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="788" y="135" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c_com1" value="Páginas de comunicación&#10;Citaciones.jsx&#10;Mensajes.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="970" y="135" width="170" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="c_acad2" value="Páginas académicas&lt;br&gt;Estudiantes.jsx&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;HorarioMaestro.jsx&amp;nbsp;&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;MiHorario.jsx&amp;nbsp;&lt;/span&gt;" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="300" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c_users2" value="Páginas de usuarios&#10;Administradores.jsx&#10;BuscarUsuarios.jsx&#10;Docentes.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="300" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c_comp2" value="Componentes&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;ExportMenu.jsx&amp;nbsp;&lt;/span&gt;&lt;br&gt;ListaEstudiantesApoderado.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="300" width="270" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="n_sidebar" value="Sidebar.jsx se integró en MainLayout.jsx durante el Incremento 2." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#999999;fontColor=#333333;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="320" width="250" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_pag3" value="Páginas&lt;br&gt;ConsultaHorarios.jsx&lt;br&gt;&lt;span style=&quot;background-color:#FFB300;color:#000000;&quot;&gt;&amp;nbsp;HistorialCitaciones.jsx&amp;nbsp;&lt;/span&gt;" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="425" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c_cit3" value="Componentes de citaciones&#10;FormCitacionModal.jsx&#10;DetalleCitacionModal.jsx&#10;EstadoCitacionBadge.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="425" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c_hor3" value="Componentes de horarios&#10;DetalleBloqueModal.jsx" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="425" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c_util3" value="Utilidades&#10;citaciones.js" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="870" y="425" width="270" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="t_amp" value="Ampliados en el Incremento 3: Horarios.jsx con selección múltiple, suspensión y detalle de bloques; Citaciones.jsx y Mensajes.jsx con la gestión de citaciones y la mensajería; MainLayout.jsx, AppRouter.jsx y api.js con las nuevas rutas y servicios." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="540" width="470" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="actor_usuario" value="Usuario" style="shape=umlActor;verticalLabelPosition=bottom;html=1;verticalAlign=top;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="1265" y="200" width="40" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e_usuario" value="Solicitudes HTTPS/JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=none;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;entryX=1;entryY=0.27;" edge="1" parent="1" source="actor_usuario" target="pkg_clientes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n_docs" value="Documentación técnica del Incremento 2:&#10;Database/HISTORIAL.md&#10;MainLayout.md · BackEnd/.gitignore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="300" width="300" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_servidor" value="Servidor HTTP Express.js" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=200;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="670" width="1260" height="620" as="geometry" />
+        </mxCell>
+        <mxCell id="c_server" value="Servidor HTTP&#10;server.js" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="720" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_logs" value="Registros de&#10;auditoría" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="800" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_tests2" value="Pruebas automatizadas Jest&#10;17 archivos .test.js" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="880" width="200" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_tests3" value="Pruebas automatizadas Jest&#10;6 archivos .test.js:&#10;citaciones · mensajes&#10;edicionMasivaHorarios&#10;consultasHorario&#10;updateUsuario · validaciones" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="970" width="200" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_rutas" value="Enrutador" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=100;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="710" width="420" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="c_rutas1" value="authRoutes.js · usuarioRoutes.js&lt;br&gt;estudianteRoutes.js · &lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;cursoRoutes.js&amp;nbsp;&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;horarioRoutes.js&amp;nbsp;&lt;/span&gt; · &lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;bloquesRoutes.js&amp;nbsp;&lt;/span&gt;&lt;br&gt;dashboardRoutes.js · &lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;planRoutes.js&amp;nbsp;&lt;/span&gt;" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="305" y="750" width="390" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c_rutas3" value="citacionRoutes.js&#10;mensajeRoutes.js" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="305" y="860" width="390" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_middleware" value="Middleware" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=100;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="290" y="980" width="420" height="230" as="geometry" />
+        </mxCell>
+        <mxCell id="c_mw1" value="authMiddleware.js&#10;rateLimiter.js&#10;validation.js" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="305" y="1020" width="390" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="c_mw2" value="uploadFotoPerfil.js&#10;multer" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="305" y="1125" width="390" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_controladores" value="Controladores" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=120;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="740" y="710" width="540" height="440" as="geometry" />
+        </mxCell>
+        <mxCell id="c_ctrl1" value="authController.js&lt;br&gt;usuarioController.js&lt;br&gt;roleController.js&lt;br&gt;passwordController.js&lt;br&gt;estudianteController.js&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;cursoController.js&amp;nbsp;&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;planController.js&amp;nbsp;&lt;/span&gt;&lt;br&gt;dashboardController.js&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;bloquesController.js&amp;nbsp;&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background-color:#60A917;color:#FFFFFF;&quot;&gt;&amp;nbsp;horarioController.js&amp;nbsp;&lt;/span&gt;" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="760" y="750" width="250" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="c_export" value="exportController.js&#10;CU60 a CU62" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="750" width="230" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_libs" value="Librerías de exportación&#10;pdfkit · exceljs · puppeteer" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="840" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_cit" value="citacionController.js&#10;CU74 a CU79" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="760" y="985" width="250" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="c_msg" value="mensajeController.js&#10;CU73" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="985" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="t_hor" value="horarioController.js se amplía en el Incremento 3 con CU63 a CU69: reasignación y edición múltiple, suspensión de bloques, bloques libres, filtros y detalle de bloque." style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="760" y="1070" width="500" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_conexion" value="Conexión Base de Datos&#10;config/db.js · mysql2" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1030" y="1195" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_bd" value="Servidor Base de Datos" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=180;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="980" width="300" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="c_tablas3" value="Tablas citacion, conversacion y mensaje&#10;Dirección estructurada en estudiante" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="1025" width="260" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="c_mysql" value="MySQL&#10;SIGAE.sql" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="1130" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg_backup" value="Cloud Backup GCP" style="shape=folder;fontStyle=1;spacingTop=10;tabWidth=170;tabHeight=18;tabPosition=left;html=1;whiteSpace=wrap;verticalAlign=top;fillColor=#ffffff;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="1260" width="300" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="c_backup" value="Almacenamiento de respaldos&#10;Copias diarias" style="shape=component;jettyWidth=8;jettyHeight=4;html=1;whiteSpace=wrap;align=center;verticalAlign=middle;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="1300" width="260" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cli_srv" value="API REST /api" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=0.15;exitY=1;entryX=0.13;entryY=0;" edge="1" parent="1" source="pkg_clientes" target="pkg_servidor">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mw_rutas" value="&lt;&lt;use&gt;&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" parent="1" source="pkg_middleware" target="pkg_rutas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rutas_ctrl" value="invoca" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="pkg_rutas" target="pkg_controladores">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ctrl_con" value="consulta" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="pkg_controladores" target="c_conexion">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_con_bd" value="Conexión segura SSL/TLS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="c_conexion" target="c_mysql">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_backup" value="Respaldo automático" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=block;startArrow=none;fontSize=10;strokeColor=#000000;fontColor=#000000;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="c_mysql" target="c_backup">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_mw_upload" value="&lt;&lt;use&gt;&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#006EAF;fontColor=#006EAF;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" parent="1" source="c_mw1" target="c_mw2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_exportmenu" value="solicita exportación PDF/Excel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#2D7600;fontColor=#2D7600;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.8;entryX=0.5;entryY=0;dashed=1;" edge="1" parent="1" source="c_comp2" target="c_export">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1185" y="380" />
+              <mxPoint x="1185" y="730" />
+              <mxPoint x="1145" y="730" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_export_libs" value="&lt;&lt;use&gt;&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#2D7600;fontColor=#2D7600;labelBackgroundColor=#FFFFFF;dashed=1;" edge="1" parent="1" source="c_export" target="c_libs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tests2" value="&lt;&lt;test&gt;&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#2D7600;fontColor=#2D7600;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.5;entryX=0;entryY=0.8;dashed=1;" edge="1" parent="1" source="c_tests2" target="pkg_rutas">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tests3" value="&lt;&lt;test&gt;&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#BF360C;fontColor=#BF360C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.3;entryX=0;entryY=0.1;dashed=1;" edge="1" parent="1" source="c_tests3" target="pkg_middleware">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cit_front" value="consume /api/citaciones" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#BF360C;fontColor=#BF360C;labelBackgroundColor=#FFFFFF;exitX=0.9;exitY=1;entryX=0;entryY=0.5;dashed=1;" edge="1" parent="1" source="c_cit3" target="c_cit">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="555" y="645" />
+              <mxPoint x="725" y="645" />
+              <mxPoint x="725" y="1020" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_msg_front" value="consume /api/mensajes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=0;endArrow=open;startArrow=none;fontSize=10;strokeColor=#BF360C;fontColor=#BF360C;labelBackgroundColor=#FFFFFF;exitX=1;exitY=0.18;entryX=1;entryY=0.5;dashed=1;" edge="1" parent="1" source="c_com1" target="c_msg">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1322" y="160" />
+              <mxPoint x="1322" y="1020" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="inc_leg_titulo" value="SIGAE — Diagrama de componentes · Incremento 3" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=16;fontStyle=1;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="5" width="700" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="115" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t1" value="Incremento 1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="110" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="150" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t2" value="Incremento 2" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="145" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="185" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t3" value="Incremento 3" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="180" width="300" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
