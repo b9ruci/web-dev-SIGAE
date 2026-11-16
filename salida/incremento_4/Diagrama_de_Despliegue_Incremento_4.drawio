@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Página-1" id="gsua51SwUVmxQscV2QJG">
+    <mxGraphModel dx="1414" dy="783" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Node1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F8FA;strokeColor=#333333;verticalAlign=top;spacingTop=10;" value="&lt;b&gt;Usuario interno&lt;/b&gt;" vertex="1">
+          <mxGeometry height="240" width="280" x="40" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Node2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F8FA;strokeColor=#333333;verticalAlign=top;spacingTop=10;" value="&lt;b&gt;Usuario externo&lt;/b&gt;" vertex="1">
+          <mxGeometry height="240" width="280" x="40" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="Node3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F8FA;strokeColor=#333333;verticalAlign=top;spacingTop=10;" value="&lt;b&gt;AppServer01&lt;/b&gt;" vertex="1">
+          <mxGeometry height="300" width="300" x="450" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="Node4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F8FA;strokeColor=#333333;verticalAlign=top;spacingTop=10;" value="&lt;b&gt;DBServer01&lt;/b&gt;" vertex="1">
+          <mxGeometry height="240" width="280" x="880" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Node5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F4F8FA;strokeColor=#333333;verticalAlign=top;spacingTop=10;" value="&lt;b&gt;GCP-CloudBackup&lt;/b&gt;" vertex="1">
+          <mxGeometry height="150" width="280" x="880" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="Edge1" edge="1" parent="1" source="Node1" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;strokeColor=#333333;" target="Node3" value="HTTP o HTTPS / Puerto 443&lt;br&gt;vía red local">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Edge2" edge="1" parent="1" source="Node2" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;strokeColor=#333333;" target="Node3" value="HTTPS / Puerto 443&lt;br&gt;vía Internet">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Edge3" edge="1" parent="1" source="Node3" style="endArrow=none;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;strokeColor=#333333;" target="Node4" value="TCP/IP / 3306">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Edge4" edge="1" parent="1" source="Node4" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#333333;" target="Node5" value="HTTPS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N1_Inc1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" value="Aplicación Web Base: React, Vite y Tailwind CSS" vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="N1_Inc2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=10;" value="Vistas Avanzadas: Horarios y Exportación" vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="N1_Inc3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=10;" value="Módulo de Mensajería y Citaciones" vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="N2_Req" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" value="Requisitos: conexión a internet, navegador compatible: Google Chrome, Microsoft Edge o Mozilla Firefox." vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="420" as="geometry" />
+        </mxCell>
+        <mxCell id="N2_Inc1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" value="Aplicación Web Base: React, Vite y Tailwind CSS" vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="N2_Inc2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=10;" value="Vistas Avanzadas: Horarios y Exportación" vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="500" as="geometry" />
+        </mxCell>
+        <mxCell id="N2_Inc3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=10;" value="Módulo de Mensajería y Citaciones" vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="540" as="geometry" />
+        </mxCell>
+        <mxCell id="N3_Inc1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" value="Node.js runtime / Backend API REST Base" vertex="1">
+          <mxGeometry height="40" width="280" x="460" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="N3_Inc2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=10;" value="Librerías de Exportación: pdfkit, exceljs y puppeteer" vertex="1">
+          <mxGeometry height="40" width="280" x="460" y="380" as="geometry" />
+        </mxCell>
+        <mxCell id="N3_Inc3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=10;" value="Controladores de Citaciones y Mensajería" vertex="1">
+          <mxGeometry height="40" width="280" x="460" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="N4_Req" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" value="Requisitos: CPU Intel i5 / Ryzen 5 o superior, RAM 16 GB, almacenamiento SSD 500 GB, red Ethernet Gigabit, sistema operativo Windows Server o Windows 10/11 Pro." vertex="1">
+          <mxGeometry height="40" width="260" x="890" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="N4_Inc1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" value="Motor MySQL / Tablas Base de Usuarios y Cursos" vertex="1">
+          <mxGeometry height="30" width="260" x="890" y="160" as="geometry" />
+        </mxCell>
+        <mxCell id="N4_Inc2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;fontSize=10;" value="Tablas de Horarios y Eventos Institucionales" vertex="1">
+          <mxGeometry height="30" width="260" x="890" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="N4_Inc3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;fontSize=10;" value="Tablas: Citación, Conversación y Mensaje" vertex="1">
+          <mxGeometry height="30" width="260" x="890" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="N5_Req" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" value="Requisitos: Conexión estable a internet desde el servidor de base de datos hacia GCP." vertex="1">
+          <mxGeometry height="30" width="260" x="890" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="N5_Inc1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;fontSize=10;" value="Google Cloud Storage: almacenamiento de respaldos" vertex="1">
+          <mxGeometry height="40" width="260" x="890" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="FtXApXeNwDsg4664R6b8-1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" value="Requisitos: conexión a internet, navegador compatible: Google Chrome, Microsoft Edge o Mozilla Firefox." vertex="1">
+          <mxGeometry height="30" width="260" x="50" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="FtXApXeNwDsg4664R6b8-2" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" value="Requisitos: CPU Intel i5 / Ryzen 5 o superior, RAM 16 GB, almacenamiento SSD 500 GB, red Ethernet Gigabit, sistema operativo Windows Server o Windows 10/11 Pro." vertex="1">
+          <mxGeometry height="40" width="280" x="460" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_titulo" value="Diagrama de despliegue · Incremento 4" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=16;fontStyle=1;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="450" y="10" width="600" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1BA1E2;strokeColor=#006EAF;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="450" y="50" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t1" value="Incremento 1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="480" y="45" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#60A917;strokeColor=#2D7600;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="450" y="85" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t2" value="Incremento 2" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="480" y="80" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFB300;strokeColor=#BF360C;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="450" y="120" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t3" value="Incremento 3" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="480" y="115" width="300" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F48FB1;strokeColor=#4A148C;fontColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="450" y="155" width="20" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="inc_leg_t4" value="Incremento 4" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;strokeColor=none;fillColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="480" y="150" width="300" height="30" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
