@@ -114,6 +114,7 @@ Toda la documentación, salvo este README, está en `docs/`. No agregues archivo
 
 | Archivo | Para qué sirve |
 | --- | --- |
+| [`docs/c4-model.md`](docs/c4-model.md) | Arquitectura de SIGAE con el modelo C4: contexto, contenedores, componentes del backend y del frontend, y despliegue de producción (diagramas Mermaid). |
 | [`docs/api-citaciones.md`](docs/api-citaciones.md) | Contrato entre frontend y backend del módulo de citaciones (CU74–CU79): endpoints, formato de respuestas y permisos. |
 | [`docs/navegacion-sidebar.md`](docs/navegacion-sidebar.md) | Cómo funciona el sidebar (`MainLayout.jsx`), reglas para agregar enlaces y pendientes conocidos. |
 | [`docs/tabla-historial.md`](docs/tabla-historial.md) | Estado de la tabla de auditoría `historial` y cómo se escriben sus valores. |
